@@ -1,0 +1,29 @@
+#!/bin/bash
+
+set -o errexit    # always exit on error
+set -o pipefail   # don't ignore exit codes when piping output
+
+echo "-----> Running post-frontend script"
+
+# Move the Vite build to the app root (bin/scalingo_run_web serves it from
+# there) and the backend sources next to it.
+mkdir -p build/
+mv src/frontend/dist build/frontend-out
+
+mv src/backend/* ./
+
+# Download Caddy binary with checksum verification
+CADDY_VERSION="2.11.4"
+CADDY_SHA256="527fbf917c39189a1e3b31d34fa955601680b2d5c8055d2a87b8b9588dec7bb9"
+CADDY_TAR="/tmp/caddy.tar.gz"
+curl -fsSL -o "$CADDY_TAR" \
+  "https://github.com/caddyserver/caddy/releases/download/v${CADDY_VERSION}/caddy_${CADDY_VERSION}_linux_amd64.tar.gz"
+echo "${CADDY_SHA256}  ${CADDY_TAR}" | sha256sum -c -
+tar -xz -C bin/ caddy < "$CADDY_TAR"
+rm "$CADDY_TAR"
+chmod +x bin/caddy
+
+# Copy Caddyfile (uses {$ENV} vars natively, no ERB needed)
+cp src/frontend/caddy/Caddyfile ./Caddyfile
+
+echo "3.14" > .python-version

@@ -1,0 +1,23 @@
+
+# System-specific files
+.DS_Store
+**/.DS_Store
+
+# Docs
+*.md
+*.log
+
+# Development/test cache & configurations
+.cache
+.coverage
+.git
+.vscode
+.iml
+.idea
+
+# Frontend
+node_modules
+dist
+bundle-stats.html
+src/routes.gen.ts
+tsconfig.tsbuildinfo

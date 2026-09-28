@@ -1,0 +1,3440 @@
+{
+    "openapi": "3.0.3",
+    "info": {
+        "title": "contacts API",
+        "version": "1.0.0 (v1.0)",
+        "description": "This is the contacts API schema."
+    },
+    "paths": {
+        "/api/v1.0/channels/": {
+            "get": {
+                "operationId": "channels_list",
+                "description": "List the current user's channels.",
+                "tags": [
+                    "channels"
+                ],
+                "security": [
+                    {
+                        "oidcAuth": []
+                    },
+                    {
+                        "channelId": [],
+                        "channelApiKey": []
+                    },
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/Channel"
+                                    }
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "post": {
+                "operationId": "channels_create",
+                "description": "Create a new user-scoped channel and return the API key (once).",
+                "tags": [
+                    "channels"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ChannelCreateRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "oidcAuth": []
+                    },
+                    {
+                        "channelId": [],
+                        "channelApiKey": []
+                    },
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ChannelWithKey"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1.0/channels/{id}/": {
+            "get": {
+                "operationId": "channels_retrieve",
+                "description": "Retrieve a channel (without API key).",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "description": "primary key for the record as UUID"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "channels"
+                ],
+                "security": [
+                    {
+                        "oidcAuth": []
+                    },
+                    {
+                        "channelId": [],
+                        "channelApiKey": []
+                    },
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Channel"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "patch": {
+                "operationId": "channels_partial_update",
+                "description": "Update mutable channel fields (name, is_active, scopes).",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "description": "primary key for the record as UUID"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "channels"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedChannelUpdateRequest"
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "oidcAuth": []
+                    },
+                    {
+                        "channelId": [],
+                        "channelApiKey": []
+                    },
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Channel"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "channels_destroy",
+                "description": "Delete a channel.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "description": "primary key for the record as UUID"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "channels"
+                ],
+                "security": [
+                    {
+                        "oidcAuth": []
+                    },
+                    {
+                        "channelId": [],
+                        "channelApiKey": []
+                    },
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No response body"
+                    }
+                }
+            }
+        },
+        "/api/v1.0/channels/{id}/regenerate-api-key/": {
+            "post": {
+                "operationId": "channels_regenerate_api_key_create",
+                "description": "Replace the channel's API key with a fresh one; old keys stop working.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "description": "primary key for the record as UUID"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "channels"
+                ],
+                "security": [
+                    {
+                        "oidcAuth": []
+                    },
+                    {
+                        "channelId": [],
+                        "channelApiKey": []
+                    },
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ChannelWithKey"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1.0/config/": {
+            "get": {
+                "operationId": "config_retrieve",
+                "description": "GET /api/v1.0/config/\n    Return a dictionary of public settings.",
+                "tags": [
+                    "config"
+                ],
+                "security": [
+                    {
+                        "oidcAuth": []
+                    },
+                    {
+                        "channelId": [],
+                        "channelApiKey": []
+                    },
+                    {
+                        "cookieAuth": []
+                    },
+                    {}
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Config"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1.0/contacts/": {
+            "get": {
+                "operationId": "contacts_list",
+                "description": "CRUD for contacts: the user's own, and their organization's.\n\nVisible rows are the acting user's personal contacts plus their\norganization's shared ones (see ``Contact.objects.visible_to``). Who\nmay write a row is ``Contact.is_writable``: its owner, or for an\norganization contact the organization's administrators.\n\nRead endpoints also accept Suite service channels (X-Channel-Id +\nX-API-Key headers) holding the ``contacts:read`` scope, acting on\nbehalf of a user (``on_behalf_of`` parameter). Channels never see the\ncorbeille.",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "favorites",
+                        "schema": {
+                            "type": "boolean"
+                        },
+                        "description": "Only favorites."
+                    },
+                    {
+                        "in": "query",
+                        "name": "group",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Filter by group id."
+                    },
+                    {
+                        "in": "query",
+                        "name": "label",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Filter by label id."
+                    },
+                    {
+                        "name": "page",
+                        "required": false,
+                        "in": "query",
+                        "description": "A page number within the paginated result set.",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "page_size",
+                        "required": false,
+                        "in": "query",
+                        "description": "Number of results to return per page.",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "q",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Search text (name, email, org)."
+                    },
+                    {
+                        "in": "query",
+                        "name": "sort",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "asc",
+                                "desc"
+                            ]
+                        },
+                        "description": "Alphabetical direction (default asc)."
+                    },
+                    {
+                        "in": "query",
+                        "name": "trash",
+                        "schema": {
+                            "type": "boolean"
+                        },
+                        "description": "List the corbeille instead."
+                    }
+                ],
+                "tags": [
+                    "contacts"
+                ],
+                "security": [
+                    {
+                        "oidcAuth": []
+                    },
+                    {
+                        "channelId": [],
+                        "channelApiKey": []
+                    },
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PaginatedContactListList"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "post": {
+                "operationId": "contacts_create",
+                "description": "CRUD for contacts: the user's own, and their organization's.\n\nVisible rows are the acting user's personal contacts plus their\norganization's shared ones (see ``Contact.objects.visible_to``). Who\nmay write a row is ``Contact.is_writable``: its owner, or for an\norganization contact the organization's administrators.\n\nRead endpoints also accept Suite service channels (X-Channel-Id +\nX-API-Key headers) holding the ``contacts:read`` scope, acting on\nbehalf of a user (``on_behalf_of`` parameter). Channels never see the\ncorbeille.",
+                "tags": [
+                    "contacts"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ContactRequest"
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "oidcAuth": []
+                    },
+                    {
+                        "channelId": [],
+                        "channelApiKey": []
+                    },
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Contact"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1.0/contacts/{id}/": {
+            "get": {
+                "operationId": "contacts_retrieve",
+                "description": "CRUD for contacts: the user's own, and their organization's.\n\nVisible rows are the acting user's personal contacts plus their\norganization's shared ones (see ``Contact.objects.visible_to``). Who\nmay write a row is ``Contact.is_writable``: its owner, or for an\norganization contact the organization's administrators.\n\nRead endpoints also accept Suite service channels (X-Channel-Id +\nX-API-Key headers) holding the ``contacts:read`` scope, acting on\nbehalf of a user (``on_behalf_of`` parameter). Channels never see the\ncorbeille.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "description": "primary key for the record as UUID"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "contacts"
+                ],
+                "security": [
+                    {
+                        "oidcAuth": []
+                    },
+                    {
+                        "channelId": [],
+                        "channelApiKey": []
+                    },
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Contact"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "put": {
+                "operationId": "contacts_update",
+                "description": "CRUD for contacts: the user's own, and their organization's.\n\nVisible rows are the acting user's personal contacts plus their\norganization's shared ones (see ``Contact.objects.visible_to``). Who\nmay write a row is ``Contact.is_writable``: its owner, or for an\norganization contact the organization's administrators.\n\nRead endpoints also accept Suite service channels (X-Channel-Id +\nX-API-Key headers) holding the ``contacts:read`` scope, acting on\nbehalf of a user (``on_behalf_of`` parameter). Channels never see the\ncorbeille.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "description": "primary key for the record as UUID"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "contacts"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ContactRequest"
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "oidcAuth": []
+                    },
+                    {
+                        "channelId": [],
+                        "channelApiKey": []
+                    },
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Contact"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "patch": {
+                "operationId": "contacts_partial_update",
+                "description": "CRUD for contacts: the user's own, and their organization's.\n\nVisible rows are the acting user's personal contacts plus their\norganization's shared ones (see ``Contact.objects.visible_to``). Who\nmay write a row is ``Contact.is_writable``: its owner, or for an\norganization contact the organization's administrators.\n\nRead endpoints also accept Suite service channels (X-Channel-Id +\nX-API-Key headers) holding the ``contacts:read`` scope, acting on\nbehalf of a user (``on_behalf_of`` parameter). Channels never see the\ncorbeille.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "description": "primary key for the record as UUID"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "contacts"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedContactRequest"
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "oidcAuth": []
+                    },
+                    {
+                        "channelId": [],
+                        "channelApiKey": []
+                    },
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Contact"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "contacts_destroy",
+                "description": "CRUD for contacts: the user's own, and their organization's.\n\nVisible rows are the acting user's personal contacts plus their\norganization's shared ones (see ``Contact.objects.visible_to``). Who\nmay write a row is ``Contact.is_writable``: its owner, or for an\norganization contact the organization's administrators.\n\nRead endpoints also accept Suite service channels (X-Channel-Id +\nX-API-Key headers) holding the ``contacts:read`` scope, acting on\nbehalf of a user (``on_behalf_of`` parameter). Channels never see the\ncorbeille.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "description": "primary key for the record as UUID"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "contacts"
+                ],
+                "security": [
+                    {
+                        "oidcAuth": []
+                    },
+                    {
+                        "channelId": [],
+                        "channelApiKey": []
+                    },
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No response body"
+                    }
+                }
+            }
+        },
+        "/api/v1.0/contacts/{id}/favorite/": {
+            "post": {
+                "operationId": "contacts_favorite_create",
+                "description": "Star (POST) or unstar (DELETE) the contact for the acting user.\n\nAllowed on read-only contacts: the star is per user. An overlay's\nstar is stored on its parent, so reverting the overlay keeps it.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "description": "primary key for the record as UUID"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "contacts"
+                ],
+                "security": [
+                    {
+                        "oidcAuth": []
+                    },
+                    {
+                        "channelId": [],
+                        "channelApiKey": []
+                    },
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No response body"
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "contacts_favorite_destroy",
+                "description": "Star (POST) or unstar (DELETE) the contact for the acting user.\n\nAllowed on read-only contacts: the star is per user. An overlay's\nstar is stored on its parent, so reverting the overlay keeps it.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "description": "primary key for the record as UUID"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "contacts"
+                ],
+                "security": [
+                    {
+                        "oidcAuth": []
+                    },
+                    {
+                        "channelId": [],
+                        "channelApiKey": []
+                    },
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No response body"
+                    }
+                }
+            }
+        },
+        "/api/v1.0/contacts/{id}/fork/": {
+            "post": {
+                "operationId": "contacts_fork_create",
+                "description": "Create (or return) the acting user's local overlay of a contact.\n\nForking a read-only contact (org-directory or synced) yields a\npersonal, editable overlay merged on top of it: the user can rename\nor change fields locally while untouched fields keep tracking the\nsource. Returns the existing overlay if there is one.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "description": "primary key for the record as UUID"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "contacts"
+                ],
+                "security": [
+                    {
+                        "oidcAuth": []
+                    },
+                    {
+                        "channelId": [],
+                        "channelApiKey": []
+                    },
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Contact"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1.0/contacts/{id}/restore/": {
+            "post": {
+                "operationId": "contacts_restore_create",
+                "description": "Restore a contact from the corbeille.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "description": "primary key for the record as UUID"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "contacts"
+                ],
+                "security": [
+                    {
+                        "oidcAuth": []
+                    },
+                    {
+                        "channelId": [],
+                        "channelApiKey": []
+                    },
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Contact"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1.0/contacts/{id}/share/": {
+            "post": {
+                "operationId": "contacts_share_create",
+                "description": "Copy one of the user's contacts into the organization's address book.\n\nAdministrators only. See ``Contact.share_with_organization``: notes\nand labels stay private, and the user's contact either goes or\nremains as a local copy holding them. Returns the shared contact.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "description": "primary key for the record as UUID"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "contacts"
+                ],
+                "security": [
+                    {
+                        "oidcAuth": []
+                    },
+                    {
+                        "channelId": [],
+                        "channelApiKey": []
+                    },
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Contact"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1.0/contacts/export-csv/": {
+            "get": {
+                "operationId": "contacts_export_csv_retrieve",
+                "description": "Export the user's personal contacts as a CSV file.",
+                "tags": [
+                    "contacts"
+                ],
+                "security": [
+                    {
+                        "oidcAuth": []
+                    },
+                    {
+                        "channelId": [],
+                        "channelApiKey": []
+                    },
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Contact"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1.0/contacts/export-vcf/": {
+            "get": {
+                "operationId": "contacts_export_vcf_retrieve",
+                "description": "Export the user's personal contacts as a vCard (.vcf) file.",
+                "tags": [
+                    "contacts"
+                ],
+                "security": [
+                    {
+                        "oidcAuth": []
+                    },
+                    {
+                        "channelId": [],
+                        "channelApiKey": []
+                    },
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Contact"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1.0/contacts/import-csv/": {
+            "post": {
+                "operationId": "contacts_import_csv_create",
+                "description": "Import contacts from a CSV file (see docs for the column model).\n\nPOST /api/v1.0/contacts/import-csv/  (multipart: file=<csv>)",
+                "tags": [
+                    "contacts"
+                ],
+                "requestBody": {
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/FileUploadRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "oidcAuth": []
+                    },
+                    {
+                        "channelId": [],
+                        "channelApiKey": []
+                    },
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TaskQueued"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1.0/contacts/import-vcf/": {
+            "post": {
+                "operationId": "contacts_import_vcf_create",
+                "description": "Import contacts from a vCard (.vcf) file.\n\nPOST /api/v1.0/contacts/import-vcf/  (multipart: file=<vcf>)\n\nReturns a task_id to poll at GET /api/v1.0/tasks/{task_id}/.",
+                "tags": [
+                    "contacts"
+                ],
+                "requestBody": {
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/FileUploadRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "oidcAuth": []
+                    },
+                    {
+                        "channelId": [],
+                        "channelApiKey": []
+                    },
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TaskQueued"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1.0/groups/": {
+            "get": {
+                "operationId": "groups_list",
+                "description": "CRUD for contact groups + membership management.\n\nGroups follow the same visibility rules as contacts: personal groups\nplus org-wide groups (owner NULL), which only the organization's\nadministrators may create and edit (see ``ContactGroup.is_writable``).",
+                "tags": [
+                    "groups"
+                ],
+                "security": [
+                    {
+                        "oidcAuth": []
+                    },
+                    {
+                        "channelId": [],
+                        "channelApiKey": []
+                    },
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/ContactGroup"
+                                    }
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "post": {
+                "operationId": "groups_create",
+                "description": "CRUD for contact groups + membership management.\n\nGroups follow the same visibility rules as contacts: personal groups\nplus org-wide groups (owner NULL), which only the organization's\nadministrators may create and edit (see ``ContactGroup.is_writable``).",
+                "tags": [
+                    "groups"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ContactGroupRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "oidcAuth": []
+                    },
+                    {
+                        "channelId": [],
+                        "channelApiKey": []
+                    },
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ContactGroup"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1.0/groups/{id}/": {
+            "get": {
+                "operationId": "groups_retrieve",
+                "description": "CRUD for contact groups + membership management.\n\nGroups follow the same visibility rules as contacts: personal groups\nplus org-wide groups (owner NULL), which only the organization's\nadministrators may create and edit (see ``ContactGroup.is_writable``).",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "description": "primary key for the record as UUID"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "groups"
+                ],
+                "security": [
+                    {
+                        "oidcAuth": []
+                    },
+                    {
+                        "channelId": [],
+                        "channelApiKey": []
+                    },
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ContactGroup"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "put": {
+                "operationId": "groups_update",
+                "description": "CRUD for contact groups + membership management.\n\nGroups follow the same visibility rules as contacts: personal groups\nplus org-wide groups (owner NULL), which only the organization's\nadministrators may create and edit (see ``ContactGroup.is_writable``).",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "description": "primary key for the record as UUID"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "groups"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ContactGroupRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "oidcAuth": []
+                    },
+                    {
+                        "channelId": [],
+                        "channelApiKey": []
+                    },
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ContactGroup"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "patch": {
+                "operationId": "groups_partial_update",
+                "description": "CRUD for contact groups + membership management.\n\nGroups follow the same visibility rules as contacts: personal groups\nplus org-wide groups (owner NULL), which only the organization's\nadministrators may create and edit (see ``ContactGroup.is_writable``).",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "description": "primary key for the record as UUID"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "groups"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedContactGroupRequest"
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "oidcAuth": []
+                    },
+                    {
+                        "channelId": [],
+                        "channelApiKey": []
+                    },
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ContactGroup"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "groups_destroy",
+                "description": "CRUD for contact groups + membership management.\n\nGroups follow the same visibility rules as contacts: personal groups\nplus org-wide groups (owner NULL), which only the organization's\nadministrators may create and edit (see ``ContactGroup.is_writable``).",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "description": "primary key for the record as UUID"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "groups"
+                ],
+                "security": [
+                    {
+                        "oidcAuth": []
+                    },
+                    {
+                        "channelId": [],
+                        "channelApiKey": []
+                    },
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No response body"
+                    }
+                }
+            }
+        },
+        "/api/v1.0/groups/{id}/add-contact/": {
+            "post": {
+                "operationId": "groups_add_contact_create",
+                "description": "Add a contact to the group. Body: {\"contact_id\": <uuid>}.\n\nAn overlay is added through its parent, the canonical row. A shared\ngroup only takes contacts the whole organization sees: a personal\ncontact would be an invisible member to everyone else.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "description": "primary key for the record as UUID"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "groups"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/GroupMemberRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "oidcAuth": []
+                    },
+                    {
+                        "channelId": [],
+                        "channelApiKey": []
+                    },
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No response body"
+                    }
+                }
+            }
+        },
+        "/api/v1.0/groups/{id}/contacts/": {
+            "get": {
+                "operationId": "groups_contacts_list",
+                "description": "List the contacts belonging to this group.\n\nMembers the acting user has overlaid are represented by their\noverlay (merged), matching the main list's \"one entry\" rule. Only\nmembers the user may see (own rows, org-wide rows) are listed: a\nprovisioned org-wide group may hold other users' personal rows.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "description": "primary key for the record as UUID"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "groups"
+                ],
+                "security": [
+                    {
+                        "oidcAuth": []
+                    },
+                    {
+                        "channelId": [],
+                        "channelApiKey": []
+                    },
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/ContactList"
+                                    }
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1.0/groups/{id}/favorite/": {
+            "post": {
+                "operationId": "groups_favorite_create",
+                "description": "Star (POST) or unstar (DELETE) the group for the acting user.\n\nAllowed on read-only groups too: the star is per user, not a\nchange to the shared row.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "description": "primary key for the record as UUID"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "groups"
+                ],
+                "security": [
+                    {
+                        "oidcAuth": []
+                    },
+                    {
+                        "channelId": [],
+                        "channelApiKey": []
+                    },
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No response body"
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "groups_favorite_destroy",
+                "description": "Star (POST) or unstar (DELETE) the group for the acting user.\n\nAllowed on read-only groups too: the star is per user, not a\nchange to the shared row.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "description": "primary key for the record as UUID"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "groups"
+                ],
+                "security": [
+                    {
+                        "oidcAuth": []
+                    },
+                    {
+                        "channelId": [],
+                        "channelApiKey": []
+                    },
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No response body"
+                    }
+                }
+            }
+        },
+        "/api/v1.0/groups/{id}/remove-contact/": {
+            "post": {
+                "operationId": "groups_remove_contact_create",
+                "description": "Remove a contact from the group. Body: {\"contact_id\": <uuid>}.\n\nGiven an overlay, removes its parent's membership and its own.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "description": "primary key for the record as UUID"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "groups"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/GroupMemberRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "oidcAuth": []
+                    },
+                    {
+                        "channelId": [],
+                        "channelApiKey": []
+                    },
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No response body"
+                    }
+                }
+            }
+        },
+        "/api/v1.0/labels/": {
+            "get": {
+                "operationId": "labels_list",
+                "description": "CRUD for the user's labels (libellés).\n\nThe predefined set (DEFAULT_LABELS) is seeded when the user is created;\nusers manage their own labels freely.",
+                "tags": [
+                    "labels"
+                ],
+                "security": [
+                    {
+                        "oidcAuth": []
+                    },
+                    {
+                        "channelId": [],
+                        "channelApiKey": []
+                    },
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/ContactLabel"
+                                    }
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "post": {
+                "operationId": "labels_create",
+                "description": "CRUD for the user's labels (libellés).\n\nThe predefined set (DEFAULT_LABELS) is seeded when the user is created;\nusers manage their own labels freely.",
+                "tags": [
+                    "labels"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ContactLabelRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "oidcAuth": []
+                    },
+                    {
+                        "channelId": [],
+                        "channelApiKey": []
+                    },
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ContactLabel"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1.0/labels/{id}/": {
+            "get": {
+                "operationId": "labels_retrieve",
+                "description": "CRUD for the user's labels (libellés).\n\nThe predefined set (DEFAULT_LABELS) is seeded when the user is created;\nusers manage their own labels freely.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "description": "primary key for the record as UUID"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "labels"
+                ],
+                "security": [
+                    {
+                        "oidcAuth": []
+                    },
+                    {
+                        "channelId": [],
+                        "channelApiKey": []
+                    },
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ContactLabel"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "put": {
+                "operationId": "labels_update",
+                "description": "CRUD for the user's labels (libellés).\n\nThe predefined set (DEFAULT_LABELS) is seeded when the user is created;\nusers manage their own labels freely.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "description": "primary key for the record as UUID"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "labels"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ContactLabelRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "oidcAuth": []
+                    },
+                    {
+                        "channelId": [],
+                        "channelApiKey": []
+                    },
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ContactLabel"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "patch": {
+                "operationId": "labels_partial_update",
+                "description": "CRUD for the user's labels (libellés).\n\nThe predefined set (DEFAULT_LABELS) is seeded when the user is created;\nusers manage their own labels freely.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "description": "primary key for the record as UUID"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "labels"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedContactLabelRequest"
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "oidcAuth": []
+                    },
+                    {
+                        "channelId": [],
+                        "channelApiKey": []
+                    },
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ContactLabel"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "labels_destroy",
+                "description": "CRUD for the user's labels (libellés).\n\nThe predefined set (DEFAULT_LABELS) is seeded when the user is created;\nusers manage their own labels freely.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "description": "primary key for the record as UUID"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "labels"
+                ],
+                "security": [
+                    {
+                        "oidcAuth": []
+                    },
+                    {
+                        "channelId": [],
+                        "channelApiKey": []
+                    },
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No response body"
+                    }
+                }
+            }
+        },
+        "/api/v1.0/tasks/{task_id}/": {
+            "get": {
+                "operationId": "tasks_retrieve",
+                "description": "Get the status of a task.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "task_id",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "tasks"
+                ],
+                "security": [
+                    {
+                        "oidcAuth": []
+                    },
+                    {
+                        "channelId": [],
+                        "channelApiKey": []
+                    },
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TaskStatus"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TaskStatus"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "503": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TaskStatus"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1.0/users/{id}/": {
+            "put": {
+                "operationId": "users_update",
+                "description": "User ViewSet: the current user's profile only.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "description": "primary key for the record as UUID"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "users"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UserRequest"
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "oidcAuth": []
+                    },
+                    {
+                        "channelId": [],
+                        "channelApiKey": []
+                    },
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/User"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "patch": {
+                "operationId": "users_partial_update",
+                "description": "User ViewSet: the current user's profile only.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "description": "primary key for the record as UUID"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "users"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedUserRequest"
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "oidcAuth": []
+                    },
+                    {
+                        "channelId": [],
+                        "channelApiKey": []
+                    },
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/User"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1.0/users/me/": {
+            "get": {
+                "operationId": "users_me_retrieve",
+                "description": "Return information on currently logged user",
+                "tags": [
+                    "users"
+                ],
+                "security": [
+                    {
+                        "oidcAuth": []
+                    },
+                    {
+                        "channelId": [],
+                        "channelApiKey": []
+                    },
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UserMe"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        }
+    },
+    "components": {
+        "schemas": {
+            "Channel": {
+                "type": "object",
+                "description": "Read serializer for Channel model.",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "readOnly": true,
+                        "description": "primary key for the record as UUID"
+                    },
+                    "name": {
+                        "type": "string",
+                        "readOnly": true,
+                        "description": "Human-readable name for this channel."
+                    },
+                    "type": {
+                        "type": "string",
+                        "readOnly": true,
+                        "description": "Type of channel: api_key (REST) or carddav."
+                    },
+                    "scope_level": {
+                        "type": "string",
+                        "readOnly": true,
+                        "description": "Access scope: global (instance-wide), organization, or user."
+                    },
+                    "organization": {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Target organization (scope_level=organization); the user's organization for scope_level=user; empty for global channels.",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "user": {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Target user, set only for scope_level=user.",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "scopes": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "description": "Get scopes from settings.",
+                        "readOnly": true
+                    },
+                    "groups": {
+                        "type": "boolean",
+                        "description": "Whether a carddav channel also syncs the groups.",
+                        "readOnly": true
+                    },
+                    "is_active": {
+                        "type": "boolean",
+                        "readOnly": true
+                    },
+                    "settings": {
+                        "readOnly": true,
+                        "description": "Channel-specific configuration settings (e.g. scopes)."
+                    },
+                    "last_used_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true,
+                        "title": "Created on",
+                        "description": "date and time at which a record was created"
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true,
+                        "title": "Updated on",
+                        "description": "date and time at which a record was last updated"
+                    }
+                },
+                "required": [
+                    "created_at",
+                    "groups",
+                    "id",
+                    "is_active",
+                    "last_used_at",
+                    "name",
+                    "organization",
+                    "scope_level",
+                    "scopes",
+                    "settings",
+                    "type",
+                    "updated_at",
+                    "user"
+                ]
+            },
+            "ChannelCreateRequest": {
+                "type": "object",
+                "description": "Write serializer for creating a Channel.",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 255
+                    },
+                    "type": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/TypeEnum"
+                            }
+                        ],
+                        "default": "api_key"
+                    },
+                    "scope_level": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ScopeLevelEnum"
+                            }
+                        ],
+                        "default": "user"
+                    },
+                    "scopes": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ScopesEnum"
+                        }
+                    },
+                    "groups": {
+                        "type": "boolean",
+                        "default": false,
+                        "description": "carddav only, fixed at creation: also sync the groups, as group cards (iPhone, Mac, DAVx5 set to groups as separate vCards)."
+                    }
+                },
+                "required": [
+                    "name",
+                    "scopes"
+                ]
+            },
+            "ChannelWithKey": {
+                "type": "object",
+                "description": "Serializer that includes the plaintext API key (only on creation).",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "readOnly": true,
+                        "description": "primary key for the record as UUID"
+                    },
+                    "name": {
+                        "type": "string",
+                        "readOnly": true,
+                        "description": "Human-readable name for this channel."
+                    },
+                    "type": {
+                        "type": "string",
+                        "readOnly": true,
+                        "description": "Type of channel: api_key (REST) or carddav."
+                    },
+                    "scope_level": {
+                        "type": "string",
+                        "readOnly": true,
+                        "description": "Access scope: global (instance-wide), organization, or user."
+                    },
+                    "organization": {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Target organization (scope_level=organization); the user's organization for scope_level=user; empty for global channels.",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "user": {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Target user, set only for scope_level=user.",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "scopes": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "description": "Get scopes from settings.",
+                        "readOnly": true
+                    },
+                    "groups": {
+                        "type": "boolean",
+                        "description": "Whether a carddav channel also syncs the groups.",
+                        "readOnly": true
+                    },
+                    "is_active": {
+                        "type": "boolean",
+                        "readOnly": true
+                    },
+                    "settings": {
+                        "readOnly": true,
+                        "description": "Channel-specific configuration settings (e.g. scopes)."
+                    },
+                    "last_used_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true,
+                        "title": "Created on",
+                        "description": "date and time at which a record was created"
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true,
+                        "title": "Updated on",
+                        "description": "date and time at which a record was last updated"
+                    },
+                    "api_key": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "carddav_password": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "The ready-to-paste Basic Auth password; null for REST channels.",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "api_key",
+                    "carddav_password",
+                    "created_at",
+                    "groups",
+                    "id",
+                    "is_active",
+                    "last_used_at",
+                    "name",
+                    "organization",
+                    "scope_level",
+                    "scopes",
+                    "settings",
+                    "type",
+                    "updated_at",
+                    "user"
+                ]
+            },
+            "CivilityEnum": {
+                "enum": [
+                    "mr",
+                    "mrs"
+                ],
+                "type": "string",
+                "description": "* `mr` - M.\n* `mrs` - Mme\n* `` - Ne pas préciser"
+            },
+            "Config": {
+                "type": "object",
+                "description": "Public settings served to the frontend by ``GET /config/``.",
+                "properties": {
+                    "FRONTEND_THEME": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "FRONTEND_MORE_LINK": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "FRONTEND_TERMS_OF_SERVICE_URL": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "FRONTEND_FEEDBACK_BUTTON_SHOW": {
+                        "type": "boolean"
+                    },
+                    "FRONTEND_FEEDBACK_BUTTON_IDLE": {
+                        "type": "boolean"
+                    },
+                    "FRONTEND_FEEDBACK_ITEMS": {
+                        "type": "object",
+                        "additionalProperties": {}
+                    },
+                    "FRONTEND_FEEDBACK_MESSAGES_WIDGET_ENABLED": {
+                        "type": "boolean"
+                    },
+                    "FRONTEND_FEEDBACK_MESSAGES_WIDGET_API_URL": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "FRONTEND_FEEDBACK_MESSAGES_WIDGET_CHANNEL": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "FRONTEND_FEEDBACK_MESSAGES_WIDGET_PATH": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "FRONTEND_LAGAUFRE_ENABLED": {
+                        "type": "boolean"
+                    },
+                    "FRONTEND_LAGAUFRE_WIDGET_PATH": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "FRONTEND_LAGAUFRE_WIDGET_API_URL": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "FRONTEND_MESSAGES_COMPOSE_URL": {
+                        "type": "string"
+                    },
+                    "TRASHBIN_CUTOFF_DAYS": {
+                        "type": "integer"
+                    },
+                    "FEATURE_CARDDAV": {
+                        "type": "boolean"
+                    },
+                    "LANGUAGES": {
+                        "type": "array",
+                        "items": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "LANGUAGE_CODE": {
+                        "type": "string"
+                    },
+                    "theme_customization": {
+                        "type": "object",
+                        "additionalProperties": {}
+                    }
+                },
+                "required": [
+                    "FEATURE_CARDDAV",
+                    "FRONTEND_FEEDBACK_BUTTON_IDLE",
+                    "FRONTEND_FEEDBACK_BUTTON_SHOW",
+                    "FRONTEND_FEEDBACK_ITEMS",
+                    "FRONTEND_FEEDBACK_MESSAGES_WIDGET_API_URL",
+                    "FRONTEND_FEEDBACK_MESSAGES_WIDGET_CHANNEL",
+                    "FRONTEND_FEEDBACK_MESSAGES_WIDGET_ENABLED",
+                    "FRONTEND_FEEDBACK_MESSAGES_WIDGET_PATH",
+                    "FRONTEND_LAGAUFRE_ENABLED",
+                    "FRONTEND_LAGAUFRE_WIDGET_API_URL",
+                    "FRONTEND_LAGAUFRE_WIDGET_PATH",
+                    "FRONTEND_MESSAGES_COMPOSE_URL",
+                    "FRONTEND_MORE_LINK",
+                    "FRONTEND_TERMS_OF_SERVICE_URL",
+                    "FRONTEND_THEME",
+                    "LANGUAGES",
+                    "LANGUAGE_CODE",
+                    "TRASHBIN_CUTOFF_DAYS",
+                    "theme_customization"
+                ]
+            },
+            "Contact": {
+                "type": "object",
+                "description": "Serialize contacts (full card).",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "readOnly": true,
+                        "description": "primary key for the record as UUID"
+                    },
+                    "display_name": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "civility": {
+                        "$ref": "#/components/schemas/CivilityEnum"
+                    },
+                    "full_name": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "name_prefix": {
+                        "type": "string",
+                        "description": "Title before the name (Dr, Pr, Me), civility aside.",
+                        "maxLength": 255
+                    },
+                    "given_name": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "middle_name": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "family_name": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "name_suffix": {
+                        "type": "string",
+                        "description": "Suffix after the name (Jr., III).",
+                        "maxLength": 255
+                    },
+                    "nickname": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "emails": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/TypedValue"
+                        }
+                    },
+                    "phones": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/TypedValue"
+                        }
+                    },
+                    "addresses": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/TypedValue"
+                        }
+                    },
+                    "urls": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/TypedValue"
+                        }
+                    },
+                    "company": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "department": {
+                        "type": "string",
+                        "description": "Direction / service within the organization.",
+                        "maxLength": 255
+                    },
+                    "job_title": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "notes": {
+                        "type": "string"
+                    },
+                    "photo": {
+                        "type": "string",
+                        "description": "Avatar as a base64 image data: URI or an https URL."
+                    },
+                    "is_favorite": {
+                        "type": "boolean",
+                        "description": "Whether the acting user starred this contact or the row it overlays.",
+                        "readOnly": true
+                    },
+                    "is_org_contact": {
+                        "type": "boolean",
+                        "default": false,
+                        "description": "In the organization's shared address book. Set at creation, by an administrator only; fixed afterwards."
+                    },
+                    "is_writable": {
+                        "type": "boolean",
+                        "description": "Whether the acting user may edit this contact.",
+                        "readOnly": true
+                    },
+                    "source": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "external_id": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "overlay_of": {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Read-only parent contact this overlay locally edits.",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "overridden_fields": {
+                        "readOnly": true,
+                        "description": "Names of fields edited locally; others come from the parent."
+                    },
+                    "group_ids": {
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
+                        "readOnly": true
+                    },
+                    "label_ids": {
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "format": "uuid",
+                            "description": "primary key for the record as UUID"
+                        }
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true,
+                        "title": "Created on",
+                        "description": "date and time at which a record was created"
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true,
+                        "title": "Updated on",
+                        "description": "date and time at which a record was last updated"
+                    }
+                },
+                "required": [
+                    "created_at",
+                    "display_name",
+                    "external_id",
+                    "group_ids",
+                    "id",
+                    "is_favorite",
+                    "is_writable",
+                    "overlay_of",
+                    "overridden_fields",
+                    "source",
+                    "updated_at"
+                ]
+            },
+            "ContactGroup": {
+                "type": "object",
+                "description": "Serialize contact groups.",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "readOnly": true,
+                        "description": "primary key for the record as UUID"
+                    },
+                    "name": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "email": {
+                        "type": "string",
+                        "format": "email",
+                        "readOnly": true,
+                        "description": "Address of addressable groups (e.g. a shared mailbox)."
+                    },
+                    "source": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "members_count": {
+                        "type": "integer",
+                        "description": "Number of contacts in the group (annotated by the viewset).",
+                        "readOnly": true
+                    },
+                    "is_org_group": {
+                        "type": "boolean",
+                        "default": false,
+                        "description": "Shared with the whole organization. Set at creation, by an administrator only; fixed afterwards."
+                    },
+                    "is_writable": {
+                        "type": "boolean",
+                        "description": "Whether the acting user may edit this group.",
+                        "readOnly": true
+                    },
+                    "is_favorite": {
+                        "type": "boolean",
+                        "description": "Whether the acting user starred this group (annotated by the viewset).",
+                        "readOnly": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true,
+                        "title": "Created on",
+                        "description": "date and time at which a record was created"
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true,
+                        "title": "Updated on",
+                        "description": "date and time at which a record was last updated"
+                    }
+                },
+                "required": [
+                    "created_at",
+                    "email",
+                    "id",
+                    "is_favorite",
+                    "is_writable",
+                    "members_count",
+                    "name",
+                    "source",
+                    "updated_at"
+                ]
+            },
+            "ContactGroupRequest": {
+                "type": "object",
+                "description": "Serialize contact groups.",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 255
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "is_org_group": {
+                        "type": "boolean",
+                        "default": false,
+                        "description": "Shared with the whole organization. Set at creation, by an administrator only; fixed afterwards."
+                    }
+                },
+                "required": [
+                    "name"
+                ]
+            },
+            "ContactLabel": {
+                "type": "object",
+                "description": "Serialize contact labels (libellés).",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "readOnly": true,
+                        "description": "primary key for the record as UUID"
+                    },
+                    "name": {
+                        "type": "string",
+                        "maxLength": 100
+                    },
+                    "color": {
+                        "type": "string",
+                        "pattern": "^#[0-9A-Fa-f]{6}$",
+                        "maxLength": 7
+                    },
+                    "contacts_count": {
+                        "type": "integer",
+                        "description": "Number of non-trashed contacts wearing the label.",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "contacts_count",
+                    "id",
+                    "name"
+                ]
+            },
+            "ContactLabelRequest": {
+                "type": "object",
+                "description": "Serialize contact labels (libellés).",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 100
+                    },
+                    "color": {
+                        "type": "string",
+                        "minLength": 1,
+                        "pattern": "^#[0-9A-Fa-f]{6}$",
+                        "maxLength": 7
+                    }
+                },
+                "required": [
+                    "name"
+                ]
+            },
+            "ContactList": {
+                "type": "object",
+                "description": "Lighter serializer for contact lists.",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "readOnly": true,
+                        "description": "primary key for the record as UUID"
+                    },
+                    "display_name": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "civility": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/CivilityEnum"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "full_name": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "given_name": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "family_name": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "emails": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/TypedValue"
+                        }
+                    },
+                    "phones": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/TypedValue"
+                        }
+                    },
+                    "company": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "department": {
+                        "type": "string",
+                        "readOnly": true,
+                        "description": "Direction / service within the organization."
+                    },
+                    "job_title": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "photo": {
+                        "type": "string",
+                        "readOnly": true,
+                        "description": "Avatar as a base64 image data: URI or an https URL."
+                    },
+                    "is_favorite": {
+                        "type": "boolean",
+                        "description": "Whether the acting user starred this contact or the row it overlays.",
+                        "readOnly": true
+                    },
+                    "is_org_contact": {
+                        "type": "boolean",
+                        "default": false,
+                        "description": "In the organization's shared address book. Set at creation, by an administrator only; fixed afterwards."
+                    },
+                    "is_writable": {
+                        "type": "boolean",
+                        "description": "Whether the acting user may edit this contact.",
+                        "readOnly": true
+                    },
+                    "source": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "overlay_of": {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Read-only parent contact this overlay locally edits.",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "group_ids": {
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
+                        "readOnly": true
+                    },
+                    "label_ids": {
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "format": "uuid",
+                            "description": "primary key for the record as UUID"
+                        }
+                    }
+                },
+                "required": [
+                    "civility",
+                    "company",
+                    "department",
+                    "display_name",
+                    "family_name",
+                    "full_name",
+                    "given_name",
+                    "group_ids",
+                    "id",
+                    "is_favorite",
+                    "is_writable",
+                    "job_title",
+                    "overlay_of",
+                    "photo",
+                    "source"
+                ]
+            },
+            "ContactRequest": {
+                "type": "object",
+                "description": "Serialize contacts (full card).",
+                "properties": {
+                    "civility": {
+                        "$ref": "#/components/schemas/CivilityEnum"
+                    },
+                    "full_name": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "name_prefix": {
+                        "type": "string",
+                        "description": "Title before the name (Dr, Pr, Me), civility aside.",
+                        "maxLength": 255
+                    },
+                    "given_name": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "middle_name": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "family_name": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "name_suffix": {
+                        "type": "string",
+                        "description": "Suffix after the name (Jr., III).",
+                        "maxLength": 255
+                    },
+                    "nickname": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "emails": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/TypedValueRequest"
+                        }
+                    },
+                    "phones": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/TypedValueRequest"
+                        }
+                    },
+                    "addresses": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/TypedValueRequest"
+                        }
+                    },
+                    "urls": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/TypedValueRequest"
+                        }
+                    },
+                    "company": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "department": {
+                        "type": "string",
+                        "description": "Direction / service within the organization.",
+                        "maxLength": 255
+                    },
+                    "job_title": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "notes": {
+                        "type": "string"
+                    },
+                    "photo": {
+                        "type": "string",
+                        "description": "Avatar as a base64 image data: URI or an https URL."
+                    },
+                    "is_org_contact": {
+                        "type": "boolean",
+                        "default": false,
+                        "description": "In the organization's shared address book. Set at creation, by an administrator only; fixed afterwards."
+                    },
+                    "label_ids": {
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "format": "uuid",
+                            "description": "primary key for the record as UUID"
+                        }
+                    }
+                }
+            },
+            "FileUploadRequest": {
+                "type": "object",
+                "description": "Multipart payload of import endpoints.",
+                "properties": {
+                    "file": {
+                        "type": "string",
+                        "format": "binary"
+                    },
+                    "scope": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ScopeEnum"
+                            }
+                        ],
+                        "default": "personal",
+                        "description": "Import into the user's address book, or into their organization's (administrators only).\n\n* `personal` - personal\n* `organization` - organization"
+                    }
+                },
+                "required": [
+                    "file"
+                ]
+            },
+            "GroupMemberRequest": {
+                "type": "object",
+                "description": "Payload of group member management actions.",
+                "properties": {
+                    "contact_id": {
+                        "type": "string",
+                        "format": "uuid"
+                    }
+                },
+                "required": [
+                    "contact_id"
+                ]
+            },
+            "ImportErrorDetail": {
+                "type": "object",
+                "description": "Why one entry of an imported file was rejected.",
+                "properties": {
+                    "entry": {
+                        "type": "integer",
+                        "nullable": true,
+                        "description": "1-based position; null for the whole file."
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "reason": {
+                        "$ref": "#/components/schemas/ReasonEnum"
+                    },
+                    "value": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "entry",
+                    "name",
+                    "reason"
+                ]
+            },
+            "ImportResult": {
+                "type": "object",
+                "description": "Summary of an import run.",
+                "properties": {
+                    "imported": {
+                        "type": "integer"
+                    },
+                    "skipped": {
+                        "type": "integer"
+                    },
+                    "errors": {
+                        "type": "integer"
+                    },
+                    "total": {
+                        "type": "integer"
+                    },
+                    "groups": {
+                        "type": "integer",
+                        "description": "Groups imported from group cards."
+                    },
+                    "error_details": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ImportErrorDetail"
+                        }
+                    }
+                },
+                "required": [
+                    "error_details",
+                    "errors",
+                    "groups",
+                    "imported",
+                    "skipped",
+                    "total"
+                ]
+            },
+            "LanguageEnum": {
+                "enum": [
+                    "en-us",
+                    "fr-fr",
+                    "nl-nl"
+                ],
+                "type": "string",
+                "description": "* `en-us` - English\n* `fr-fr` - French\n* `nl-nl` - Dutch"
+            },
+            "Organization": {
+                "type": "object",
+                "description": "Serialize organizations.",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "readOnly": true,
+                        "description": "primary key for the record as UUID"
+                    },
+                    "name": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "external_id": {
+                        "type": "string",
+                        "readOnly": true,
+                        "description": "Organization identifier from OIDC claim or email domain."
+                    }
+                },
+                "required": [
+                    "external_id",
+                    "id",
+                    "name"
+                ]
+            },
+            "PaginatedContactListList": {
+                "type": "object",
+                "required": [
+                    "count",
+                    "results"
+                ],
+                "properties": {
+                    "count": {
+                        "type": "integer",
+                        "example": 123
+                    },
+                    "next": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "uri",
+                        "example": "http://api.example.org/accounts/?page=4"
+                    },
+                    "previous": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "uri",
+                        "example": "http://api.example.org/accounts/?page=2"
+                    },
+                    "results": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ContactList"
+                        }
+                    }
+                }
+            },
+            "PatchedChannelUpdateRequest": {
+                "type": "object",
+                "description": "Serializer for updating mutable channel fields.\n\nExpects the channel being updated in ``context[\"channel\"]`` so a\nscope change is checked against its (immutable) type.",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 255
+                    },
+                    "is_active": {
+                        "type": "boolean"
+                    },
+                    "scopes": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ScopesEnum"
+                        }
+                    }
+                }
+            },
+            "PatchedContactGroupRequest": {
+                "type": "object",
+                "description": "Serialize contact groups.",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 255
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "is_org_group": {
+                        "type": "boolean",
+                        "default": false,
+                        "description": "Shared with the whole organization. Set at creation, by an administrator only; fixed afterwards."
+                    }
+                }
+            },
+            "PatchedContactLabelRequest": {
+                "type": "object",
+                "description": "Serialize contact labels (libellés).",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 100
+                    },
+                    "color": {
+                        "type": "string",
+                        "minLength": 1,
+                        "pattern": "^#[0-9A-Fa-f]{6}$",
+                        "maxLength": 7
+                    }
+                }
+            },
+            "PatchedContactRequest": {
+                "type": "object",
+                "description": "Serialize contacts (full card).",
+                "properties": {
+                    "civility": {
+                        "$ref": "#/components/schemas/CivilityEnum"
+                    },
+                    "full_name": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "name_prefix": {
+                        "type": "string",
+                        "description": "Title before the name (Dr, Pr, Me), civility aside.",
+                        "maxLength": 255
+                    },
+                    "given_name": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "middle_name": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "family_name": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "name_suffix": {
+                        "type": "string",
+                        "description": "Suffix after the name (Jr., III).",
+                        "maxLength": 255
+                    },
+                    "nickname": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "emails": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/TypedValueRequest"
+                        }
+                    },
+                    "phones": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/TypedValueRequest"
+                        }
+                    },
+                    "addresses": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/TypedValueRequest"
+                        }
+                    },
+                    "urls": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/TypedValueRequest"
+                        }
+                    },
+                    "company": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "department": {
+                        "type": "string",
+                        "description": "Direction / service within the organization.",
+                        "maxLength": 255
+                    },
+                    "job_title": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "notes": {
+                        "type": "string"
+                    },
+                    "photo": {
+                        "type": "string",
+                        "description": "Avatar as a base64 image data: URI or an https URL."
+                    },
+                    "is_org_contact": {
+                        "type": "boolean",
+                        "default": false,
+                        "description": "In the organization's shared address book. Set at creation, by an administrator only; fixed afterwards."
+                    },
+                    "label_ids": {
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "format": "uuid",
+                            "description": "primary key for the record as UUID"
+                        }
+                    }
+                }
+            },
+            "PatchedUserRequest": {
+                "type": "object",
+                "description": "Serialize users.",
+                "properties": {
+                    "language": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/LanguageEnum"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "The language in which the user wants to see the interface.\n\n* `en-us` - English\n* `fr-fr` - French\n* `nl-nl` - Dutch"
+                    }
+                }
+            },
+            "ReasonEnum": {
+                "enum": [
+                    "unreadable",
+                    "no_name",
+                    "invalid_email",
+                    "no_email_or_phone",
+                    "failed"
+                ],
+                "type": "string",
+                "description": "* `unreadable` - unreadable\n* `no_name` - no_name\n* `invalid_email` - invalid_email\n* `no_email_or_phone` - no_email_or_phone\n* `failed` - failed"
+            },
+            "ScopeEnum": {
+                "enum": [
+                    "personal",
+                    "organization"
+                ],
+                "type": "string",
+                "description": "* `personal` - personal\n* `organization` - organization"
+            },
+            "ScopeLevelEnum": {
+                "enum": [
+                    "global",
+                    "organization",
+                    "user"
+                ],
+                "type": "string",
+                "description": "* `global` - global\n* `organization` - organization\n* `user` - user"
+            },
+            "ScopesEnum": {
+                "enum": [
+                    "contacts:read",
+                    "groups:read",
+                    "carddav:read",
+                    "carddav:write"
+                ],
+                "type": "string",
+                "description": "* `contacts:read` - contacts:read\n* `groups:read` - groups:read\n* `carddav:read` - carddav:read\n* `carddav:write` - carddav:write"
+            },
+            "StatusEnum": {
+                "enum": [
+                    "PENDING",
+                    "PROGRESS",
+                    "SUCCESS",
+                    "FAILURE"
+                ],
+                "type": "string",
+                "description": "* `PENDING` - PENDING\n* `PROGRESS` - PROGRESS\n* `SUCCESS` - SUCCESS\n* `FAILURE` - FAILURE"
+            },
+            "TaskQueued": {
+                "type": "object",
+                "description": "Response of async import endpoints.",
+                "properties": {
+                    "task_id": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "task_id"
+                ]
+            },
+            "TaskStatus": {
+                "type": "object",
+                "description": "Status of an async task, as polled by the frontend.",
+                "properties": {
+                    "status": {
+                        "$ref": "#/components/schemas/StatusEnum"
+                    },
+                    "result": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ImportResult"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "error": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "progress": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "message": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "timestamp": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "error",
+                    "result",
+                    "status"
+                ]
+            },
+            "TypeEnum": {
+                "enum": [
+                    "api_key",
+                    "carddav"
+                ],
+                "type": "string",
+                "description": "* `api_key` - api_key\n* `carddav` - carddav"
+            },
+            "TypedValue": {
+                "type": "object",
+                "description": "A {\"type\": ..., \"value\": ...} entry (emails, phones, addresses, urls).",
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "default": "",
+                        "maxLength": 32,
+                        "pattern": "^[A-Za-z0-9-]{0,32}$"
+                    },
+                    "value": {
+                        "type": "string",
+                        "maxLength": 1024
+                    }
+                },
+                "required": [
+                    "value"
+                ]
+            },
+            "TypedValueRequest": {
+                "type": "object",
+                "description": "A {\"type\": ..., \"value\": ...} entry (emails, phones, addresses, urls).",
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "default": "",
+                        "maxLength": 32,
+                        "pattern": "^[A-Za-z0-9-]{0,32}$"
+                    },
+                    "value": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 1024
+                    }
+                },
+                "required": [
+                    "value"
+                ]
+            },
+            "User": {
+                "type": "object",
+                "description": "Serialize users.",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "readOnly": true,
+                        "description": "primary key for the record as UUID"
+                    },
+                    "email": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Return OIDC email, falling back to admin_email for staff users.",
+                        "readOnly": true
+                    },
+                    "full_name": {
+                        "type": "string",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "language": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/LanguageEnum"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "The language in which the user wants to see the interface.\n\n* `en-us` - English\n* `fr-fr` - French\n* `nl-nl` - Dutch"
+                    }
+                },
+                "required": [
+                    "email",
+                    "full_name",
+                    "id"
+                ]
+            },
+            "UserMe": {
+                "type": "object",
+                "description": "Serialize users for me endpoint.",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "readOnly": true,
+                        "description": "primary key for the record as UUID"
+                    },
+                    "email": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Return OIDC email, falling back to admin_email for staff users.",
+                        "readOnly": true
+                    },
+                    "full_name": {
+                        "type": "string",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "language": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/LanguageEnum"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "The language in which the user wants to see the interface.\n\n* `en-us` - English\n* `fr-fr` - French\n* `nl-nl` - Dutch"
+                    },
+                    "can_access": {
+                        "type": "boolean",
+                        "description": "Check entitlements for the current user.",
+                        "readOnly": true
+                    },
+                    "can_admin": {
+                        "type": "boolean",
+                        "description": "Check admin entitlement for the current user.",
+                        "readOnly": true
+                    },
+                    "organization": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Organization"
+                            }
+                        ],
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "can_access",
+                    "can_admin",
+                    "email",
+                    "full_name",
+                    "id",
+                    "organization"
+                ]
+            },
+            "UserRequest": {
+                "type": "object",
+                "description": "Serialize users.",
+                "properties": {
+                    "language": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/LanguageEnum"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "The language in which the user wants to see the interface.\n\n* `en-us` - English\n* `fr-fr` - French\n* `nl-nl` - Dutch"
+                    }
+                }
+            }
+        },
+        "securitySchemes": {
+            "channelApiKey": {
+                "type": "apiKey",
+                "in": "header",
+                "name": "X-API-Key"
+            },
+            "channelId": {
+                "type": "apiKey",
+                "in": "header",
+                "name": "X-Channel-Id"
+            },
+            "cookieAuth": {
+                "type": "apiKey",
+                "in": "cookie",
+                "name": "sessionid"
+            },
+            "oidcAuth": {
+                "type": "http",
+                "scheme": "bearer"
+            }
+        }
+    }
+}

@@ -1,0 +1,1064 @@
+{
+  "en": {
+    "translation": {
+      "401": {
+        "title": "You need to be logged in to access this application.",
+        "button": "Log in"
+      },
+      "403": {
+        "title": "You don't have the necessary permissions to access this page.",
+        "button": "Home"
+      },
+      "app_title": "Contacts",
+      "login": "Log in",
+      "no_access": {
+        "title": "Your login was successful, but this application is not available for your account.",
+        "description": "If you think this is a mistake, please contact support.",
+        "button": "Log out"
+      },
+      "common": {
+        "cancel": "Cancel",
+        "copy": "Copy",
+        "copied": "Copied",
+        "save": "Save"
+      },
+      "api": {
+        "error": {
+          "unexpected": "An unexpected error occurred."
+        }
+      },
+      "home": {
+        "title": "A simple and intuitive address book",
+        "subtitle": "Manage your contacts and groups, and find them in an instant.",
+        "main_button": "Sign in",
+        "more": "Learn more"
+      },
+      "feedback": {
+        "modal": {
+          "title": "New feedback",
+          "description": "Contacts is under development: your feedback matters! Choose how to share your ideas:",
+          "buttons": {
+            "form": {
+              "title": "Give quick feedback",
+              "description": "Tell us what you think or report a bug"
+            },
+            "tchap": {
+              "title": "Write on Tchap",
+              "description": "Direct exchange with our team"
+            },
+            "visio": {
+              "title": "Talk on video",
+              "description": "Schedule a video call with our team"
+            }
+          }
+        }
+      },
+      "feedback_widget": {
+        "title": "Do you have any feedback?",
+        "placeholder": "Share your feedback here...",
+        "email_placeholder": "Your email...",
+        "submit_text": "Send feedback",
+        "success_text": "Thank you for your feedback!",
+        "success_text2": "In case of questions, we'll get back to you soon."
+      },
+      "contacts": {
+        "new": {
+          "button": "New",
+          "contact": "Contact",
+          "group": "Group",
+          "import": "Import contacts"
+        },
+        "nav": {
+          "contacts": "Contacts",
+          "groups": "Groups",
+          "favorites": "Favorites",
+          "trash": "Trash"
+        },
+        "sidebar": {
+          "navigation": "Address book",
+          "expand": "Expand {{name}}",
+          "collapse": "Collapse {{name}}",
+          "actionsFor": "Actions for {{name}}"
+        },
+        "search": {
+          "placeholder": "Search contacts",
+          "clear": "Clear the search"
+        },
+        "favorites": {
+          "add": "Add to favorites",
+          "remove": "Remove from favorites",
+          "is": "Favorite",
+          "empty": "No favorites yet"
+        },
+        "types": {
+          "work": "Work",
+          "home": "Personal",
+          "cell": "Mobile",
+          "other": "Other"
+        },
+        "list": {
+          "title": "My contacts",
+          "searchResults": "Search results",
+          "count_one": "{{count}} contact",
+          "count_other": "{{count}} contacts",
+          "empty": "No contacts yet. Create one or import a file.",
+          "noResults": "No contact matches your search.",
+          "noMatch": "No contact matches this filter.",
+          "filter": "Filter",
+          "filterAll": "All contacts",
+          "sortAsc": "Sort A to Z",
+          "sortDesc": "Sort Z to A",
+          "more": "More actions"
+        },
+        "export": {
+          "vcf": "Export as vCard (.vcf)",
+          "csv": "Export as CSV"
+        },
+        "detail": {
+          "back": "Back to the list",
+          "actions": "Contact actions",
+          "share": "Share",
+          "shareCopied": "Contact details copied to the clipboard",
+          "call": "Call",
+          "sendMail": "Send an email",
+          "chatSoon": "Chat (coming soon)",
+          "videoSoon": "Video call (coming soon)",
+          "yourData": "Data from your address book",
+          "orgData": "Data from your organization's directory",
+          "syncedData": "Synchronized data",
+          "orgNote": "From your organization's directory, read only. Edit a local copy to change it for yourself.",
+          "syncedNote": "Synchronized from {{source}}, read only. Edit a local copy to change it for yourself.",
+          "overlayNote": "Your local copy of a directory contact: fields you did not change still follow the directory.",
+          "phone": "Phone",
+          "email": "Email",
+          "address": "Address",
+          "website": "Website",
+          "groups": "Groups",
+          "copy": "Copy {{label}}",
+          "copyTitle": "Copy",
+          "copied": "Copied to the clipboard",
+          "notesPlaceholder": "Add a note",
+          "notesSaved": "Note saved",
+          "edit": "Edit",
+          "editLocally": "Edit a local copy",
+          "editLocallyHint": "Your changes stay private",
+          "shareWithOrg": "Share with my organization",
+          "revert": "Discard local changes",
+          "delete": "Delete",
+          "emptyState": "Select a contact to see its details",
+          "fullName": "Full name",
+          "loadError": "This contact could not be loaded."
+        },
+        "form": {
+          "createTitle": "New contact",
+          "editTitle": "Edit contact",
+          "shareWithOrg": "Add to my organization's address book",
+          "shareWithOrgHint": "Everyone in your organization will see this contact; only administrators can edit it. It carries no labels. Cannot be changed afterwards.",
+          "editingShared": "This contact is shared with your organization: your changes apply for everyone.",
+          "givenName": "First name",
+          "familyName": "Last name",
+          "namePrefix": "Prefix (Dr, Prof.)",
+          "middleName": "Middle name",
+          "nameSuffix": "Suffix (Jr., III)",
+          "nickname": "Nickname",
+          "moreNames": "More name fields",
+          "fullName": "Display name",
+          "fullNameHint": "Made from the name fields. Change it to display the name differently.",
+          "email": "Email",
+          "phone": "Phone",
+          "company": "Organization",
+          "jobTitle": "Job title",
+          "address": "Address",
+          "url": "Website",
+          "notes": "Notes",
+          "type": "Type",
+          "removeRow": "Remove",
+          "identity": "Identity",
+          "coordinates": "Contact details",
+          "coordinatesHint": "At least an email address or a phone number is required.",
+          "organization": "Organization & position",
+          "civility": "Title",
+          "civilities": {
+            "mr": "Mr",
+            "mrs": "Ms"
+          },
+          "department": "Department",
+          "addPhoto": "Add a photo",
+          "changePhoto": "Change photo",
+          "removePhoto": "Remove",
+          "photoError": "This image could not be read.",
+          "rgpdNotice": "The details you enter are used only to reach your contacts. Deleted contacts are kept in the trash for {{days}} days, then permanently erased."
+        },
+        "deleteModal": {
+          "title": "Delete this contact?",
+          "confirm": "Delete",
+          "message": "“{{name}}” will be moved to the trash."
+        },
+        "revertModal": {
+          "title": "Discard local changes?",
+          "confirm": "Discard",
+          "message": "Your local edits will be removed and “{{name}}” will revert to the directory version."
+        },
+        "deleteForeverModal": {
+          "title": "Permanently delete this contact?",
+          "confirm": "Delete forever",
+          "message": "“{{name}}” will be permanently deleted. This cannot be undone."
+        },
+        "deleteSharedModal": {
+          "title": "Delete this shared contact?",
+          "confirm": "Delete",
+          "message": "“{{name}}” will disappear for everyone in your organization and go to its trash, which administrators can restore from."
+        },
+        "deleteSharedForeverModal": {
+          "title": "Permanently delete this shared contact?",
+          "confirm": "Delete forever",
+          "message": "“{{name}}” will be permanently deleted. Colleagues who had edited their own copy of it keep that copy as a personal contact."
+        },
+        "shareModal": {
+          "title": "Share with your organization?",
+          "confirm": "Share",
+          "message": "“{{name}}” will be copied into your organization's address book, visible to everyone and edited by administrators. Your notes and labels stay private."
+        },
+        "groups": {
+          "count_one": "{{count}} group",
+          "count_other": "{{count}} groups",
+          "memberCount_one": "{{count}} member",
+          "memberCount_other": "{{count}} members",
+          "dates": "Created on {{created}} · Updated on {{updated}}",
+          "actions": "Group actions",
+          "createTitle": "New group",
+          "edit": "Edit group",
+          "delete": "Delete group",
+          "name": "Group name",
+          "descriptionLabel": "Description",
+          "createConfirm": "Create",
+          "addMember": "Add a member",
+          "searchMember": "Search a member",
+          "searchOrAddMember": "Search a member or a contact to add",
+          "addCandidates": "Add to the group",
+          "roleMember": "Member",
+          "memberActions": "Actions for {{name}}",
+          "removeMember": "Remove from the group",
+          "noMembers": "No members yet.",
+          "noMemberMatch": "No member matches your search.",
+          "empty": "No groups yet. Create one to organize your contacts.",
+          "selectGroup": "Select a group to see its members",
+          "notFound": "This group does not exist or is no longer visible to you.",
+          "orgNote": "Organization group, read only.",
+          "sharedNote": "Shared with your organization: everyone sees it, administrators edit it. Only contacts shared with the organization can join it.",
+          "shareWithOrg": "Share with my organization",
+          "shareWithOrgHint": "Everyone in your organization will see this group; only administrators can edit it. It can only hold contacts shared with the organization. Cannot be changed afterwards.",
+          "syncedNote": "Synchronized from {{source}}, read only.",
+          "deleteModal": {
+            "title": "Delete this group?",
+            "confirm": "Delete",
+            "message": "“{{name}}” will be deleted. Its contacts are kept."
+          }
+        },
+        "labels": {
+          "title": "Labels",
+          "create": "New label",
+          "name": "Label name",
+          "color": "Color",
+          "preview": "Preview",
+          "editTitle": "Edit the label",
+          "deleteNamed": "Delete {{name}}",
+          "deleteTitle": "Delete the label “{{name}}”",
+          "confirmDelete": "The label will be removed from all your contacts. This action cannot be undone.",
+          "deleted": "Label deleted",
+          "deleteFailed": "The label could not be deleted.",
+          "count_one": "{{count}} label",
+          "count_other": "{{count}} labels",
+          "empty": "No labels yet."
+        },
+        "trash": {
+          "empty": "The trash is empty.",
+          "restore": "Restore",
+          "restoreNamed": "Restore {{name}}",
+          "deleteForever": "Delete forever",
+          "deleteForeverNamed": "Delete {{name}} forever",
+          "retention": "Contacts in the trash are permanently deleted after {{days}} days."
+        },
+        "import": {
+          "title": "Import contacts (.vcf, .csv)",
+          "close": "Close",
+          "import": "Import",
+          "description": "Import contacts from a vCard (.vcf) or CSV file.",
+          "selectFile": "Choose a file…",
+          "intoOrganization": "Import into my organization's address book",
+          "intoOrganizationHint": "The contacts and groups will be visible to everyone in your organization. Labels and stars are not imported.",
+          "error": "The import failed. Please check the file and try again.",
+          "result": "{{imported}} contact(s) imported, {{skipped}} skipped (already present), {{errors}} error(s).",
+          "resultGroups_one": "{{count}} group imported.",
+          "resultGroups_other": "{{count}} groups imported.",
+          "csvHint": "Use the columns of a CSV export from this app, or a Google Contacts or Outlook export. Main columns: civility, first_name, last_name, full_name, organization, department, job_title, email_1, phone_1, address_1, website_1 (each with an optional _type column, and _2, _3… for more), notes, labels. French headers work too. Each row needs a name: a full name, a first name or a last name.",
+          "errorsTitle": "These entries were not imported:",
+          "entry": "Entry {{entry}} ({{name}})",
+          "wholeFile": "The file",
+          "unnamed": "no name",
+          "moreErrors_one": "and {{count}} other entry.",
+          "moreErrors_other": "and {{count}} other entries.",
+          "reasons": {
+            "unreadable": "part of the file could not be read.",
+            "no_name": "no name.",
+            "invalid_email": "“{{value}}” is not a valid email address.",
+            "no_email_or_phone": "an email address or a phone number is required.",
+            "failed": "could not be saved."
+          }
+        },
+        "settings": {
+          "title": "Settings",
+          "actions": "Actions",
+          "modify": "Modify",
+          "loadError": "Could not load this list.",
+          "labels": {
+            "tab": "Labels",
+            "title": "Labels",
+            "subtitle": "Labels tag your contacts and let you filter the list."
+          },
+          "carddav": {
+            "tab": "Synchronization",
+            "title": "Synchronize with your devices",
+            "subtitle": "Connect a phone or a desktop address book (CardDAV) with one password per device.",
+            "connection": "Connection settings",
+            "server": "Server address",
+            "username": "Username",
+            "password": "Password",
+            "newDevice": "New device",
+            "deviceName": "Device name (e.g. My phone)",
+            "allowWrite": "Allow this device to edit my contacts",
+            "syncGroups": "Also sync my groups",
+            "syncGroupsHint": "For iPhone and Mac. On Android with DAVx⁵, only if the account uses “Groups are separate vCards”: otherwise each group would show up as a contact. Cannot be changed afterwards.",
+            "withGroups": "with groups",
+            "create": "Create a password",
+            "savePassword": "Save this password now",
+            "createdOnce": "Enter this password in “{{name}}” now: it will not be shown again.",
+            "done": "Done",
+            "count_one": "{{count}} device",
+            "count_other": "{{count}} devices",
+            "empty": "No device connected yet.",
+            "device": "Device",
+            "access": "Access",
+            "readWrite": "Read and write",
+            "readOnly": "Read only",
+            "lastUsed": "Last used",
+            "never": "Never",
+            "revoke": "Revoke",
+            "revokeTitle": "Revoke “{{name}}”",
+            "revokeConfirm": "This device will stop syncing immediately. This action cannot be undone.",
+            "revoked": "Device revoked",
+            "revokeFailed": "The device could not be revoked."
+          }
+        }
+      }
+    }
+  },
+  "fr": {
+    "translation": {
+      "401": {
+        "title": "Connectez-vous pour accéder à l'application.",
+        "button": "Se connecter"
+      },
+      "403": {
+        "title": "Vous n'avez pas les permissions nécessaires pour accéder à cette page.",
+        "button": "Accueil"
+      },
+      "app_title": "Contacts",
+      "login": "Connexion",
+      "no_access": {
+        "title": "Votre connexion a réussi, mais cette application n'est pas disponible pour votre compte.",
+        "description": "Si vous pensez qu'il s'agit d'une erreur, veuillez contacter le support.",
+        "button": "Se déconnecter"
+      },
+      "common": {
+        "cancel": "Annuler",
+        "copy": "Copier",
+        "copied": "Copié",
+        "save": "Enregistrer"
+      },
+      "api": {
+        "error": {
+          "unexpected": "Une erreur inattendue est survenue."
+        }
+      },
+      "home": {
+        "title": "Un carnet d'adresses simple et intuitif",
+        "subtitle": "Gérez vos contacts et vos groupes, et retrouvez-les en un instant.",
+        "main_button": "Se connecter",
+        "more": "En savoir plus"
+      },
+      "feedback": {
+        "modal": {
+          "title": "Nouveau retour",
+          "description": "Contacts est en cours de développement : vos retours comptent ! Choisissez comment partager vos idées :",
+          "buttons": {
+            "form": {
+              "title": "Donner un avis rapide",
+              "description": "Dites-nous ce que vous en pensez ou signalez un bug"
+            },
+            "tchap": {
+              "title": "Écrire sur Tchap",
+              "description": "Échange direct avec notre équipe"
+            },
+            "visio": {
+              "title": "Parler en visio",
+              "description": "Planifiez une visio avec notre équipe"
+            }
+          }
+        }
+      },
+      "feedback_widget": {
+        "title": "Partager un retour ou une question",
+        "placeholder": "Saisir votre message...",
+        "email_placeholder": "Renseigner votre email...",
+        "submit_text": "Envoyer le message",
+        "success_text": "Merci pour votre message.",
+        "success_text2": "En cas de questions, nous vous répondrons dans les meilleurs délais sur l'email renseigné."
+      },
+      "contacts": {
+        "new": {
+          "button": "Nouveau",
+          "contact": "Contact",
+          "group": "Groupe",
+          "import": "Importer des contacts"
+        },
+        "nav": {
+          "contacts": "Contacts",
+          "groups": "Groupes",
+          "favorites": "Favoris",
+          "trash": "Corbeille"
+        },
+        "sidebar": {
+          "navigation": "Carnet d'adresses",
+          "expand": "Déplier {{name}}",
+          "collapse": "Replier {{name}}",
+          "actionsFor": "Actions pour {{name}}"
+        },
+        "search": {
+          "placeholder": "Rechercher un contact",
+          "clear": "Effacer la recherche"
+        },
+        "favorites": {
+          "add": "Ajouter aux favoris",
+          "remove": "Retirer des favoris",
+          "is": "Favori",
+          "empty": "Aucun favori pour l'instant"
+        },
+        "types": {
+          "work": "Travail",
+          "home": "Perso",
+          "cell": "Mobile",
+          "other": "Autre"
+        },
+        "list": {
+          "title": "Mes contacts",
+          "searchResults": "Résultats de recherche",
+          "count_one": "{{count}} contact",
+          "count_other": "{{count}} contacts",
+          "empty": "Aucun contact. Créez-en un ou importez un fichier.",
+          "noResults": "Aucun contact ne correspond à votre recherche.",
+          "noMatch": "Aucun contact ne correspond à ce filtre.",
+          "filter": "Filtrer",
+          "filterAll": "Tous les contacts",
+          "sortAsc": "Trier de A à Z",
+          "sortDesc": "Trier de Z à A",
+          "more": "Plus d'actions"
+        },
+        "export": {
+          "vcf": "Exporter en vCard (.vcf)",
+          "csv": "Exporter en CSV"
+        },
+        "detail": {
+          "back": "Retour à la liste",
+          "actions": "Actions sur le contact",
+          "share": "Partager",
+          "shareCopied": "Coordonnées copiées dans le presse-papiers",
+          "call": "Appeler",
+          "sendMail": "Envoyer un e-mail",
+          "chatSoon": "Messagerie instantanée (bientôt disponible)",
+          "videoSoon": "Appel vidéo (bientôt disponible)",
+          "yourData": "Données de votre carnet d'adresses",
+          "orgData": "Données de l'annuaire de votre organisation",
+          "syncedData": "Données synchronisées",
+          "orgNote": "Issu de l'annuaire de votre organisation, en lecture seule. Modifiez une copie locale pour l'adapter pour vous.",
+          "syncedNote": "Synchronisé depuis {{source}}, en lecture seule. Modifiez une copie locale pour l'adapter pour vous.",
+          "overlayNote": "Votre copie locale d'un contact de l'annuaire : les champs que vous n'avez pas modifiés suivent l'annuaire.",
+          "phone": "Téléphone",
+          "email": "E-mail",
+          "address": "Adresse",
+          "website": "Site web",
+          "groups": "Groupes",
+          "copy": "Copier {{label}}",
+          "copyTitle": "Copier",
+          "copied": "Copié dans le presse-papiers",
+          "notesPlaceholder": "Ajouter une note",
+          "notesSaved": "Note enregistrée",
+          "edit": "Modifier",
+          "editLocally": "Modifier une copie locale",
+          "editLocallyHint": "Vos modifications restent privées",
+          "shareWithOrg": "Partager avec mon organisation",
+          "revert": "Annuler les modifications locales",
+          "delete": "Supprimer",
+          "emptyState": "Sélectionnez un contact pour voir ses informations",
+          "fullName": "Nom complet",
+          "loadError": "Impossible de charger ce contact."
+        },
+        "form": {
+          "createTitle": "Nouveau contact",
+          "editTitle": "Modifier le contact",
+          "shareWithOrg": "Ajouter au carnet d'adresses de mon organisation",
+          "shareWithOrgHint": "Toute votre organisation verra ce contact ; seuls les administrateurs pourront le modifier. Il ne porte pas de libellés. Non modifiable ensuite.",
+          "editingShared": "Ce contact est partagé avec votre organisation : vos modifications s'appliquent pour tout le monde.",
+          "givenName": "Prénom",
+          "familyName": "Nom",
+          "namePrefix": "Titre (Dr, Pr, Me)",
+          "middleName": "Autres prénoms",
+          "nameSuffix": "Suffixe",
+          "nickname": "Surnom",
+          "moreNames": "Plus de champs pour le nom",
+          "fullName": "Nom affiché",
+          "fullNameHint": "Composé à partir des champs du nom. Modifiez-le pour afficher le nom autrement.",
+          "email": "E-mail",
+          "phone": "Téléphone",
+          "company": "Organisation",
+          "jobTitle": "Fonction",
+          "address": "Adresse",
+          "url": "Site web",
+          "notes": "Notes",
+          "type": "Type",
+          "removeRow": "Retirer",
+          "identity": "Identité",
+          "coordinates": "Coordonnées",
+          "coordinatesHint": "Renseignez au moins un e-mail ou un téléphone.",
+          "organization": "Organisation et poste",
+          "civility": "Civilité",
+          "civilities": {
+            "mr": "M.",
+            "mrs": "Mme"
+          },
+          "department": "Direction / service",
+          "addPhoto": "Ajouter une photo",
+          "changePhoto": "Changer la photo",
+          "removePhoto": "Retirer",
+          "photoError": "Cette image n'a pas pu être lue.",
+          "rgpdNotice": "Les coordonnées saisies servent uniquement à joindre vos interlocuteurs. Les contacts supprimés sont conservés {{days}} jours dans la corbeille, puis effacés définitivement."
+        },
+        "deleteModal": {
+          "title": "Supprimer ce contact ?",
+          "confirm": "Supprimer",
+          "message": "« {{name}} » sera placé dans la corbeille."
+        },
+        "revertModal": {
+          "title": "Annuler les modifications locales ?",
+          "confirm": "Annuler les modifications",
+          "message": "Vos modifications locales seront supprimées et « {{name}} » reviendra à la version de l'annuaire."
+        },
+        "deleteForeverModal": {
+          "title": "Supprimer définitivement ce contact ?",
+          "confirm": "Supprimer définitivement",
+          "message": "« {{name}} » sera supprimé définitivement. Cette action est irréversible."
+        },
+        "deleteSharedModal": {
+          "title": "Supprimer ce contact partagé ?",
+          "confirm": "Supprimer",
+          "message": "« {{name}} » disparaîtra pour toute votre organisation et ira dans sa corbeille, d'où les administrateurs peuvent le restaurer."
+        },
+        "deleteSharedForeverModal": {
+          "title": "Supprimer définitivement ce contact partagé ?",
+          "confirm": "Supprimer définitivement",
+          "message": "« {{name}} » sera supprimé définitivement. Les collègues qui en avaient modifié leur propre copie la conservent comme contact personnel."
+        },
+        "shareModal": {
+          "title": "Partager avec votre organisation ?",
+          "confirm": "Partager",
+          "message": "« {{name}} » sera copié dans le carnet d'adresses de votre organisation, visible par tous et modifié par les administrateurs. Vos notes et libellés restent privés."
+        },
+        "groups": {
+          "count_one": "{{count}} groupe",
+          "count_other": "{{count}} groupes",
+          "memberCount_one": "{{count}} membre",
+          "memberCount_other": "{{count}} membres",
+          "dates": "Créé le {{created}} · Mis à jour le {{updated}}",
+          "actions": "Actions sur le groupe",
+          "createTitle": "Nouveau groupe",
+          "edit": "Modifier le groupe",
+          "delete": "Supprimer le groupe",
+          "name": "Nom du groupe",
+          "descriptionLabel": "Description",
+          "createConfirm": "Créer",
+          "addMember": "Ajouter un membre",
+          "searchMember": "Rechercher un membre",
+          "searchOrAddMember": "Rechercher un membre ou un contact à ajouter",
+          "addCandidates": "Ajouter au groupe",
+          "roleMember": "Membre",
+          "memberActions": "Actions pour {{name}}",
+          "removeMember": "Retirer du groupe",
+          "noMembers": "Aucun membre pour l'instant.",
+          "noMemberMatch": "Aucun membre ne correspond à votre recherche.",
+          "empty": "Aucun groupe pour l'instant. Créez-en un pour organiser vos contacts.",
+          "selectGroup": "Sélectionnez un groupe pour voir ses membres",
+          "notFound": "Ce groupe n'existe pas ou ne vous est plus visible.",
+          "orgNote": "Groupe de l'organisation, en lecture seule.",
+          "sharedNote": "Partagé avec votre organisation : tout le monde le voit, les administrateurs le modifient. Seuls les contacts partagés avec l'organisation peuvent y figurer.",
+          "shareWithOrg": "Partager avec mon organisation",
+          "shareWithOrgHint": "Toute votre organisation verra ce groupe ; seuls les administrateurs pourront le modifier. Il ne peut contenir que des contacts partagés avec l'organisation. Non modifiable ensuite.",
+          "syncedNote": "Synchronisé depuis {{source}}, en lecture seule.",
+          "deleteModal": {
+            "title": "Supprimer ce groupe ?",
+            "confirm": "Supprimer",
+            "message": "« {{name}} » sera supprimé. Ses contacts sont conservés."
+          }
+        },
+        "labels": {
+          "title": "Libellés",
+          "create": "Nouveau libellé",
+          "name": "Nom du libellé",
+          "color": "Couleur",
+          "preview": "Aperçu",
+          "editTitle": "Modifier le libellé",
+          "deleteNamed": "Supprimer {{name}}",
+          "deleteTitle": "Supprimer le libellé « {{name}} »",
+          "confirmDelete": "Le libellé sera retiré de tous vos contacts. Cette action est irréversible.",
+          "deleted": "Libellé supprimé",
+          "deleteFailed": "Le libellé n'a pas pu être supprimé.",
+          "count_one": "{{count}} libellé",
+          "count_other": "{{count}} libellés",
+          "empty": "Aucun libellé pour l'instant."
+        },
+        "trash": {
+          "empty": "La corbeille est vide.",
+          "restore": "Restaurer",
+          "restoreNamed": "Restaurer {{name}}",
+          "deleteForever": "Supprimer définitivement",
+          "deleteForeverNamed": "Supprimer définitivement {{name}}",
+          "retention": "Les contacts de la corbeille sont supprimés définitivement après {{days}} jours."
+        },
+        "import": {
+          "title": "Importer des contacts (.vcf, .csv)",
+          "close": "Fermer",
+          "import": "Importer",
+          "description": "Importez des contacts depuis un fichier vCard (.vcf) ou CSV.",
+          "selectFile": "Choisir un fichier…",
+          "intoOrganization": "Importer dans le carnet d'adresses de mon organisation",
+          "intoOrganizationHint": "Les contacts et groupes seront visibles par toute votre organisation. Les libellés et favoris ne sont pas importés.",
+          "error": "L'import a échoué. Vérifiez le fichier et réessayez.",
+          "result": "{{imported}} contact(s) importé(s), {{skipped}} ignoré(s) (déjà présents), {{errors}} erreur(s).",
+          "resultGroups_one": "{{count}} groupe importé.",
+          "resultGroups_other": "{{count}} groupes importés.",
+          "csvHint": "Utilisez les colonnes d'un export CSV de cette application, ou un export Google Contacts ou Outlook. Colonnes principales : civilité, prénom, nom, nom complet, organisme, service, poste, email_1, telephone_1, adresse_1, site_web_1 (chacune avec une colonne _type facultative, et _2, _3… pour en ajouter), notes, libellés. Chaque ligne doit avoir un nom : nom complet, prénom ou nom.",
+          "errorsTitle": "Ces entrées n'ont pas été importées :",
+          "entry": "Entrée {{entry}} ({{name}})",
+          "wholeFile": "Le fichier",
+          "unnamed": "sans nom",
+          "moreErrors_one": "et {{count}} autre entrée.",
+          "moreErrors_other": "et {{count}} autres entrées.",
+          "reasons": {
+            "unreadable": "une partie du fichier n'a pas pu être lue.",
+            "no_name": "aucun nom.",
+            "invalid_email": "« {{value}} » n'est pas une adresse e-mail valide.",
+            "no_email_or_phone": "un e-mail ou un téléphone est requis.",
+            "failed": "n'a pas pu être enregistrée."
+          }
+        },
+        "settings": {
+          "title": "Paramètres",
+          "actions": "Actions",
+          "modify": "Modifier",
+          "loadError": "Impossible de charger cette liste.",
+          "labels": {
+            "tab": "Libellés",
+            "title": "Libellés",
+            "subtitle": "Les libellés qualifient vos contacts et permettent de filtrer la liste."
+          },
+          "carddav": {
+            "tab": "Synchronisation",
+            "title": "Synchroniser avec vos appareils",
+            "subtitle": "Connectez un téléphone ou un carnet d'adresses de bureau (CardDAV), avec un mot de passe par appareil.",
+            "connection": "Paramètres de connexion",
+            "server": "Adresse du serveur",
+            "username": "Identifiant",
+            "password": "Mot de passe",
+            "newDevice": "Nouvel appareil",
+            "deviceName": "Nom de l'appareil (ex. : Mon téléphone)",
+            "allowWrite": "Autoriser cet appareil à modifier mes contacts",
+            "syncGroups": "Synchroniser aussi mes groupes",
+            "syncGroupsHint": "Pour iPhone et Mac. Sur Android avec DAVx⁵, seulement si le compte utilise « Groups are separate vCards » : sinon chaque groupe apparaîtrait comme un contact. Non modifiable ensuite.",
+            "withGroups": "avec les groupes",
+            "create": "Créer un mot de passe",
+            "savePassword": "Enregistrez ce mot de passe maintenant",
+            "createdOnce": "Saisissez ce mot de passe dans « {{name}} » maintenant : il ne sera plus affiché.",
+            "done": "Terminé",
+            "count_one": "{{count}} appareil",
+            "count_other": "{{count}} appareils",
+            "empty": "Aucun appareil connecté pour l'instant.",
+            "device": "Appareil",
+            "access": "Accès",
+            "readWrite": "Lecture et écriture",
+            "readOnly": "Lecture seule",
+            "lastUsed": "Dernière utilisation",
+            "never": "Jamais",
+            "revoke": "Révoquer",
+            "revokeTitle": "Révoquer « {{name}} »",
+            "revokeConfirm": "Cet appareil ne pourra plus se synchroniser. Cette action est irréversible.",
+            "revoked": "Appareil révoqué",
+            "revokeFailed": "L'appareil n'a pas pu être révoqué."
+          }
+        }
+      }
+    }
+  },
+  "nl": {
+    "translation": {
+      "401": {
+        "title": "U moet ingelogd zijn om deze applicatie te gebruiken.",
+        "button": "Inloggen"
+      },
+      "403": {
+        "title": "U beschikt niet over de benodigde rechten om deze pagina te openen.",
+        "button": "Home"
+      },
+      "app_title": "Contacten",
+      "login": "Inloggen",
+      "no_access": {
+        "title": "U bent ingelogd, maar deze applicatie is niet beschikbaar voor uw account.",
+        "description": "Denkt u dat dit een vergissing is, neem dan contact op met de ondersteuning.",
+        "button": "Uitloggen"
+      },
+      "common": {
+        "cancel": "Annuleren",
+        "copy": "Kopiëren",
+        "copied": "Gekopieerd",
+        "save": "Opslaan"
+      },
+      "api": {
+        "error": {
+          "unexpected": "Er is een onverwachte fout opgetreden."
+        }
+      },
+      "home": {
+        "title": "Een eenvoudig en intuïtief adresboek",
+        "subtitle": "Beheer uw contacten en groepen en vind ze in een oogwenk terug.",
+        "main_button": "Inloggen",
+        "more": "Meer weten"
+      },
+      "feedback": {
+        "modal": {
+          "title": "Nieuwe feedback",
+          "description": "Contacten is in ontwikkeling: uw feedback telt! Kies hoe u uw ideeën wilt delen:",
+          "buttons": {
+            "form": {
+              "title": "Geef snel feedback",
+              "description": "Vertel ons wat u ervan vindt of meld een bug"
+            },
+            "tchap": {
+              "title": "Schrijf op Tchap",
+              "description": "Directe uitwisseling met ons team"
+            },
+            "visio": {
+              "title": "Praten via videogesprek",
+              "description": "Plan een videogesprek met ons team"
+            }
+          }
+        }
+      },
+      "feedback_widget": {
+        "title": "Heeft u feedback?",
+        "placeholder": "Deel hier uw feedback...",
+        "email_placeholder": "Uw e-mailadres...",
+        "submit_text": "Feedback verzenden",
+        "success_text": "Bedankt voor uw feedback!",
+        "success_text2": "Indien u vragen heeft, nemen wij spoedig contact met u op."
+      },
+      "contacts": {
+        "new": {
+          "button": "Nieuw",
+          "contact": "Contact",
+          "group": "Groep",
+          "import": "Contacten importeren"
+        },
+        "nav": {
+          "contacts": "Contacten",
+          "groups": "Groepen",
+          "favorites": "Favorieten",
+          "trash": "Prullenbak"
+        },
+        "sidebar": {
+          "navigation": "Adresboek",
+          "expand": "{{name}} uitvouwen",
+          "collapse": "{{name}} samenvouwen",
+          "actionsFor": "Acties voor {{name}}"
+        },
+        "search": {
+          "placeholder": "Contacten zoeken",
+          "clear": "Zoekopdracht wissen"
+        },
+        "favorites": {
+          "add": "Toevoegen aan favorieten",
+          "remove": "Verwijderen uit favorieten",
+          "is": "Favoriet",
+          "empty": "Nog geen favorieten"
+        },
+        "types": {
+          "work": "Werk",
+          "home": "Privé",
+          "cell": "Mobiel",
+          "other": "Overig"
+        },
+        "list": {
+          "title": "Mijn contacten",
+          "searchResults": "Zoekresultaten",
+          "count_one": "{{count}} contact",
+          "count_other": "{{count}} contacten",
+          "empty": "Nog geen contacten. Maak er een aan of importeer een bestand.",
+          "noResults": "Geen contact komt overeen met uw zoekopdracht.",
+          "noMatch": "Geen contact komt overeen met dit filter.",
+          "filter": "Filteren",
+          "filterAll": "Alle contacten",
+          "sortAsc": "Sorteren van A tot Z",
+          "sortDesc": "Sorteren van Z tot A",
+          "more": "Meer acties"
+        },
+        "export": {
+          "vcf": "Exporteren als vCard (.vcf)",
+          "csv": "Exporteren als CSV"
+        },
+        "detail": {
+          "back": "Terug naar de lijst",
+          "actions": "Acties voor het contact",
+          "share": "Delen",
+          "shareCopied": "Contactgegevens gekopieerd naar het klembord",
+          "call": "Bellen",
+          "sendMail": "E-mail sturen",
+          "chatSoon": "Chat (binnenkort beschikbaar)",
+          "videoSoon": "Videogesprek (binnenkort beschikbaar)",
+          "yourData": "Gegevens uit uw adresboek",
+          "orgData": "Gegevens uit de gids van uw organisatie",
+          "syncedData": "Gesynchroniseerde gegevens",
+          "orgNote": "Uit de gids van uw organisatie, alleen-lezen. Bewerk een lokale kopie om het voor uzelf aan te passen.",
+          "syncedNote": "Gesynchroniseerd vanuit {{source}}, alleen-lezen. Bewerk een lokale kopie om het voor uzelf aan te passen.",
+          "overlayNote": "Uw lokale kopie van een contact uit de gids: velden die u niet heeft gewijzigd, volgen de gids.",
+          "phone": "Telefoon",
+          "email": "E-mail",
+          "address": "Adres",
+          "website": "Website",
+          "groups": "Groepen",
+          "copy": "{{label}} kopiëren",
+          "copyTitle": "Kopiëren",
+          "copied": "Gekopieerd naar het klembord",
+          "notesPlaceholder": "Notitie toevoegen",
+          "notesSaved": "Notitie opgeslagen",
+          "edit": "Bewerken",
+          "editLocally": "Een lokale kopie bewerken",
+          "editLocallyHint": "Uw wijzigingen blijven privé",
+          "shareWithOrg": "Delen met mijn organisatie",
+          "revert": "Lokale wijzigingen ongedaan maken",
+          "delete": "Verwijderen",
+          "emptyState": "Selecteer een contact om de gegevens te zien",
+          "fullName": "Volledige naam",
+          "loadError": "Dit contact kon niet worden geladen."
+        },
+        "form": {
+          "createTitle": "Nieuw contact",
+          "editTitle": "Contact bewerken",
+          "shareWithOrg": "Toevoegen aan het adresboek van mijn organisatie",
+          "shareWithOrgHint": "Iedereen in uw organisatie ziet dit contact; alleen beheerders kunnen het bewerken. Het heeft geen labels. Kan achteraf niet worden gewijzigd.",
+          "editingShared": "Dit contact wordt gedeeld met uw organisatie: uw wijzigingen gelden voor iedereen.",
+          "givenName": "Voornaam",
+          "familyName": "Achternaam",
+          "namePrefix": "Titel (dr., prof.)",
+          "middleName": "Overige voornamen",
+          "nameSuffix": "Achtervoegsel (jr., III)",
+          "nickname": "Bijnaam",
+          "moreNames": "Meer naamvelden",
+          "fullName": "Weergavenaam",
+          "fullNameHint": "Samengesteld uit de naamvelden. Pas aan om de naam anders weer te geven.",
+          "email": "E-mail",
+          "phone": "Telefoon",
+          "company": "Organisatie",
+          "jobTitle": "Functie",
+          "address": "Adres",
+          "url": "Website",
+          "notes": "Notities",
+          "type": "Type",
+          "removeRow": "Verwijderen",
+          "identity": "Identiteit",
+          "coordinates": "Contactgegevens",
+          "coordinatesHint": "Minstens een e-mailadres of telefoonnummer is vereist.",
+          "organization": "Organisatie en functie",
+          "civility": "Aanhef",
+          "civilities": {
+            "mr": "Dhr.",
+            "mrs": "Mevr."
+          },
+          "department": "Afdeling",
+          "addPhoto": "Foto toevoegen",
+          "changePhoto": "Foto wijzigen",
+          "removePhoto": "Verwijderen",
+          "photoError": "Deze afbeelding kon niet worden gelezen.",
+          "rgpdNotice": "De gegevens die u invoert worden alleen gebruikt om uw contacten te bereiken. Verwijderde contacten blijven {{days}} dagen in de prullenbak en worden daarna definitief gewist."
+        },
+        "deleteModal": {
+          "title": "Dit contact verwijderen?",
+          "confirm": "Verwijderen",
+          "message": "“{{name}}” wordt naar de prullenbak verplaatst."
+        },
+        "revertModal": {
+          "title": "Lokale wijzigingen ongedaan maken?",
+          "confirm": "Ongedaan maken",
+          "message": "Uw lokale wijzigingen worden verwijderd en “{{name}}” keert terug naar de versie uit de gids."
+        },
+        "deleteForeverModal": {
+          "title": "Dit contact definitief verwijderen?",
+          "confirm": "Definitief verwijderen",
+          "message": "“{{name}}” wordt definitief verwijderd. Dit kan niet ongedaan worden gemaakt."
+        },
+        "deleteSharedModal": {
+          "title": "Dit gedeelde contact verwijderen?",
+          "confirm": "Verwijderen",
+          "message": "“{{name}}” verdwijnt voor iedereen in uw organisatie en gaat naar haar prullenbak, waaruit beheerders het kunnen herstellen."
+        },
+        "deleteSharedForeverModal": {
+          "title": "Dit gedeelde contact definitief verwijderen?",
+          "confirm": "Definitief verwijderen",
+          "message": "“{{name}}” wordt definitief verwijderd. Collega's die hun eigen kopie ervan hadden bewerkt, houden die als persoonlijk contact."
+        },
+        "shareModal": {
+          "title": "Delen met uw organisatie?",
+          "confirm": "Delen",
+          "message": "“{{name}}” wordt gekopieerd naar het adresboek van uw organisatie, zichtbaar voor iedereen en bewerkt door beheerders. Uw notities en labels blijven privé."
+        },
+        "groups": {
+          "count_one": "{{count}} groep",
+          "count_other": "{{count}} groepen",
+          "memberCount_one": "{{count}} lid",
+          "memberCount_other": "{{count}} leden",
+          "dates": "Aangemaakt op {{created}} · Bijgewerkt op {{updated}}",
+          "actions": "Acties voor de groep",
+          "createTitle": "Nieuwe groep",
+          "edit": "Groep bewerken",
+          "delete": "Groep verwijderen",
+          "name": "Groepsnaam",
+          "descriptionLabel": "Beschrijving",
+          "createConfirm": "Aanmaken",
+          "addMember": "Lid toevoegen",
+          "searchMember": "Een lid zoeken",
+          "searchOrAddMember": "Een lid of een toe te voegen contact zoeken",
+          "addCandidates": "Aan de groep toevoegen",
+          "roleMember": "Lid",
+          "memberActions": "Acties voor {{name}}",
+          "removeMember": "Uit de groep verwijderen",
+          "noMembers": "Nog geen leden.",
+          "noMemberMatch": "Geen lid komt overeen met uw zoekopdracht.",
+          "empty": "Nog geen groepen. Maak er een aan om uw contacten te ordenen.",
+          "selectGroup": "Selecteer een groep om de leden te zien",
+          "notFound": "Deze groep bestaat niet of is niet meer zichtbaar voor u.",
+          "orgNote": "Groep van de organisatie, alleen-lezen.",
+          "sharedNote": "Gedeeld met uw organisatie: iedereen ziet de groep, beheerders bewerken hem. Alleen contacten die met de organisatie gedeeld zijn kunnen erin.",
+          "shareWithOrg": "Delen met mijn organisatie",
+          "shareWithOrgHint": "Iedereen in uw organisatie ziet deze groep; alleen beheerders kunnen hem bewerken. Hij kan alleen contacten bevatten die met de organisatie gedeeld zijn. Kan achteraf niet worden gewijzigd.",
+          "syncedNote": "Gesynchroniseerd vanuit {{source}}, alleen-lezen.",
+          "deleteModal": {
+            "title": "Deze groep verwijderen?",
+            "confirm": "Verwijderen",
+            "message": "“{{name}}” wordt verwijderd. De contacten blijven behouden."
+          }
+        },
+        "labels": {
+          "title": "Labels",
+          "create": "Nieuw label",
+          "name": "Labelnaam",
+          "color": "Kleur",
+          "preview": "Voorbeeld",
+          "editTitle": "Label bewerken",
+          "deleteNamed": "{{name}} verwijderen",
+          "deleteTitle": "Label “{{name}}” verwijderen",
+          "confirmDelete": "Het label wordt van al uw contacten verwijderd. Deze actie kan niet ongedaan worden gemaakt.",
+          "deleted": "Label verwijderd",
+          "deleteFailed": "Het label kon niet worden verwijderd.",
+          "count_one": "{{count}} label",
+          "count_other": "{{count}} labels",
+          "empty": "Nog geen labels."
+        },
+        "trash": {
+          "empty": "De prullenbak is leeg.",
+          "restore": "Herstellen",
+          "restoreNamed": "{{name}} herstellen",
+          "deleteForever": "Definitief verwijderen",
+          "deleteForeverNamed": "{{name}} definitief verwijderen",
+          "retention": "Contacten in de prullenbak worden na {{days}} dagen definitief verwijderd."
+        },
+        "import": {
+          "title": "Contacten importeren (.vcf, .csv)",
+          "close": "Sluiten",
+          "import": "Importeren",
+          "description": "Importeer contacten uit een vCard- (.vcf) of CSV-bestand.",
+          "selectFile": "Kies een bestand…",
+          "intoOrganization": "Importeren in het adresboek van mijn organisatie",
+          "intoOrganizationHint": "De contacten en groepen zijn zichtbaar voor iedereen in uw organisatie. Labels en favorieten worden niet geïmporteerd.",
+          "error": "Het importeren is mislukt. Controleer het bestand en probeer het opnieuw.",
+          "result": "{{imported}} contact(en) geïmporteerd, {{skipped}} overgeslagen (al aanwezig), {{errors}} fout(en).",
+          "resultGroups_one": "{{count}} groep geïmporteerd.",
+          "resultGroups_other": "{{count}} groepen geïmporteerd.",
+          "csvHint": "Gebruik de kolommen van een CSV-export uit deze app, of een export uit Google Contacts of Outlook. Belangrijkste kolommen: civility, first_name, last_name, full_name, organization, department, job_title, email_1, phone_1, address_1, website_1 (elk met een optionele _type-kolom, en _2, _3… voor meer), notes, labels. Franse kopteksten werken ook. Elke rij heeft een naam nodig: een volledige naam, een voornaam of een achternaam.",
+          "errorsTitle": "Deze items zijn niet geïmporteerd:",
+          "entry": "Item {{entry}} ({{name}})",
+          "wholeFile": "Het bestand",
+          "unnamed": "zonder naam",
+          "moreErrors_one": "en {{count}} ander item.",
+          "moreErrors_other": "en {{count}} andere items.",
+          "reasons": {
+            "unreadable": "een deel van het bestand kon niet worden gelezen.",
+            "no_name": "geen naam.",
+            "invalid_email": "“{{value}}” is geen geldig e-mailadres.",
+            "no_email_or_phone": "een e-mailadres of telefoonnummer is vereist.",
+            "failed": "kon niet worden opgeslagen."
+          }
+        },
+        "settings": {
+          "title": "Instellingen",
+          "actions": "Acties",
+          "modify": "Wijzigen",
+          "loadError": "Deze lijst kon niet worden geladen.",
+          "labels": {
+            "tab": "Labels",
+            "title": "Labels",
+            "subtitle": "Labels typeren uw contacten en laten u de lijst filteren."
+          },
+          "carddav": {
+            "tab": "Synchronisatie",
+            "title": "Synchroniseren met uw apparaten",
+            "subtitle": "Verbind een telefoon of een adresboek op uw computer (CardDAV), met één wachtwoord per apparaat.",
+            "connection": "Verbindingsgegevens",
+            "server": "Serveradres",
+            "username": "Gebruikersnaam",
+            "password": "Wachtwoord",
+            "newDevice": "Nieuw apparaat",
+            "deviceName": "Apparaatnaam (bijv. Mijn telefoon)",
+            "allowWrite": "Dit apparaat mag mijn contacten bewerken",
+            "syncGroups": "Ook mijn groepen synchroniseren",
+            "syncGroupsHint": "Voor iPhone en Mac. Op Android met DAVx⁵ alleen als het account “Groups are separate vCards” gebruikt: anders verschijnt elke groep als een contact. Kan achteraf niet worden gewijzigd.",
+            "withGroups": "met groepen",
+            "create": "Wachtwoord aanmaken",
+            "savePassword": "Bewaar dit wachtwoord nu",
+            "createdOnce": "Voer dit wachtwoord nu in op “{{name}}”: het wordt niet opnieuw getoond.",
+            "done": "Klaar",
+            "count_one": "{{count}} apparaat",
+            "count_other": "{{count}} apparaten",
+            "empty": "Nog geen apparaat verbonden.",
+            "device": "Apparaat",
+            "access": "Toegang",
+            "readWrite": "Lezen en schrijven",
+            "readOnly": "Alleen-lezen",
+            "lastUsed": "Laatst gebruikt",
+            "never": "Nooit",
+            "revoke": "Intrekken",
+            "revokeTitle": "“{{name}}” intrekken",
+            "revokeConfirm": "Dit apparaat kan niet meer synchroniseren. Deze actie kan niet ongedaan worden gemaakt.",
+            "revoked": "Apparaat ingetrokken",
+            "revokeFailed": "Het apparaat kon niet worden ingetrokken."
+          }
+        }
+      }
+    }
+  }
+}

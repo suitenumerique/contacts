@@ -1,0 +1,75 @@
+@use "sass:map";
+@use "@/styles/cunningham-tokens-sass" as *;
+
+$tablet: map.get($themes, "default", "globals", "breakpoints", "tablet");
+
+// Three-zone header: logo, search, suite and user menus.
+// ui-kit's header only has a left and a right slot, so the left slot (logo
+// + search) is flattened into the grid with display: contents.
+.app-layout {
+  .c__header {
+    display: grid;
+    grid-template-columns: 1fr minmax(0, 680px) 1fr;
+    grid-template-areas: "left center right";
+    gap: var(--c--globals--spacings--base);
+    height: var(--header-height);
+    min-height: var(--header-height);
+    max-height: var(--header-height);
+  }
+
+  .c__header__left {
+    display: contents;
+  }
+
+  .contacts__header__home {
+    grid-area: left;
+    justify-self: start;
+  }
+
+  .header-search {
+    grid-area: center;
+  }
+
+  .c__header__right {
+    grid-area: right;
+    justify-content: flex-end;
+  }
+
+  .c__main-layout__content {
+    margin-top: var(--header-height);
+  }
+
+  .c__main-layout__content__center__children {
+    height: calc(100dvh - var(--header-height));
+    overflow: hidden;
+  }
+
+  // Mobile: the search takes a second header row.
+  @media (max-width: $tablet) {
+    --header-height: 104px;
+
+    .c__header {
+      grid-template-columns: 40px 1fr 40px;
+      grid-template-rows: 1fr 1fr;
+      grid-template-areas:
+        "toggle left right"
+        "center center center";
+      gap: 0;
+      padding-bottom: var(--c--globals--spacings--xs);
+    }
+
+    .c__header__toggle-menu {
+      grid-area: toggle;
+      position: static;
+      transform: none;
+    }
+
+    .contacts__header__home {
+      justify-self: center;
+    }
+
+    .c__left-panel__mobile {
+      height: calc(100dvh - var(--header-height));
+    }
+  }
+}

@@ -1,0 +1,60 @@
+{
+  "name": "contacts",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "lint": "pnpm run ts:check && oxlint",
+    "format": "oxfmt .",
+    "format:check": "oxfmt --check .",
+    "build-theme": "cunningham -g css,scss,ts -o src/styles && mv src/styles/cunningham-tokens.scss src/styles/cunningham-tokens-sass.scss",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest run --coverage",
+    "routes:generate": "tsr generate",
+    "prebuild": "pnpm run routes:generate",
+    "prets:check": "pnpm run routes:generate",
+    "ts:check": "tsc --noEmit",
+    "analyze": "ANALYZE=1 vite build",
+    "api:update": "orval --config ./orval.config.ts && oxfmt src/features/api/gen"
+  },
+  "dependencies": {
+    "@gouvfr-lasuite/ui-components": "1.2.0",
+    "@tanstack/react-query": "5.101.0",
+    "@tanstack/react-router": "1.170.15",
+    "clsx": "2.1.1",
+    "i18next": "25.8.14",
+    "i18next-browser-languagedetector": "8.2.1",
+    "react": "19.2.7",
+    "react-dom": "19.2.7",
+    "react-i18next": "16.5.6",
+    "react-toastify": "11.1.0"
+  },
+  "devDependencies": {
+    "@gouvfr-lasuite/ui-tokens": "3.2.0",
+    "@tanstack/router-cli": "1.167.13",
+    "@tanstack/router-plugin": "1.168.11",
+    "@types/node": "24.13.2",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "6.0.2",
+    "@vitest/coverage-v8": "4.1.8",
+    "@vitest/ui": "4.1.8",
+    "jsdom": "27.4.0",
+    "orval": "8.36.0",
+    "oxfmt": "0.53.0",
+    "oxlint": "1.68.0",
+    "rollup-plugin-visualizer": "7.0.1",
+    "sass": "1.100.0",
+    "typescript": "5.9.3",
+    "vite": "8.1.5",
+    "vitest": "4.1.8"
+  },
+  "engines": {
+    "node": "24.x"
+  },
+  "packageManager": "pnpm@11.27.1"
+}

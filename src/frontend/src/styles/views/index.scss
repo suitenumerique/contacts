@@ -1,0 +1,59 @@
+@use "sass:map";
+@use "@/styles/cunningham-tokens-sass" as *;
+
+$tablet: map.get($themes, "default", "globals", "breakpoints", "tablet");
+
+:root {
+  --header-height: 52px;
+}
+
+.contacts__home {
+  .c__hero__buttons {
+    display: flex;
+    gap: 1rem;
+    width: 100%;
+
+    @media (max-width: $tablet) {
+      flex-direction: column;
+    }
+  }
+
+  .c__hero__display__captions {
+    align-items: flex-start;
+    max-width: 600px;
+
+    > h2 {
+      text-align: left;
+    }
+
+    > span {
+      text-align: left;
+    }
+  }
+}
+
+@media (max-width: $tablet) {
+  // Center the logo: take the menu toggle out of the flex flow.
+  .c__header {
+    position: relative;
+    justify-content: center;
+
+    .c__header__toggle-menu {
+      position: absolute;
+      left: 16px;
+      top: 50%;
+      transform: translateY(-50%);
+    }
+
+    .c__header__right {
+      display: none;
+    }
+  }
+}
+
+.global-loader {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+}

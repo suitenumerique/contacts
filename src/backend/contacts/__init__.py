@@ -1,0 +1,1 @@
+"""Contacts Django project package."""

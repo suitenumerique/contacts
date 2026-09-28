@@ -1,0 +1,166 @@
+name: contacts
+
+services:
+  # Shared PostgreSQL for all services (contacts, keycloak).
+  # Same major as CI (.github/workflows/contacts.yml). Images are
+  # digest-pinned so a moved tag cannot change what a developer runs.
+  postgresql:
+    image: postgres:16.6@sha256:557fea37a744d5f4c8faab304b0a90858b53ab119735a88c131fd19dab802f36
+    ports:
+      - "8976:5432"
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB" ]
+      interval: 1s
+      timeout: 2s
+      retries: 300
+    env_file:
+      - env.d/development/postgresql.defaults
+      - env.d/development/postgresql.local
+
+  redis:
+    image: redis:8.10.2@sha256:718f745deb7dfefeac6eed7041fc7ec9476b50e61b247932682457c41adafa0e
+    ports:
+      - "8974:6379"
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 1s
+      timeout: 2s
+      retries: 300
+
+  backend-dev:
+    build:
+      context: src/backend
+      target: backend-development
+      args:
+        DOCKER_USER: ${DOCKER_USER:-1000}
+    user: ${DOCKER_USER:-1000}
+    image: contacts:backend-development
+    environment:
+      - PYLINTHOME=/app/.pylint.d
+      - DJANGO_CONFIGURATION=Development
+      # Orgs come from the "siret" OIDC claim in dev (mapped from the
+      # Keycloak user attribute). Kept out of backend.defaults so the
+      # hermetic backend-test service never inherits it.
+      - OIDC_USERINFO_ORGANIZATION_CLAIM=siret
+    env_file:
+      - env.d/development/backend.defaults
+      - env.d/development/backend.local
+    ports:
+      - "8971:8000"
+    volumes:
+      - ./src/backend:/app
+      - ./data/static:/data/static
+      - /app/.venv
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - lasuite
+      - default
+    depends_on:
+      postgresql:
+        condition: service_healthy
+        restart: true
+      redis:
+        condition: service_healthy
+
+  # Hermetic test container: loads ONLY backend.defaults, never
+  # backend.local, so tests don't inherit per-developer overrides like
+  # OIDC_USERINFO_ORGANIZATION_CLAIM, etc. Used by bin/pytest.
+  backend-test:
+    user: ${DOCKER_USER:-1000}
+    image: contacts:backend-development
+    environment:
+      - PYLINTHOME=/app/.pylint.d
+      - DJANGO_CONFIGURATION=Test
+    env_file:
+      - env.d/development/backend.defaults
+    volumes:
+      - ./src/backend:/app
+      - ./data/static:/data/static
+      - /app/.venv
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - lasuite
+      - default
+    depends_on:
+      postgresql:
+        condition: service_healthy
+        restart: true
+
+  worker-dev:
+    user: ${DOCKER_USER:-1000}
+    image: contacts:backend-development
+    networks:
+      - default
+      - lasuite
+    command: [ "python", "worker.py", "-v", "2" ]
+    environment:
+      - DJANGO_CONFIGURATION=Development
+      - OIDC_USERINFO_ORGANIZATION_CLAIM=siret
+    env_file:
+      - env.d/development/backend.defaults
+      - env.d/development/backend.local
+    volumes:
+      - ./src/backend:/app
+      - ./data/static:/data/static
+      - /app/.venv
+    depends_on:
+      postgresql:
+        condition: service_healthy
+        restart: true
+      redis:
+        condition: service_healthy
+
+  frontend-dev:
+    user: "${DOCKER_USER:-1000}"
+    build:
+      context: src/frontend
+      target: contacts-dev
+    image: contacts:frontend-development
+    env_file:
+      - env.d/development/frontend.defaults
+      - env.d/development/frontend.local
+    volumes:
+      - ./src/frontend/:/home/frontend/
+      - /home/frontend/node_modules
+    ports:
+      - "8970:8970"
+
+  node:
+    image: node:24.21.0-slim@sha256:0e0ff40c39bc087845bfb27465a0df4ea419520094bc35842ff83dd8cbe6f9b6
+    user: "${DOCKER_USER:-1000}"
+    environment:
+      HOME: /tmp
+    volumes:
+      - ".:/app"
+
+  # Keycloak - using shared PostgreSQL
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.7.2@sha256:831330513f55695572286e521f94fcd3c7e285250ed5b848090265a33192f669
+    volumes:
+      - ./docker/auth/realm.json:/opt/keycloak/data/import/realm.json:ro
+    command:
+      - start-dev
+      - --features=preview
+      - --import-realm
+      - --hostname=http://localhost:8975
+      - --hostname-strict=false
+    env_file:
+      - env.d/development/keycloak.defaults
+      - env.d/development/keycloak.local
+    ports:
+      - "8975:8080"
+    depends_on:
+      postgresql:
+        condition: service_healthy
+    networks:
+      - lasuite
+      - default
+
+networks:
+  default: {}
+  lasuite:
+    name: lasuite-network
+    driver: bridge
+    external: true

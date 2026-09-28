@@ -1,0 +1,140 @@
+name: Main Workflow
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - "*"
+
+permissions:
+  contents: read
+
+jobs:
+  lint-back:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/backend
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: "Set up Python"
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version-file: "src/backend/pyproject.toml"
+      - name: Install uv
+        uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
+      - name: Install the project
+        run: uv sync --locked --all-extras
+
+      - name: Check code formatting with ruff
+        run: uv run ruff format . --diff
+      - name: Lint code with ruff
+        run: uv run ruff check .
+      - name: Lint code with pylint
+        run: uv run pylint .
+
+  test-back:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: src/backend
+
+    services:
+      postgres:
+        image: postgres:16.6@sha256:557fea37a744d5f4c8faab304b0a90858b53ab119735a88c131fd19dab802f36
+        env:
+          POSTGRES_DB: contacts
+          POSTGRES_USER: pgroot
+          POSTGRES_PASSWORD: pass
+        ports:
+          - 5432:5432
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+
+    env:
+      DJANGO_CONFIGURATION: Test
+      DJANGO_SETTINGS_MODULE: contacts.settings
+      DJANGO_SECRET_KEY: ThisIsAnExampleKeyForTestPurposeOnly
+      OIDC_OP_JWKS_ENDPOINT: /endpoint-for-test-purpose-only
+      DB_HOST: localhost
+      DB_NAME: contacts
+      DB_USER: pgroot
+      DB_PASSWORD: pass
+      DB_PORT: 5432
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Create writable /data
+        run: |
+          sudo mkdir -p /data/media && \
+          sudo mkdir -p /data/static
+
+      - name: "Set up Python"
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version-file: "src/backend/pyproject.toml"
+      - name: Install uv
+        uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
+      - name: Install the dependencies
+        run: uv sync --locked --all-extras
+
+      - name: Check for missing migrations
+        run: uv run python manage.py makemigrations --check --dry-run
+
+      - name: Run tests
+        run: uv run pytest -n 2
+
+  check-api-state:
+    runs-on: ubuntu-latest
+    env:
+      DJANGO_CONFIGURATION: Test
+      DJANGO_SETTINGS_MODULE: contacts.settings
+      DJANGO_SECRET_KEY: ThisIsAnExampleKeyForTestPurposeOnly
+      OIDC_OP_JWKS_ENDPOINT: /endpoint-for-test-purpose-only
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: "Set up Python"
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version-file: "src/backend/pyproject.toml"
+      - name: Install uv
+        uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
+      - name: Install the backend dependencies
+        working-directory: src/backend
+        run: uv sync --locked --all-extras
+      - name: Regenerate the OpenAPI schema
+        working-directory: src/backend
+        run: >-
+          uv run python manage.py spectacular
+          --api-version 'v1.0'
+          --urlconf 'core.urls'
+          --format openapi-json
+          --file core/api/openapi.json
+      - name: Setup Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: "24.x"
+      - name: Enable pnpm via corepack
+        run: corepack enable
+      - name: Regenerate the frontend API client
+        working-directory: src/frontend
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm run api:update
+          pnpm run format
+      - name: Check for changes
+        run: |
+          git diff --exit-code || \
+          (echo "API changes detected. Run 'bash bin/update_openapi_schema' and 'make update-api-front', then commit the changes." && exit 1)

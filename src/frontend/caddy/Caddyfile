@@ -1,0 +1,107 @@
+# Serves the built frontend and proxies the backend paths to Django. Used
+# by the production frontend image and by the Scalingo deployment
+# (bin/scalingo_postfrontend). Variables are listed in docs/deployment.md.
+{
+	auto_https off
+	admin off
+	servers {
+		trusted_proxies static {$CONTACTS_FRONTEND_TRUSTED_PROXIES}
+		# Walk X-Forwarded-For right to left and take the first address
+		# that is not a trusted proxy. Without this, the leftmost entry
+		# wins and a client-appended prefix defeats the admin allowlist.
+		trusted_proxies_strict
+	}
+}
+
+:{$PORT:8080} {
+	root * {$CONTACTS_FRONTEND_ROOT:/app}
+
+	# Security headers for everything served here (`header` replaces, so
+	# Django's own X-Frame-Options is not duplicated).
+	header {
+		-Server
+		X-Frame-Options "DENY"
+		Content-Security-Policy "frame-ancestors 'none'; base-uri 'self'; object-src 'none'"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "same-origin"
+	}
+
+	route {
+		# Health checks
+		respond /__lbheartbeat__ 200
+		respond /__lbheartbeat__/ 200
+
+		reverse_proxy /__heartbeat__/* {$CONTACTS_FRONTEND_BACKEND_SERVER:localhost:8000} {
+			header_up X-Forwarded-Proto https
+			header_up X-Forwarded-For {client_ip}
+		}
+
+		reverse_proxy /api/* {$CONTACTS_FRONTEND_BACKEND_SERVER:localhost:8000} {
+			header_up X-Forwarded-Proto https
+			header_up X-Forwarded-For {client_ip}
+		}
+
+		# CardDAV and its RFC 6764 discovery URL
+		@carddav path /carddav /carddav/* /.well-known/carddav /.well-known/carddav/
+		reverse_proxy @carddav {$CONTACTS_FRONTEND_BACKEND_SERVER:localhost:8000} {
+			header_up X-Forwarded-Proto https
+			header_up X-Forwarded-For {client_ip}
+		}
+
+		# Django admin IP allowlist. The default allows all (no filtering).
+		# client_ip uses X-Forwarded-For only from the proxies listed in
+		# CONTACTS_FRONTEND_TRUSTED_PROXIES.
+		@admin_denied {
+			path /{$DJANGO_ADMIN_URL:admin} /{$DJANGO_ADMIN_URL:admin}/*
+			not client_ip {$DJANGO_ADMIN_IP_ALLOWLIST:0.0.0.0/0 ::/0}
+		}
+		respond @admin_denied 403
+
+		redir /{$DJANGO_ADMIN_URL:admin} /{$DJANGO_ADMIN_URL:admin}/ 301
+
+		reverse_proxy /{$DJANGO_ADMIN_URL:admin}/* {$CONTACTS_FRONTEND_BACKEND_SERVER:localhost:8000} {
+			header_up X-Forwarded-Proto https
+			header_up X-Forwarded-For {client_ip}
+		}
+
+		# Django static files (admin CSS/JS)
+		reverse_proxy /static/* {$CONTACTS_FRONTEND_BACKEND_SERVER:localhost:8000} {
+			header_up X-Forwarded-Proto https
+			header_up X-Forwarded-For {client_ip}
+		}
+
+		# Vite fingerprints everything under /assets: cache it forever. The
+		# SPA shell and other files must revalidate, or a deploy's new
+		# asset hashes only show after a hard refresh.
+		@immutable path /assets/*
+		header @immutable Cache-Control "public, max-age=31536000, immutable"
+		@revalidate not path /assets/*
+		header @revalidate Cache-Control "no-cache"
+
+		# A missing asset stays a 404: answering index.html to a script
+		# request from a page cached on an old deploy would crash it.
+		handle /assets/* {
+			file_server
+		}
+
+		# SPA fallback: the client-side router resolves the path.
+		try_files {path} /index.html
+		file_server
+	}
+
+	handle_errors {
+		@asset_404 {
+			expression `{err.status_code} == 404`
+			path /assets/*
+		}
+		handle @asset_404 {
+			respond "Not Found" 404
+		}
+
+		@spa_404 expression `{err.status_code} == 404`
+		handle @spa_404 {
+			rewrite * /index.html
+			file_server
+		}
+	}
+}

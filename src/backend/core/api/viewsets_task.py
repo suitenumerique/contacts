@@ -1,0 +1,119 @@
+"""API endpoint for polling async task status."""
+
+import logging
+import uuid
+
+import dramatiq
+from dramatiq.results import ResultFailure, ResultMissing
+from drf_spectacular.utils import extend_schema
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from core.api.permissions import IsEntitledToAccess
+from core.api.serializers import TaskStatusSerializer
+from core.task_utils import get_task_progress, get_task_tracking
+
+logger = logging.getLogger(__name__)
+
+
+class TaskDetailView(APIView):
+    """View to retrieve the status of an async task, for its owner only."""
+
+    permission_classes = [IsEntitledToAccess]
+
+    @extend_schema(
+        responses={
+            200: TaskStatusSerializer,
+            404: TaskStatusSerializer,
+            503: TaskStatusSerializer,
+        }
+    )
+    def get(self, request, task_id):  # noqa: PLR0911  # pylint: disable=too-many-return-statements
+        """Get the status of a task."""
+        try:
+            uuid.UUID(task_id)
+        except ValueError:
+            return Response(
+                {"status": "FAILURE", "result": None, "error": "Not found"},
+                status=404,
+            )
+
+        tracking = get_task_tracking(task_id)
+        # Someone else's task answers like an unknown one.
+        if tracking is None or str(request.user.id) != tracking["owner"]:
+            return Response(
+                {"status": "FAILURE", "result": None, "error": "Not found"},
+                status=404,
+            )
+
+        # Try to fetch the result from dramatiq's result backend
+        message = dramatiq.Message(
+            queue_name=tracking["queue_name"],
+            actor_name=tracking["actor_name"],
+            args=(),
+            kwargs={},
+            options={},
+            message_id=task_id,
+        )
+        try:
+            result_data = message.get_result(block=False)
+        except ResultMissing:
+            result_data = None
+        except ResultFailure as exc:
+            logger.error("Task %s failed: %s", task_id, exc)
+            return Response(
+                {
+                    "status": "FAILURE",
+                    "result": None,
+                    "error": "Task failed",
+                }
+            )
+        except Exception:  # pylint: disable=broad-exception-caught
+            logger.exception("Failed to fetch result for task %s", task_id)
+            return Response(
+                {
+                    "status": "FAILURE",
+                    "result": None,
+                    "error": "Result backend unavailable",
+                },
+                status=503,
+            )
+
+        if result_data is not None:
+            resp = {
+                "status": "SUCCESS",
+                "result": result_data,
+                "error": None,
+            }
+            # Unpack {status, result, error} convention
+            if (
+                isinstance(result_data, dict)
+                and {"status", "result", "error"} <= result_data.keys()
+            ):
+                resp["status"] = result_data["status"]
+                resp["result"] = result_data["result"]
+                resp["error"] = result_data["error"]
+            return Response(resp)
+
+        # Check for progress data
+        progress_data = get_task_progress(task_id)
+        if progress_data:
+            return Response(
+                {
+                    "status": "PROGRESS",
+                    "result": None,
+                    "error": None,
+                    "progress": progress_data.get("progress"),
+                    "message": progress_data.get("metadata", {}).get("message"),
+                    "timestamp": progress_data.get("timestamp"),
+                }
+            )
+
+        # Default to pending
+        return Response(
+            {
+                "status": "PENDING",
+                "result": None,
+                "error": None,
+            }
+        )

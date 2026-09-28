@@ -1,0 +1,22 @@
+.contacts-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--c--globals--spacings--3xs);
+
+  &__icon {
+    width: 32px;
+    height: 32px;
+  }
+
+  &__text {
+    font-size: 1.5rem;
+    font-weight: 500;
+    line-height: 1;
+    color: var(--c--contextuals--content--semantic--brand--primary);
+  }
+
+  &--icon &__icon {
+    width: 64px;
+    height: 64px;
+  }
+}

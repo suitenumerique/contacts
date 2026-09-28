@@ -1,0 +1,878 @@
+"""Django settings for the contacts project, one django-configurations class
+per environment (DJANGO_CONFIGURATION)."""
+
+import os
+import tomllib
+from socket import gethostbyname, gethostname
+
+import dj_database_url
+import sentry_sdk
+from configurations import Configuration, values
+from lasuite.configuration.values import SecretFileValue
+from sentry_sdk.integrations.django import DjangoIntegration
+
+# pylint: disable=too-many-lines
+
+# Build paths inside the project like this: BASE_DIR / 'subdir'.
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DATA_DIR = os.environ.get("DATA_DIR", os.path.join("/", "data"))
+
+
+def get_release():
+    """
+    Get the current release of the application
+    """
+    try:
+        with open(os.path.join(BASE_DIR, "pyproject.toml"), "rb") as f:
+            pyproject_data = tomllib.load(f)
+        return pyproject_data["project"]["version"]
+    except FileNotFoundError, KeyError:
+        return "NA"  # Default: not available
+
+
+class Base(Configuration):
+    """
+    This is the base configuration every configuration (aka environment) should inherit from.
+
+    It depends on an environment variable that SHOULD be defined:
+
+    * DJANGO_SECRET_KEY
+
+    You may also want to override default configuration by setting the following environment
+    variables:
+
+    * SENTRY_DSN
+    * DB_NAME
+    * DB_HOST
+    * DB_PASSWORD
+    * DB_USER
+    """
+
+    DEBUG = False
+    USE_SWAGGER = False
+
+    API_VERSION = "v1.0"
+
+    # Django admin path, without slashes. The frontend proxy routes and
+    # IP-filters the same path (src/frontend/caddy/Caddyfile).
+    ADMIN_URL = values.Value(
+        "admin", environ_name="DJANGO_ADMIN_URL", environ_prefix=None
+    )
+
+    # Salts for django-fernet-encrypted-fields (Channel.encrypted_settings),
+    # combined with SECRET_KEY to derive the Fernet keys. A list allows
+    # rotation: the first salt encrypts, all of them decrypt.
+    SALT_KEY = values.ListValue([], environ_name="SALT_KEY", environ_prefix=None)
+
+    # Organizations
+    OIDC_USERINFO_ORGANIZATION_CLAIM = values.Value(
+        "",
+        environ_name="OIDC_USERINFO_ORGANIZATION_CLAIM",
+        environ_prefix=None,
+    )
+
+    # Deep-link template used by the "Send a mail" action on contact
+    # cards: "{email}" is replaced by the recipient. Empty disables the
+    # MSG deep link (the action falls back to mailto:).
+    FRONTEND_MESSAGES_COMPOSE_URL = values.Value(
+        "", environ_name="FRONTEND_MESSAGES_COMPOSE_URL", environ_prefix=None
+    )
+
+    # Maximum size of an uploaded .vcf or .csv import file (bytes). Uploads
+    # are not bound by DATA_UPLOAD_MAX_MEMORY_SIZE.
+    CONTACTS_VCF_MAX_FILE_SIZE = values.PositiveIntegerValue(
+        10 * (2**20),  # 10MB
+        environ_name="CONTACTS_VCF_MAX_FILE_SIZE",
+        environ_prefix=None,
+    )
+
+    # Country (ISO 3166 code) of phone numbers written without "+", used to
+    # make them searchable in both international and national forms.
+    CONTACTS_PHONE_DEFAULT_REGION = values.Value(
+        "FR", environ_name="CONTACTS_PHONE_DEFAULT_REGION", environ_prefix=None
+    )
+
+    # Entitlements
+    ENTITLEMENTS_BACKEND = values.Value(
+        "core.entitlements.backends.local.LocalEntitlementsBackend",
+        environ_name="ENTITLEMENTS_BACKEND",
+        environ_prefix=None,
+    )
+    ENTITLEMENTS_BACKEND_PARAMETERS = values.DictValue(
+        {},
+        environ_name="ENTITLEMENTS_BACKEND_PARAMETERS",
+        environ_prefix=None,
+    )
+    ENTITLEMENTS_CACHE_TIMEOUT = values.IntegerValue(
+        300,
+        environ_name="ENTITLEMENTS_CACHE_TIMEOUT",
+        environ_prefix=None,
+    )
+
+    # Security
+    ALLOWED_HOSTS = values.ListValue([])
+    SECRET_KEY = SecretFileValue(None)
+
+    # Application definition
+    ROOT_URLCONF = "contacts.urls"
+    WSGI_APPLICATION = "contacts.wsgi.application"
+
+    # Database
+    DATABASES = {
+        "default": dj_database_url.config()
+        if os.environ.get("DATABASE_URL")
+        else {
+            "ENGINE": values.Value(
+                "django.db.backends.postgresql",
+                environ_name="DB_ENGINE",
+                environ_prefix=None,
+            ),
+            "NAME": values.Value(
+                "contacts", environ_name="DB_NAME", environ_prefix=None
+            ),
+            "USER": values.Value("pgroot", environ_name="DB_USER", environ_prefix=None),
+            "PASSWORD": SecretFileValue(
+                "pass", environ_name="DB_PASSWORD", environ_prefix=None
+            ),
+            "HOST": values.Value(
+                "localhost", environ_name="DB_HOST", environ_prefix=None
+            ),
+            "PORT": values.Value(5432, environ_name="DB_PORT", environ_prefix=None),
+        }
+    }
+    DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
+
+    # Static files (CSS, JavaScript, Images)
+    STATIC_URL = "/static/"
+    STATIC_ROOT = os.path.join(DATA_DIR, "static")
+    MEDIA_URL = "/media/"
+    MEDIA_ROOT = os.path.join(DATA_DIR, "media")
+
+    STORAGES = {
+        "default": {
+            "BACKEND": "django.core.files.storage.FileSystemStorage",
+        },
+        "staticfiles": {
+            "BACKEND": values.Value(
+                "whitenoise.storage.CompressedManifestStaticFilesStorage",
+                environ_name="STORAGES_STATICFILES_BACKEND",
+                environ_prefix=None,
+            ),
+        },
+    }
+
+    # Maximum size of a request body, file uploads excluded. A contact with
+    # the largest allowed photo fits well within.
+    DATA_UPLOAD_MAX_MEMORY_SIZE = values.PositiveIntegerValue(
+        2621440,  # 2.5MB
+        environ_name="DATA_UPLOAD_MAX_MEMORY_SIZE",
+        environ_prefix=None,
+    )
+
+    # Internationalization
+    # https://docs.djangoproject.com/en/5.2/topics/i18n/
+
+    # Languages
+    LANGUAGE_CODE = values.Value("en-us")
+    LANGUAGE_COOKIE_NAME = "contacts_language"  # cookie & language is set from frontend
+
+    # Careful! Languages should be ordered by priority, as this tuple is used to get
+    # fallback/default languages throughout the app.
+    LANGUAGES = values.SingleNestedTupleValue(
+        (
+            ("en-us", "English"),
+            ("fr-fr", "French"),
+            ("nl-nl", "Dutch"),
+        )
+    )
+
+    TIME_ZONE = "UTC"
+    USE_I18N = True
+    USE_TZ = True
+
+    # Templates
+    TEMPLATES = [
+        {
+            "BACKEND": "django.template.backends.django.DjangoTemplates",
+            "OPTIONS": {
+                "context_processors": [
+                    "django.contrib.auth.context_processors.auth",
+                    "django.contrib.messages.context_processors.messages",
+                    "django.template.context_processors.csrf",
+                    "django.template.context_processors.debug",
+                    "django.template.context_processors.i18n",
+                    "django.template.context_processors.media",
+                    "django.template.context_processors.request",
+                    "django.template.context_processors.tz",
+                ],
+                "loaders": [
+                    "django.template.loaders.app_directories.Loader",
+                ],
+            },
+        },
+    ]
+
+    MIDDLEWARE = [
+        "django.middleware.security.SecurityMiddleware",
+        "whitenoise.middleware.WhiteNoiseMiddleware",
+        "django.contrib.sessions.middleware.SessionMiddleware",
+        "django.middleware.clickjacking.XFrameOptionsMiddleware",
+        "corsheaders.middleware.CorsMiddleware",
+        "django.middleware.common.CommonMiddleware",
+        "django.middleware.csrf.CsrfViewMiddleware",
+        "django.contrib.auth.middleware.AuthenticationMiddleware",
+        "django.contrib.messages.middleware.MessageMiddleware",
+    ]
+
+    AUTHENTICATION_BACKENDS = [
+        "django.contrib.auth.backends.ModelBackend",
+        "core.authentication.backends.OIDCAuthenticationBackend",
+    ]
+
+    # Django applications from the highest priority to the lowest
+    INSTALLED_APPS = [
+        "core",
+        "carddav",
+        "drf_spectacular",
+        "drf_standardized_errors",
+        # Third party apps
+        "corsheaders",
+        "django_dramatiq",
+        "rest_framework",
+        # Django
+        "django.contrib.admin",
+        "django.contrib.auth",
+        "django.contrib.contenttypes",
+        "django.contrib.postgres",
+        "django.contrib.sessions",
+        "django.contrib.messages",
+        "django.contrib.staticfiles",
+        # OIDC third party
+        "mozilla_django_oidc",
+    ]
+
+    # Cache
+    CACHES = {
+        "default": {
+            "BACKEND": "django_redis.cache.RedisCache",
+            "LOCATION": values.Value(
+                "redis://redis:6379/0",
+                environ_name="REDIS_URL",
+                environ_prefix=None,
+            ),
+            "TIMEOUT": values.IntegerValue(
+                30,  # timeout in seconds
+                environ_name="CACHES_DEFAULT_TIMEOUT",
+                environ_prefix=None,
+            ),
+            "OPTIONS": {
+                "CLIENT_CLASS": "django_redis.client.DefaultClient",
+            },
+            "KEY_PREFIX": values.Value(
+                "contacts",
+                environ_name="CACHES_DEFAULT_KEY_PREFIX",
+                environ_prefix=None,
+            ),
+        },
+        "session": {
+            "BACKEND": "django_redis.cache.RedisCache",
+            "LOCATION": values.Value(
+                "redis://redis:6379/0",
+                environ_name="REDIS_URL",
+                environ_prefix=None,
+            ),
+            "TIMEOUT": values.IntegerValue(
+                30,  # timeout in seconds
+                environ_name="CACHES_SESSION_TIMEOUT",
+                environ_prefix=None,
+            ),
+            "OPTIONS": {
+                "CLIENT_CLASS": "django_redis.client.DefaultClient",
+            },
+        },
+    }
+
+    REST_FRAMEWORK = {
+        "DEFAULT_AUTHENTICATION_CLASSES": (
+            "mozilla_django_oidc.contrib.drf.OIDCAuthentication",
+            "core.authentication.channel.ChannelApiKeyAuthentication",
+            "rest_framework.authentication.SessionAuthentication",
+        ),
+        "DEFAULT_PARSER_CLASSES": [
+            "rest_framework.parsers.JSONParser",
+        ],
+        "DEFAULT_RENDERER_CLASSES": [
+            # 🔒️ Disable BrowsableAPIRenderer which provides forms allowing a user to
+            # see all the data in the database (ie a serializer with a ForeignKey field
+            # will generate a form with a field with all possible values of the FK).
+            "rest_framework.renderers.JSONRenderer",
+        ],
+        "EXCEPTION_HANDLER": "core.api.exception_handler",
+        "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+        "PAGE_SIZE": 20,
+        "DEFAULT_VERSIONING_CLASS": "rest_framework.versioning.URLPathVersioning",
+        "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+        "DEFAULT_THROTTLE_CLASSES": ["rest_framework.throttling.ScopedRateThrottle"],
+        "DEFAULT_THROTTLE_RATES": {
+            # Failed CardDAV authentications per client address. Past it,
+            # failures get 429; valid credentials still get through.
+            "carddav_auth": values.Value(
+                default="10/minute",
+                environ_name="API_CARDDAV_AUTH_THROTTLE_RATE",
+                environ_prefix=None,
+            ),
+            # Authenticated CardDAV requests per credential. DAVx5 fetches
+            # 10 cards per request, so an initial sync of N cards costs
+            # about N/10 requests; this covers ~40k cards in one hour.
+            "carddav": values.Value(
+                default="5000/hour",
+                environ_name="API_CARDDAV_THROTTLE_RATE",
+                environ_prefix=None,
+            ),
+        },
+        # Number of trusted reverse proxies in front of the app. Throttles
+        # identify a client by REMOTE_ADDR when 0, else by the
+        # X-Forwarded-For entry the outermost trusted proxy appended. Never
+        # trust the header without a proxy that sets it.
+        "NUM_PROXIES": values.PositiveIntegerValue(
+            default=0, environ_name="NUM_PROXIES", environ_prefix=None
+        ),
+    }
+
+    MAX_PAGE_SIZE = values.PositiveIntegerValue(
+        200, environ_name="MAX_PAGE_SIZE", environ_prefix=None
+    )
+
+    SPECTACULAR_SETTINGS = {
+        "TITLE": "contacts API",
+        "DESCRIPTION": "This is the contacts API schema.",
+        "VERSION": "1.0.0",
+        "SERVE_INCLUDE_SCHEMA": False,
+        "ENABLE_DJANGO_DEPLOY_CHECK": values.BooleanValue(
+            default=False,
+            environ_name="SPECTACULAR_SETTINGS_ENABLE_DJANGO_DEPLOY_CHECK",
+        ),
+        "COMPONENT_SPLIT_REQUEST": True,
+        # Avoid oneOf[Enum, BlankEnum, NullEnum] unions that generate
+        # colliding synthesized type names in orval.
+        "ENUM_ADD_EXPLICIT_BLANK_NULL_CHOICE": False,
+        # OTHER SETTINGS
+        "SWAGGER_UI_DIST": "SIDECAR",  # shorthand to use the sidecar instead
+        "SWAGGER_UI_FAVICON_HREF": "SIDECAR",
+        "REDOC_DIST": "SIDECAR",
+    }
+
+    TRASHBIN_CUTOFF_DAYS = values.PositiveIntegerValue(
+        30, environ_name="TRASHBIN_CUTOFF_DAYS", environ_prefix=None
+    )
+
+    # Feature flags
+    # When False, the CardDAV endpoint answers 404, carddav channels can't be
+    # created from the API and the frontend hides the CardDAV settings tab.
+    FEATURE_CARDDAV = values.BooleanValue(
+        default=True, environ_name="FEATURE_CARDDAV", environ_prefix=None
+    )
+
+    AUTH_USER_MODEL = "core.User"
+
+    # CORS
+    CORS_ALLOW_CREDENTIALS = True
+    CORS_ALLOW_ALL_ORIGINS = values.BooleanValue(False)
+    CORS_ALLOWED_ORIGINS = values.ListValue([])
+    CORS_ALLOWED_ORIGIN_REGEXES = values.ListValue([])
+    CORS_ALLOW_HEADERS = [
+        "accept",
+        "accept-encoding",
+        "authorization",
+        "content-type",
+        "dnt",
+        "origin",
+        "user-agent",
+        "x-csrftoken",
+        "x-requested-with",
+        "x-channel-id",
+        "x-api-key",
+    ]
+
+    # Sentry
+    SENTRY_DSN = values.Value(None, environ_name="SENTRY_DSN", environ_prefix=None)
+
+    # Frontend
+    FRONTEND_THEME = values.Value(
+        None, environ_name="FRONTEND_THEME", environ_prefix=None
+    )
+    FRONTEND_MORE_LINK = values.Value(
+        None,
+        environ_name="FRONTEND_MORE_LINK",
+        environ_prefix=None,
+    )
+    # Linked from the user menu when set.
+    FRONTEND_TERMS_OF_SERVICE_URL = values.Value(
+        None,
+        environ_name="FRONTEND_TERMS_OF_SERVICE_URL",
+        environ_prefix=None,
+    )
+    FRONTEND_FEEDBACK_BUTTON_SHOW = values.BooleanValue(
+        default=False, environ_name="FRONTEND_FEEDBACK_BUTTON_SHOW", environ_prefix=None
+    )
+    # Bind this button to an external library to trigger survey
+    # instead of the built-in feedback modal.
+    FRONTEND_FEEDBACK_BUTTON_IDLE = values.BooleanValue(
+        default=False, environ_name="FRONTEND_FEEDBACK_BUTTON_IDLE", environ_prefix=None
+    )
+    FRONTEND_FEEDBACK_ITEMS = values.DictValue(
+        {}, environ_name="FRONTEND_FEEDBACK_ITEMS", environ_prefix=None
+    )
+    FRONTEND_FEEDBACK_MESSAGES_WIDGET_ENABLED = values.BooleanValue(
+        default=False,
+        environ_name="FRONTEND_FEEDBACK_MESSAGES_WIDGET_ENABLED",
+        environ_prefix=None,
+    )
+    FRONTEND_FEEDBACK_MESSAGES_WIDGET_API_URL = values.Value(
+        None,
+        environ_name="FRONTEND_FEEDBACK_MESSAGES_WIDGET_API_URL",
+        environ_prefix=None,
+    )
+    FRONTEND_FEEDBACK_MESSAGES_WIDGET_CHANNEL = values.Value(
+        None,
+        environ_name="FRONTEND_FEEDBACK_MESSAGES_WIDGET_CHANNEL",
+        environ_prefix=None,
+    )
+    FRONTEND_FEEDBACK_MESSAGES_WIDGET_PATH = values.Value(
+        None, environ_name="FRONTEND_FEEDBACK_MESSAGES_WIDGET_PATH", environ_prefix=None
+    )
+    FRONTEND_LAGAUFRE_ENABLED = values.BooleanValue(
+        default=False, environ_name="FRONTEND_LAGAUFRE_ENABLED", environ_prefix=None
+    )
+    FRONTEND_LAGAUFRE_WIDGET_PATH = values.Value(
+        None, environ_name="FRONTEND_LAGAUFRE_WIDGET_PATH", environ_prefix=None
+    )
+    FRONTEND_LAGAUFRE_WIDGET_API_URL = values.Value(
+        None, environ_name="FRONTEND_LAGAUFRE_WIDGET_API_URL", environ_prefix=None
+    )
+
+    THEME_CUSTOMIZATION_FILE_PATH = values.Value(
+        os.path.join(BASE_DIR, "contacts/configuration/theme/default.json"),
+        environ_name="THEME_CUSTOMIZATION_FILE_PATH",
+        environ_prefix=None,
+    )
+    THEME_CUSTOMIZATION_CACHE_TIMEOUT = values.PositiveIntegerValue(
+        60 * 60 * 24,
+        environ_name="THEME_CUSTOMIZATION_CACHE_TIMEOUT",
+        environ_prefix=None,
+    )
+
+    # Dramatiq
+    DRAMATIQ_BROKER = {
+        "BROKER": "dramatiq.brokers.redis.RedisBroker",
+        "OPTIONS": {
+            "url": values.Value(
+                "redis://redis:6379/0",
+                environ_name="DRAMATIQ_BROKER_URL",
+                environ_prefix=None,
+            ),
+        },
+        "MIDDLEWARE": [
+            "dramatiq.middleware.AgeLimit",
+            "dramatiq.middleware.TimeLimit",
+            "dramatiq.middleware.Callbacks",
+            "dramatiq.middleware.Retries",
+            "dramatiq.middleware.CurrentMessage",
+            "django_dramatiq.middleware.DbConnectionsMiddleware",
+            "django_dramatiq.middleware.AdminMiddleware",
+        ],
+    }
+    DRAMATIQ_RESULT_BACKEND = {
+        "BACKEND": "dramatiq.results.backends.redis.RedisBackend",
+        "BACKEND_OPTIONS": {
+            "url": values.Value(
+                "redis://redis:6379/1",
+                environ_name="DRAMATIQ_RESULT_BACKEND_URL",
+                environ_prefix=None,
+            ),
+        },
+        "MIDDLEWARE_OPTIONS": {
+            "result_ttl": 1000 * 60 * 60 * 24 * 30,  # 30 days
+        },
+    }
+    DRAMATIQ_AUTODISCOVER_MODULES = ["tasks"]
+
+    # Session
+    SESSION_ENGINE = "django.contrib.sessions.backends.cache"
+    SESSION_CACHE_ALIAS = "session"
+    SESSION_COOKIE_AGE = 60 * 60 * 12
+
+    # OIDC - Authorization Code Flow
+    OIDC_CREATE_USER = values.BooleanValue(
+        default=True, environ_name="OIDC_CREATE_USER", environ_prefix=None
+    )
+    OIDC_CALLBACK_CLASS = "lasuite.oidc_login.views.OIDCAuthenticationCallbackView"
+    OIDC_RP_SIGN_ALGO = values.Value(
+        "RS256", environ_name="OIDC_RP_SIGN_ALGO", environ_prefix=None
+    )
+    OIDC_RP_CLIENT_ID = values.Value(
+        "contacts", environ_name="OIDC_RP_CLIENT_ID", environ_prefix=None
+    )
+    OIDC_RP_CLIENT_SECRET = SecretFileValue(
+        None,
+        environ_name="OIDC_RP_CLIENT_SECRET",
+        environ_prefix=None,
+    )
+    OIDC_OP_JWKS_ENDPOINT = values.Value(
+        environ_name="OIDC_OP_JWKS_ENDPOINT", environ_prefix=None
+    )
+    OIDC_OP_AUTHORIZATION_ENDPOINT = values.Value(
+        environ_name="OIDC_OP_AUTHORIZATION_ENDPOINT", environ_prefix=None
+    )
+    OIDC_OP_TOKEN_ENDPOINT = values.Value(
+        None, environ_name="OIDC_OP_TOKEN_ENDPOINT", environ_prefix=None
+    )
+    OIDC_OP_USER_ENDPOINT = values.Value(
+        None, environ_name="OIDC_OP_USER_ENDPOINT", environ_prefix=None
+    )
+    OIDC_OP_LOGOUT_ENDPOINT = values.Value(
+        None, environ_name="OIDC_OP_LOGOUT_ENDPOINT", environ_prefix=None
+    )
+    OIDC_REDIRECT_FIELD_NAME = values.Value(
+        "returnTo", environ_name="OIDC_REDIRECT_FIELD_NAME", environ_prefix=None
+    )
+    OIDC_AUTH_REQUEST_EXTRA_PARAMS = values.DictValue(
+        {}, environ_name="OIDC_AUTH_REQUEST_EXTRA_PARAMS", environ_prefix=None
+    )
+    OIDC_RP_SCOPES = values.Value(
+        "openid email", environ_name="OIDC_RP_SCOPES", environ_prefix=None
+    )
+    LOGIN_REDIRECT_URL = values.Value(
+        None, environ_name="LOGIN_REDIRECT_URL", environ_prefix=None
+    )
+    LOGIN_REDIRECT_URL_FAILURE = values.Value(
+        None, environ_name="LOGIN_REDIRECT_URL_FAILURE", environ_prefix=None
+    )
+    LOGOUT_REDIRECT_URL = values.Value(
+        None, environ_name="LOGOUT_REDIRECT_URL", environ_prefix=None
+    )
+    OIDC_USE_NONCE = values.BooleanValue(
+        default=True, environ_name="OIDC_USE_NONCE", environ_prefix=None
+    )
+    OIDC_REDIRECT_REQUIRE_HTTPS = values.BooleanValue(
+        default=False, environ_name="OIDC_REDIRECT_REQUIRE_HTTPS", environ_prefix=None
+    )
+    OIDC_REDIRECT_ALLOWED_HOSTS = values.ListValue(
+        default=[], environ_name="OIDC_REDIRECT_ALLOWED_HOSTS", environ_prefix=None
+    )
+    OIDC_STORE_ID_TOKEN = values.BooleanValue(
+        default=True, environ_name="OIDC_STORE_ID_TOKEN", environ_prefix=None
+    )
+    OIDC_FALLBACK_TO_EMAIL_FOR_IDENTIFICATION = values.BooleanValue(
+        default=True,
+        environ_name="OIDC_FALLBACK_TO_EMAIL_FOR_IDENTIFICATION",
+        environ_prefix=None,
+    )
+
+    OIDC_STORE_ACCESS_TOKEN = values.BooleanValue(
+        default=False, environ_name="OIDC_STORE_ACCESS_TOKEN", environ_prefix=None
+    )
+    OIDC_STORE_REFRESH_TOKEN = values.BooleanValue(
+        default=False, environ_name="OIDC_STORE_REFRESH_TOKEN", environ_prefix=None
+    )
+    OIDC_STORE_REFRESH_TOKEN_KEY = values.Value(
+        default=None,
+        environ_name="OIDC_STORE_REFRESH_TOKEN_KEY",
+        environ_prefix=None,
+    )
+
+    # OIDC claims to store
+    OIDC_STORE_CLAIMS = values.ListValue(
+        default=[],
+        environ_name="OIDC_STORE_CLAIMS",
+        environ_prefix=None,
+    )
+
+    # WARNING: Enabling this setting allows multiple user accounts to share the same email
+    # address. This may cause security issues and is not recommended for production use when
+    # email is activated as fallback for identification (see previous setting).
+    OIDC_ALLOW_DUPLICATE_EMAILS = values.BooleanValue(
+        default=False,
+        environ_name="OIDC_ALLOW_DUPLICATE_EMAILS",
+        environ_prefix=None,
+    )
+
+    OIDC_USERINFO_FULLNAME_FIELDS = values.ListValue(
+        default=["first_name", "last_name"],
+        environ_name="OIDC_USERINFO_FULLNAME_FIELDS",
+        environ_prefix=None,
+    )
+
+    # Issuer checked by the back-channel logout view.
+    OIDC_OP_URL = values.Value(None, environ_name="OIDC_OP_URL", environ_prefix=None)
+
+    OIDC_VERIFY_SSL = values.BooleanValue(
+        default=True, environ_name="OIDC_VERIFY_SSL", environ_prefix=None
+    )
+
+    OIDC_TIMEOUT = values.PositiveIntegerValue(
+        3, environ_name="OIDC_TIMEOUT", environ_prefix=None
+    )
+
+    OIDC_PROXY = values.Value(None, environ_name="OIDC_PROXY", environ_prefix=None)
+
+    ALLOW_LOGOUT_GET_METHOD = values.BooleanValue(
+        default=True, environ_name="ALLOW_LOGOUT_GET_METHOD", environ_prefix=None
+    )
+
+    # Logging
+    # We want to make it easy to log to console but by default we log production
+    # to Sentry and don't want to log to console.
+    LOGGING = {
+        "version": 1,
+        "disable_existing_loggers": False,
+        "formatters": {
+            "simple": {
+                "format": "{asctime} {name} {levelname} {message}",
+                "style": "{",
+            },
+        },
+        "handlers": {
+            "console": {
+                "class": "logging.StreamHandler",
+                "formatter": "simple",
+            },
+        },
+        # Override root logger to send it to console
+        "root": {
+            "handlers": ["console"],
+            "level": values.Value(
+                "INFO", environ_name="LOGGING_LEVEL_LOGGERS_ROOT", environ_prefix=None
+            ),
+        },
+        "loggers": {
+            "core": {
+                "handlers": ["console"],
+                "level": values.Value(
+                    "INFO",
+                    environ_name="LOGGING_LEVEL_LOGGERS_APP",
+                    environ_prefix=None,
+                ),
+                "propagate": False,
+            },
+        },
+    }
+
+    # pylint: disable=invalid-name
+    @property
+    def RELEASE(self):
+        """
+        Return the release information.
+
+        Delegate to the module function to enable easier testing.
+        """
+        return get_release()
+
+    @classmethod
+    def post_setup(cls):
+        """Post setup configuration.
+        This is the place where you can configure settings that require other
+        settings to be loaded.
+        """
+        super().post_setup()
+
+        # The SENTRY_DSN setting should be available to activate sentry for an environment
+        if cls.SENTRY_DSN is not None:
+            sentry_sdk.init(
+                dsn=cls.SENTRY_DSN,
+                environment=cls.__name__.lower(),
+                release=get_release(),
+                integrations=[DjangoIntegration()],
+            )
+            sentry_sdk.set_tag("application", "backend")
+
+        if (
+            cls.OIDC_FALLBACK_TO_EMAIL_FOR_IDENTIFICATION
+            and cls.OIDC_ALLOW_DUPLICATE_EMAILS
+        ):
+            raise ValueError(
+                "Both OIDC_FALLBACK_TO_EMAIL_FOR_IDENTIFICATION and "
+                "OIDC_ALLOW_DUPLICATE_EMAILS cannot be set to True simultaneously. "
+            )
+
+
+class Build(Base):
+    """Settings used when the application is built.
+
+    This environment should not be used to run the application. Just to build it with non-blocking
+    settings.
+    """
+
+    SESSION_CACHE_ALIAS = "default"
+    CACHES = {
+        "default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"},
+    }
+    SECRET_KEY = values.Value("DummyKey")
+    STORAGES = {
+        "default": {
+            "BACKEND": "django.core.files.storage.FileSystemStorage",
+        },
+        "staticfiles": {
+            "BACKEND": values.Value(
+                "whitenoise.storage.CompressedManifestStaticFilesStorage",
+                environ_name="STORAGES_STATICFILES_BACKEND",
+                environ_prefix=None,
+            ),
+        },
+    }
+
+
+class Development(Base):
+    """
+    Development environment settings
+
+    We set DEBUG to True and configure the server to respond from all hosts.
+    """
+
+    ALLOWED_HOSTS = ["*"]
+    CORS_ALLOW_ALL_ORIGINS = True
+    CSRF_TRUSTED_ORIGINS = ["http://localhost:8970"]
+    DEBUG = True
+
+    SESSION_COOKIE_NAME = "contacts_sessionid"
+
+    USE_SWAGGER = True
+
+    SALT_KEY = values.ListValue(
+        ["contacts-default-salt-change-in-production"],
+        environ_name="SALT_KEY",
+        environ_prefix=None,
+    )
+
+    DEBUG_TOOLBAR_CONFIG = {
+        "SHOW_TOOLBAR_CALLBACK": lambda request: True,
+    }
+
+    def __init__(self):
+        # pylint: disable=invalid-name
+        self.MIDDLEWARE += ["debug_toolbar.middleware.DebugToolbarMiddleware"]
+        # pylint: disable=invalid-name
+        self.INSTALLED_APPS += [
+            "django_extensions",
+            "drf_spectacular_sidecar",
+            "debug_toolbar",
+        ]
+
+
+class Test(Base):
+    """Test environment settings"""
+
+    # Hermetic org resolution: tests assume the email-domain fallback,
+    # whatever the developer's environment configures.
+    OIDC_USERINFO_ORGANIZATION_CLAIM = ""
+
+    SESSION_CACHE_ALIAS = "default"
+    CACHES = {
+        "default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"},
+    }
+
+    PASSWORD_HASHERS = [
+        "django.contrib.auth.hashers.MD5PasswordHasher",
+    ]
+    USE_SWAGGER = True
+
+    SALT_KEY = ["test-salt-for-development-only"]
+
+    DRAMATIQ_BROKER = {
+        "BROKER": "core.task_utils.EagerBroker",
+        "OPTIONS": {},
+        # Retries and TimeLimit only declare the actor options they own;
+        # the eager broker runs neither.
+        "MIDDLEWARE": [
+            "dramatiq.middleware.CurrentMessage",
+            "dramatiq.middleware.Retries",
+            "dramatiq.middleware.TimeLimit",
+        ],
+    }
+    DRAMATIQ_RESULT_BACKEND = {
+        "BACKEND": "dramatiq.results.backends.stub.StubBackend",
+        "BACKEND_OPTIONS": {},
+        "MIDDLEWARE_OPTIONS": {"result_ttl": 1000 * 60 * 10},
+    }
+
+    OIDC_STORE_ACCESS_TOKEN = False
+    OIDC_STORE_REFRESH_TOKEN = False
+
+    def __init__(self):
+        # pylint: disable=invalid-name
+        self.INSTALLED_APPS += ["drf_spectacular_sidecar"]
+
+
+class Production(Base):
+    """
+    Production environment settings
+
+    You must define the DJANGO_ALLOWED_HOSTS environment variable in Production
+    configuration (and derived configurations), comma-separated:
+    DJANGO_ALLOWED_HOSTS=contacts.example.com,contacts.example.org
+    """
+
+    # Security
+    # Add allowed host from environment variables.
+    # The machine hostname is added by default,
+    # it makes the application pingable by a load balancer on the same machine by example
+    ALLOWED_HOSTS = [
+        *values.ListValue([], environ_name="ALLOWED_HOSTS"),
+        gethostbyname(gethostname()),
+    ]
+    CSRF_TRUSTED_ORIGINS = values.ListValue([])
+    # No default: bound late (no environ_name) so only the class in use
+    # requires the variable.
+    SALT_KEY = values.ListValue(environ_prefix=None, environ_required=True)
+    SECURE_BROWSER_XSS_FILTER = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+
+    # SECURE_PROXY_SSL_HEADER allows to fix the scheme in Django's HttpRequest
+    # object when your application is behind a reverse proxy.
+    #
+    # Keep this SECURE_PROXY_SSL_HEADER configuration only if :
+    # - your Django app is behind a proxy.
+    # - your proxy strips the X-Forwarded-Proto header from all incoming requests
+    # - Your proxy sets the X-Forwarded-Proto header and sends it to Django
+    #
+    # In other cases, you should remove the following line to avoid security issues.
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    SECURE_HSTS_SECONDS = 60
+    SECURE_HSTS_PRELOAD = True
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_SSL_REDIRECT = True
+    SECURE_REDIRECT_EXEMPT = [
+        "^__lbheartbeat__",
+        "^__heartbeat__",
+    ]
+
+    # Modern browsers require to have the `secure` attribute on cookies with `Samesite=none`
+    CSRF_COOKIE_SECURE = True
+    SESSION_COOKIE_SECURE = True
+
+    # Privacy
+    SECURE_REFERRER_POLICY = "same-origin"
+
+
+class Feature(Production):
+    """
+    Feature environment settings
+
+    nota bene: it should inherit from the Production environment.
+    """
+
+
+class Staging(Production):
+    """
+    Staging environment settings
+
+    nota bene: it should inherit from the Production environment.
+    """
+
+
+class PreProduction(Production):
+    """
+    Pre-production environment settings
+
+    nota bene: it should inherit from the Production environment.
+    """

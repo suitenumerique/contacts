@@ -1,0 +1,45 @@
+// Marianne for text, Material Icons for ui-components' own widgets.
+@use "@gouvfr-lasuite/ui-components/fonts/marianne";
+@use "@gouvfr-lasuite/ui-components/sass/fonts/material-icons";
+@use "@gouvfr-lasuite/ui-components/style";
+@use "./cunningham-tokens.css";
+@use "./../features/feedback/Feedback";
+@use "./../features/layouts/components/header/index";
+@use "./../features/layouts/components/app/AppLayout";
+@use "./../features/layouts/components/left-panel/LeftPanelMobile";
+@use "./../features/ui/components/toaster";
+@use "./../features/ui/components/generic-disclaimer/GenericDisclaimer";
+@use "./../features/ui/components/spinner/SpinnerPage";
+@use "./../features/ui/components/logo/ContactsLogo";
+@use "./../features/ui/components/copyable-input/CopyableInput";
+@use "./views/index" as *;
+@use "./../features/contacts/components/contacts" as *;
+
+html,
+body {
+  margin: 0;
+  background-color: var(--c--contextuals--background--surface--primary);
+  color: var(--c--contextuals--content--semantic--neutral--primary);
+  font-family: var(--c--globals--font--families--base);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+// ui-components leaves the backdrop without a z-index: keep it above the
+// sticky pane headers and the fixed app header.
+.c__modal__backdrop {
+  z-index: 1000;
+}
+
+.c__modal__title {
+  text-align: left;
+  padding: 0;
+  font-size: 1.125rem;
+  margin-bottom: 1rem;
+}
+
+.c__modal__scroller {
+  padding-top: 1rem;
+}

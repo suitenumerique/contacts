@@ -1,0 +1,10 @@
+{
+  "jobs": [
+    {
+      "command": "0 3 * * * python manage.py purge_trashed_contacts"
+    },
+    {
+      "command": "30 3 * * * python manage.py purge_carddav_changes"
+    }
+  ]
+}

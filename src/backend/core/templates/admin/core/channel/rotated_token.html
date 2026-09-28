@@ -1,0 +1,30 @@
+{% extends "admin/base_site.html" %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+  <a href="{% url 'admin:index' %}">Home</a>
+  &rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+  &rsaquo; <a href="{% url 'admin:core_channel_changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>
+  &rsaquo; <a href="{% url 'admin:core_channel_change' original.pk %}">{{ original }}</a>
+  &rsaquo; New key
+</div>
+{% endblock %}
+
+{% block content %}
+<p><strong>Copy these values now. They will not be shown again.</strong></p>
+<p>Every previous key of this channel has stopped working.</p>
+
+<table>
+  <tbody>
+    <tr><th>Channel id (X-Channel-Id)</th><td><code>{{ original.pk }}</code></td></tr>
+    <tr><th>API key (X-API-Key)</th><td><code style="user-select:all;word-break:break-all;">{{ api_key }}</code></td></tr>
+    {% if carddav_password %}
+    <tr><th>CardDAV password</th><td><code style="user-select:all;word-break:break-all;">{{ carddav_password }}</code></td></tr>
+    {% endif %}
+  </tbody>
+</table>
+
+<p>
+  <a class="button" href="{% url 'admin:core_channel_change' original.pk %}">Back to channel</a>
+</p>
+{% endblock %}

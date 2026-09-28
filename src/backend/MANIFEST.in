@@ -1,0 +1,2 @@
+recursive-include contacts *.json
+recursive-include core *.json

@@ -1,0 +1,104 @@
+name: Frontend Workflow
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - "*"
+
+permissions:
+  contents: read
+
+jobs:
+  install-front:
+    uses: ./.github/workflows/front-dependencies-installation.yml
+    with:
+      node_version: "24.x"
+
+  lint-front:
+    runs-on: ubuntu-latest
+    needs: install-front
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Setup Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: "24.x"
+      - name: Enable pnpm via corepack
+        run: corepack enable
+      - name: Restore the frontend cache
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with:
+          path: "src/frontend/**/node_modules"
+          key: front-node_modules-${{ hashFiles('src/frontend/**/pnpm-lock.yaml') }}
+          fail-on-cache-miss: true
+
+      - name: Check formatting
+        run: cd src/frontend/ && pnpm run format:check
+      - name: Check linting and types
+        run: cd src/frontend/ && pnpm run lint
+
+  test-front:
+    runs-on: ubuntu-latest
+    needs: install-front
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Setup Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: "24.x"
+      - name: Enable pnpm via corepack
+        run: corepack enable
+      - name: Restore the frontend cache
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with:
+          path: "src/frontend/**/node_modules"
+          key: front-node_modules-${{ hashFiles('src/frontend/**/pnpm-lock.yaml') }}
+          fail-on-cache-miss: true
+
+      - name: Run unit tests
+        run: |
+          cd src/frontend
+          TZ=Europe/Paris pnpm test
+
+  build-front:
+    runs-on: ubuntu-latest
+    needs: install-front
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Setup Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: "24.x"
+      - name: Enable pnpm via corepack
+        run: corepack enable
+      - name: Restore the frontend cache
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with:
+          path: "src/frontend/**/node_modules"
+          key: front-node_modules-${{ hashFiles('src/frontend/**/pnpm-lock.yaml') }}
+          fail-on-cache-miss: true
+
+      - name: Build
+        run: cd src/frontend/ && pnpm run build
+
+  test-front-production:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build and smoke-test the frontend production image
+        run: make test-front-production

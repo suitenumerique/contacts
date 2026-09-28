@@ -1,0 +1,4 @@
+# Postgresql db container configuration
+POSTGRES_DB=contacts
+POSTGRES_USER=pgroot
+POSTGRES_PASSWORD=pass

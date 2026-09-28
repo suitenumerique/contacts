@@ -1,0 +1,34 @@
+.c__feedback__modal {
+  &__buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  &__button {
+    display: flex;
+    padding: 20px;
+    border-radius: 4px;
+    border: 1px solid var(--c--contextuals--border--semantic--neutral--tertiary);
+    color: var(--c--contextuals--content--semantic--neutral--secondary);
+    gap: 20px;
+    text-decoration: none;
+    align-items: center;
+
+    &__title {
+      font-weight: 700;
+      font-size: 14px;
+    }
+
+    &__description {
+      font-size: 14px;
+      font-weight: 400;
+    }
+
+    &:hover {
+      border-color: var(--c--contextuals--border--semantic--info--tertiary);
+      background-color: var(--c--contextuals--background--semantic--info--tertiary);
+      color: var(--c--contextuals--content--semantic--info--secondary);
+    }
+  }
+}

@@ -1,0 +1,10 @@
+.contacts__header__home {
+  display: flex;
+  text-decoration: none;
+}
+
+.c__header__right {
+  display: flex;
+  align-items: center;
+  gap: var(--c--globals--spacings--xs);
+}
