@@ -1,6 +1,11 @@
 """Small shared helpers for the core app."""
 
+import re
 import unicodedata
+
+# What separates the pieces of an email address, a hyphenated name or an
+# initial: "felix.marchand@brigny.example", "jean-pierre", "o'neil".
+_WORD_SEPARATORS = re.compile(r"[\W_]+")
 
 
 def strip_diacritics(text):
@@ -11,3 +16,35 @@ def strip_diacritics(text):
     """
     decomposed = unicodedata.normalize("NFKD", text)
     return "".join(char for char in decomposed if not unicodedata.combining(char))
+
+
+def fold(text):
+    """*text* lowercased and accent-folded, as search compares it."""
+    return strip_diacritics((text or "").lower())
+
+
+def build_search_text(*parts):
+    """The ``search_text`` of a row whose searchable values are *parts*.
+
+    Lowercased and accent-folded, so a plain ``contains`` (``LIKE``) covered
+    by the trigram index finds it. Every word is preceded by a single space,
+    the first one included, so "a word starts with x" is ``contains(" x")``:
+    a pattern the trigram index serves from one character on, where
+    "x anywhere" needs three. Words joined by punctuation are also listed
+    apart ("felix.marchand@brigny.example" adds "felix marchand brigny
+    example"), so each piece starts a word.
+
+    Idempotent: feeding a ``search_text`` back in returns it unchanged.
+    """
+    words = fold(" ".join(p for p in parts if p)).split()
+    # Each word split on punctuation. "(annuaire)" splits into "",
+    # "annuaire", "": empty pieces are dropped. A word without punctuation
+    # splits into itself, already listed in ``words``.
+    pieces = [
+        piece
+        for word in words
+        for piece in _WORD_SEPARATORS.split(word)
+        if piece and piece != word
+    ]
+    unique = dict.fromkeys([*words, *pieces])
+    return f" {' '.join(unique)}" if unique else ""
