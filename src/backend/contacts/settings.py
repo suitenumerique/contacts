@@ -329,6 +329,24 @@ class Base(Configuration):
                 environ_name="API_CARDDAV_THROTTLE_RATE",
                 environ_prefix=None,
             ),
+            # /external_api/ search, per user: one request per keystroke
+            # (debounced by the calling app).
+            "external_search": values.Value(
+                default="300/minute",
+                environ_name="API_EXTERNAL_SEARCH_THROTTLE_RATE",
+                environ_prefix=None,
+            ),
+            # /external_api/ interactions and group members, per user.
+            "external_interactions": values.Value(
+                default="60/minute",
+                environ_name="API_EXTERNAL_INTERACTIONS_THROTTLE_RATE",
+                environ_prefix=None,
+            ),
+            "external_group_members": values.Value(
+                default="120/minute",
+                environ_name="API_EXTERNAL_GROUP_MEMBERS_THROTTLE_RATE",
+                environ_prefix=None,
+            ),
         },
         # Number of trusted reverse proxies in front of the app. Throttles
         # identify a client by REMOTE_ADDR when 0, else by the
@@ -620,6 +638,75 @@ class Base(Configuration):
         default=True, environ_name="ALLOW_LOGOUT_GET_METHOD", environ_prefix=None
     )
 
+    # OIDC - Resource server: other Suite apps call /external_api/ with the
+    # user's access token, introspected at the authorization server. See
+    # docs/resource_server.md.
+    OIDC_RESOURCE_SERVER_ENABLED = values.BooleanValue(
+        default=False, environ_name="OIDC_RESOURCE_SERVER_ENABLED", environ_prefix=None
+    )
+    OIDC_RS_BACKEND_CLASS = values.Value(
+        "core.authentication.resource_server.ContactsResourceServerBackend",
+        environ_name="OIDC_RS_BACKEND_CLASS",
+        environ_prefix=None,
+    )
+    OIDC_OP_INTROSPECTION_ENDPOINT = values.Value(
+        None, environ_name="OIDC_OP_INTROSPECTION_ENDPOINT", environ_prefix=None
+    )
+    OIDC_RS_CLIENT_ID = values.Value(
+        None, environ_name="OIDC_RS_CLIENT_ID", environ_prefix=None
+    )
+    OIDC_RS_CLIENT_SECRET = SecretFileValue(
+        None, environ_name="OIDC_RS_CLIENT_SECRET", environ_prefix=None
+    )
+    # Introspection claim naming the app the token was issued to.
+    OIDC_RS_AUDIENCE_CLAIM = values.Value(
+        "client_id", environ_name="OIDC_RS_AUDIENCE_CLAIM", environ_prefix=None
+    )
+    # Apps (token audiences) allowed to call /external_api/, e.g. "drive".
+    OIDC_RS_ALLOWED_AUDIENCES = values.ListValue(
+        default=[], environ_name="OIDC_RS_ALLOWED_AUDIENCES", environ_prefix=None
+    )
+    # A token must carry at least one of these scopes.
+    OIDC_RS_SCOPES = values.ListValue(
+        default=["openid"], environ_name="OIDC_RS_SCOPES", environ_prefix=None
+    )
+    # Only used by the JWT introspection backend (RFC 9701).
+    OIDC_RS_ENCRYPTION_ENCODING = values.Value(
+        "A256GCM", environ_name="OIDC_RS_ENCRYPTION_ENCODING", environ_prefix=None
+    )
+    OIDC_RS_ENCRYPTION_ALGO = values.Value(
+        "RSA-OAEP", environ_name="OIDC_RS_ENCRYPTION_ALGO", environ_prefix=None
+    )
+    OIDC_RS_SIGNING_ALGO = values.Value(
+        "ES256", environ_name="OIDC_RS_SIGNING_ALGO", environ_prefix=None
+    )
+    # Seconds a successful introspection is reused for the same token (never
+    # past the token's own expiry). A share modal searches on every
+    # keystroke; 0 introspects every request.
+    OIDC_RS_INTROSPECTION_CACHE_TIMEOUT = values.PositiveIntegerValue(
+        60, environ_name="OIDC_RS_INTROSPECTION_CACHE_TIMEOUT", environ_prefix=None
+    )
+    # Endpoints of /external_api/ that are served.
+    EXTERNAL_API = values.DictValue(
+        default={
+            "search": {"enabled": True},
+            "interactions": {"enabled": True},
+            "group_members": {"enabled": True},
+        },
+        environ_name="EXTERNAL_API",
+        environ_prefix=None,
+    )
+
+    # Suggestions ranking: an interaction loses half its weight every
+    # INTERACTION_HALF_LIFE_DAYS days (see core.models.Interaction).
+    INTERACTION_HALF_LIFE_DAYS = values.PositiveIntegerValue(
+        30, environ_name="INTERACTION_HALF_LIFE_DAYS", environ_prefix=None
+    )
+    # Database time budget of one search request, in milliseconds.
+    SEARCH_STATEMENT_TIMEOUT_MS = values.PositiveIntegerValue(
+        300, environ_name="SEARCH_STATEMENT_TIMEOUT_MS", environ_prefix=None
+    )
+
     # Logging
     # We want to make it easy to log to console but by default we log production
     # to Sentry and don't want to log to console.
@@ -797,6 +884,17 @@ class Test(Base):
 
     OIDC_STORE_ACCESS_TOKEN = False
     OIDC_STORE_REFRESH_TOKEN = False
+
+    # Resource server: on, with a fake authorization server that tests mock
+    # (responses) at OIDC_OP_INTROSPECTION_ENDPOINT.
+    OIDC_RESOURCE_SERVER_ENABLED = True
+    OIDC_OP_URL = "https://oidc.test/realms/test"
+    OIDC_OP_INTROSPECTION_ENDPOINT = "https://oidc.test/realms/test/introspect"
+    OIDC_RS_CLIENT_ID = "contacts"
+    OIDC_RS_CLIENT_SECRET = "rs-secret"  # noqa: S105  # fake test server
+    OIDC_RS_ALLOWED_AUDIENCES = ["drive"]
+    OIDC_RS_SCOPES = ["openid"]
+    OIDC_RS_INTROSPECTION_CACHE_TIMEOUT = 60
 
     def __init__(self):
         # pylint: disable=invalid-name

@@ -15,8 +15,8 @@ from django.contrib.auth.base_user import AbstractBaseUser
 from django.contrib.postgres.indexes import GinIndex
 from django.core import validators
 from django.core.exceptions import ValidationError
-from django.db import models
-from django.db.models.functions import Lower, Upper
+from django.db import models, transaction
+from django.db.models.functions import Extract, Lower, Power, Upper
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 
@@ -30,7 +30,7 @@ from core.enums import (
     Scope,
 )
 from core.phones import phone_search_forms
-from core.utils import strip_diacritics
+from core.utils import build_search_text
 from core.validators import validate_photo
 
 logger = getLogger(__name__)
@@ -763,7 +763,8 @@ class Contact(BaseModel):
         """Return ``(search_text, sort_key)`` from the merged card.
 
         ``search_text`` is lowercased and accent-folded so searches can use
-        a plain ``contains`` covered by the trigram index.
+        a plain ``contains`` covered by the trigram index (see
+        ``core.utils.build_search_text``).
         """
         phones = self.merged_value("phones") or []
         parts = [
@@ -780,7 +781,7 @@ class Contact(BaseModel):
                 for form in phone_search_forms(phone.get("value"))
             ),
         ]
-        search_text = strip_diacritics(" ".join(p for p in parts if p).lower())
+        search_text = build_search_text(*parts)
         # Filed under the family name when there is one, like a paper
         # directory; otherwise under the displayed name.
         family_name = self.merged_value("family_name")
@@ -910,6 +911,14 @@ class ContactGroup(BaseModel):
     # user-created groups.
     source = models.CharField(max_length=64, blank=True, default="")
     external_id = models.CharField(max_length=255, blank=True, default="")
+    # Denormalized for search (name, email, description), maintained in
+    # clean(); same format as Contact.search_text.
+    search_text = models.TextField(
+        blank=True,
+        default="",
+        editable=False,
+        help_text="Concatenated searchable text (name, email, description).",
+    )
 
     members = models.ManyToManyField(
         Contact,
@@ -963,6 +972,14 @@ class ContactGroup(BaseModel):
                 name="unique_organization_group_name",
             ),
         ]
+        indexes = [
+            models.Index(fields=["organization", "owner", "name"]),
+            GinIndex(
+                name="contacts_group_search_trgm",
+                fields=["search_text"],
+                opclasses=["gin_trgm_ops"],
+            ),
+        ]
 
     def __str__(self):
         return self.name
@@ -997,9 +1014,10 @@ class ContactGroup(BaseModel):
         return self.scope == Scope.ORGANIZATION
 
     def clean(self):
-        """Fill ``scope`` from ``owner`` when left empty."""
+        """Fill ``scope`` from ``owner`` and refresh ``search_text``."""
         if not self.scope:
             self.scope = Scope.PERSONAL if self.owner_id else Scope.ORGANIZATION
+        self.search_text = build_search_text(self.name, self.email, self.description)
 
     def is_writable(self, user):
         """Whether *user* may edit this group (name, members, deletion).
@@ -1275,3 +1293,129 @@ class Channel(BaseModel):
         self.last_used_at = now
         # Direct queryset update: skips full_clean and updated_at churn.
         Channel.objects.filter(pk=self.pk).update(last_used_at=now)
+
+
+class InteractionQuerySet(models.QuerySet):
+    """Interactions, with their rank decayed to now."""
+
+    def with_rank(self, now=None):
+        """Annotate ``rank``: the stored score decayed to *now*.
+
+        ``score × 0.5 ^ (seconds since last pick / half-life in seconds)``,
+        computed in SQL so rows can be ordered by it.
+        """
+        now = now or timezone.now()
+        half_life = settings.INTERACTION_HALF_LIFE_DAYS * 86400
+        age = models.Value(now.timestamp()) - Extract("last_interaction_at", "epoch")
+        return self.annotate(
+            rank=models.ExpressionWrapper(
+                models.F("score")
+                * Power(models.Value(0.5), age / models.Value(float(half_life))),
+                output_field=models.FloatField(),
+            )
+        )
+
+
+class Interaction(BaseModel):
+    """How often, and how recently, a user picked a contact or a group.
+
+    Feeds the ranking of the people and groups suggested to other Suite
+    apps (``/external_api/v1.0/search/``). ``score`` is a counter that
+    loses half its weight every ``INTERACTION_HALF_LIFE_DAYS``: each pick
+    adds 1 on top of the previous score decayed to that day, so a regular
+    contact of this month outranks one picked often long ago. ``count``
+    is the plain lifetime total.
+
+    A pick of an overlay is stored on the row it overlays (like group
+    memberships), so the history survives dropping the overlay.
+    """
+
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="interactions"
+    )
+    contact = models.ForeignKey(
+        Contact,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="interactions",
+    )
+    group = models.ForeignKey(
+        ContactGroup,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="interactions",
+    )
+    count = models.PositiveIntegerField(default=0, help_text="Lifetime picks.")
+    score = models.FloatField(
+        default=0, help_text="Picks decayed to last_interaction_at."
+    )
+    last_interaction_at = models.DateTimeField()
+
+    objects = InteractionQuerySet.as_manager()
+
+    class Meta:
+        db_table = "contacts_interaction"
+        verbose_name = "interaction"
+        verbose_name_plural = "interactions"
+        constraints = [
+            models.CheckConstraint(
+                name="interaction_one_target",
+                condition=(
+                    models.Q(contact__isnull=False, group__isnull=True)
+                    | models.Q(contact__isnull=True, group__isnull=False)
+                ),
+            ),
+            models.UniqueConstraint(
+                fields=["user", "contact"],
+                condition=models.Q(contact__isnull=False),
+                name="unique_interaction_user_contact",
+            ),
+            models.UniqueConstraint(
+                fields=["user", "group"],
+                condition=models.Q(group__isnull=False),
+                name="unique_interaction_user_group",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["user", "-last_interaction_at"]),
+        ]
+
+    def __str__(self):
+        return f"{self.user_id} → {self.contact_id or self.group_id} ({self.count})"
+
+    @staticmethod
+    def decayed(score, since, now):
+        """*score*, last bumped at *since*, as it stands at *now*."""
+        half_life = settings.INTERACTION_HALF_LIFE_DAYS * 86400
+        elapsed = max((now - since).total_seconds(), 0)
+        return score * 0.5 ** (elapsed / half_life)
+
+    @classmethod
+    def record(cls, user, *, contact=None, group=None, now=None):
+        """Count one pick of *contact* or *group* by *user*.
+
+        The row is locked while it is bumped, so two shares landing at
+        the same time both count.
+        """
+        now = now or timezone.now()
+        if contact is not None and contact.overlay_of_id:
+            contact = contact.overlay_of
+        with transaction.atomic():
+            interaction, _created = cls.objects.select_for_update().get_or_create(
+                user=user,
+                contact=contact,
+                group=group,
+                defaults={"last_interaction_at": now},
+            )
+            score = (
+                cls.decayed(interaction.score, interaction.last_interaction_at, now) + 1
+            )
+            # A plain update: full_clean would re-validate every constraint.
+            cls.objects.filter(pk=interaction.pk).update(
+                score=score,
+                count=models.F("count") + 1,
+                last_interaction_at=now,
+                updated_at=now,
+            )

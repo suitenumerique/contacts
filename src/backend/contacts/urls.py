@@ -46,6 +46,11 @@ urlpatterns = [
     path("__heartbeat__/", heartbeat, name="heartbeat"),
 ]
 
+# API for other Suite apps, called with their user's access token
+# (docs/resource_server.md).
+if settings.OIDC_RESOURCE_SERVER_ENABLED:
+    urlpatterns.append(path("", include("core.external_api.urls")))
+
 if settings.DEBUG:
     from debug_toolbar.toolbar import debug_toolbar_urls
 
@@ -72,3 +77,24 @@ if settings.USE_SWAGGER or settings.DEBUG:
             name="redoc-schema",
         ),
     ]
+    if settings.OIDC_RESOURCE_SERVER_ENABLED:
+        urlpatterns += [
+            path(
+                f"external_api/{settings.API_VERSION}/swagger.json",
+                SpectacularJSONAPIView.as_view(
+                    api_version=settings.API_VERSION,
+                    urlconf="core.external_api.urls",
+                    custom_settings={
+                        "TITLE": "contacts external API",
+                        "DESCRIPTION": "People and group suggestions for other "
+                        "Suite apps, called with their user's access token.",
+                    },
+                ),
+                name="external-api-schema",
+            ),
+            path(
+                f"external_api/{settings.API_VERSION}/swagger/",
+                SpectacularSwaggerView.as_view(url_name="external-api-schema"),
+                name="external-swagger-ui-schema",
+            ),
+        ]

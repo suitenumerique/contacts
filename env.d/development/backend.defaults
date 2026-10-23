@@ -53,3 +53,12 @@ FRONTEND_FEEDBACK_MESSAGES_WIDGET_PATH=
 # Must be a valid Fernet key (32 url-safe base64-encoded bytes)
 # To create one, use the bin/fernetkey command.
 # OIDC_STORE_REFRESH_TOKEN_KEY="your-32-byte-encryption-key=="
+
+# OIDC - Resource server: /external_api/ for other Suite apps (see
+# docs/resource_server.md). The "drive" client of the dev realm stands for
+# a consumer app.
+OIDC_RESOURCE_SERVER_ENABLED=True
+OIDC_OP_INTROSPECTION_ENDPOINT=http://keycloak:8080/realms/contacts/protocol/openid-connect/token/introspect
+OIDC_RS_CLIENT_ID=contacts
+OIDC_RS_CLIENT_SECRET=ThisIsAnExampleKeyForDevPurposeOnly
+OIDC_RS_ALLOWED_AUDIENCES=drive

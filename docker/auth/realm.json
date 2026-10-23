@@ -846,6 +846,79 @@
         ]
       },
       {
+        "id": "4b1f2f0e-6c0b-4a51-9a8e-2d7c3f5e9a10",
+        "clientId": "drive",
+        "name": "Drive (local consumer of the external API)",
+        "description": "Stands for a Suite app calling Contacts' /external_api/ in development. Direct access grants let a developer get a token with curl.",
+        "enabled": true,
+        "clientAuthenticatorType": "client-secret",
+        "secret": "ThisIsAnExampleKeyForDevPurposeOnly",
+        "redirectUris": [
+          "http://localhost:3000/*",
+          "http://localhost:8071/*"
+        ],
+        "webOrigins": [
+          "http://localhost:3000",
+          "http://localhost:8071"
+        ],
+        "bearerOnly": false,
+        "consentRequired": false,
+        "standardFlowEnabled": true,
+        "implicitFlowEnabled": false,
+        "directAccessGrantsEnabled": true,
+        "serviceAccountsEnabled": false,
+        "publicClient": false,
+        "frontchannelLogout": true,
+        "protocol": "openid-connect",
+        "attributes": {
+          "post.logout.redirect.uris": "http://localhost:3000/*##http://localhost:8071/*",
+          "use.refresh.tokens": "true"
+        },
+        "fullScopeAllowed": true,
+        "defaultClientScopes": [
+          "web-origins",
+          "acr",
+          "roles",
+          "profile",
+          "email"
+        ],
+        "optionalClientScopes": [
+          "address",
+          "phone",
+          "offline_access",
+          "microprofile-jwt"
+        ],
+        "protocolMappers": [
+          {
+            "name": "siret",
+            "protocol": "openid-connect",
+            "protocolMapper": "oidc-usermodel-attribute-mapper",
+            "consentRequired": false,
+            "config": {
+              "userinfo.token.claim": "true",
+              "user.attribute": "siret",
+              "id.token.claim": "true",
+              "access.token.claim": "true",
+              "introspection.token.claim": "true",
+              "claim.name": "siret",
+              "jsonType.label": "String"
+            }
+          },
+          {
+            "name": "contacts-audience",
+            "protocol": "openid-connect",
+            "protocolMapper": "oidc-audience-mapper",
+            "consentRequired": false,
+            "config": {
+              "included.client.audience": "contacts",
+              "id.token.claim": "false",
+              "access.token.claim": "true",
+              "introspection.token.claim": "true"
+            }
+          }
+        ]
+      },
+      {
         "id": "0d004a05-7049-452c-83a8-2bae2b5d8015",
         "clientId": "realm-management",
         "name": "${client_realm-management}",
