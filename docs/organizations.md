@@ -2,8 +2,8 @@
 
 Every user belongs to exactly one `Organization`, created automatically on
 first login. Organizations are the scoping unit for everything in contacts:
-org-wide directory rows, organization-bound channels, and the tenant identity
-this app presents to the directory service that federates it.
+org-wide directory rows, organization-bound channels, and what the
+[external API](resource_server.md) suggests to other Suite apps.
 
 ## Resolving the organization identifier
 

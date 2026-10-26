@@ -4,21 +4,19 @@ Guidance for coding agents working in this repository.
 
 ## Project Overview
 
-La Suite Contacts is a contacts application, nothing more. Suite-wide
-people/group suggestion (autocomplete) lives in the separate **directory**
-service, which federates this app as one of its sources; this repo is just
-the contacts app itself:
+La Suite Contacts is the Suite's contacts application. It also serves
+people/group suggestions to the other Suite apps (share modals), over an
+external API called with the user's own access token (resource server):
 - **Backend**: Django 5 REST API with PostgreSQL (+ Redis, dramatiq worker)
 - **Frontend**: React 19 + Vite + TanStack Router/Query + @gouvfr-lasuite/ui-components (pnpm via corepack, oxlint/oxfmt)
 - **Authentication**: Keycloak OIDC; organizations come from a configurable claim (`siret` in dev/prod)
 
 Core concepts: personal + org-wide contacts, groups and labels; read-only
 rows provisioned from an external source, with per-user **overlays** (fork) so
-local edits don't break the link; trash (corbeille); channel API keys giving
-the directory service read-only access; async vCard/CSV import.
-
-Autocomplete, directory backends and interaction ("+1") ranking are out of
-scope here: they are the directory service's job.
+local edits don't break the link; trash (corbeille); channel API keys for
+services and CardDAV devices; async vCard/CSV import; `/external_api/`
+search, interactions ("+1" ranking with decay) and group members for other
+Suite apps (docs/resource_server.md).
 
 ## Common Commands
 
@@ -55,10 +53,13 @@ make test-front         # vitest
 ### Backend Structure (`src/backend/`)
 - `contacts/` - Django project configuration (settings, urls, wsgi)
 - `core/` - Main application code:
-  - `models.py` - Organization, User, Contact, ContactGroup, ContactLabel, Channel
+  - `models.py` - Organization, User, Contact, ContactGroup, ContactLabel, Channel, Interaction
   - `api/` - DRF viewsets/serializers (+ `viewsets_channels.py`, `viewsets_task.py`)
   - `authentication/` - OIDC backend + channel API-key authentication
   - `services/vcf_service.py`, `services/csv_service.py` - vCard / CSV parse+serialize
+  - `services/search.py`, `external_api/` - ranked people/group search and
+    the `/external_api/` endpoints for other Suite apps (resource server,
+    `authentication/resource_server.py`; see docs/resource_server.md)
   - `tests/` - pytest test files
 - `carddav/` - CardDAV endpoint over `core.models.Contact`; its own models
   (`SyncCounter`, `ContactChange`, ...) only hold sync bookkeeping (see docs/carddav.md)

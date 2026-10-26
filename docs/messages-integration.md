@@ -9,32 +9,20 @@ one without the others.
 
 | Surface | Direction | Transport |
 | ------- | --------- | --------- |
-| Recipient suggestion | Messages reads | directory service |
+| Recipient suggestion | Messages reads | external API (user token) |
 | Address book read/write | Messages reads and writes | CardDAV |
 | "Send a message" deep link | Contacts links out | URL template |
 | Feedback widget | Contacts embeds | Messages JS widget |
 
-## 1. Recipient suggestion goes through the directory service
+## 1. Recipient suggestion goes through the external API
 
-Messages must **not** call this app to autocomplete recipients. Suite-wide
-people suggestion belongs to the standalone **directory** service, which
-federates several sources; Contacts is one of them. See
-[architecture.md](architecture.md).
-
-Mint the credential the directory service uses to read this app:
-
-```bash
-python manage.py create_channel \
-  --name "Directory service" \
-  --scopes contacts:read,groups:read
-```
-
-It prints `X-Channel-Id` and `X-API-Key` once. Both headers go on every
-request the directory service makes; it names the user it acts for with
-`on_behalf_of`. Details in [channels.md](channels.md).
-
-These scopes are read-only by construction. Nothing that authenticates with
-an `api_key` channel can modify an address book.
+Messages' backend suggests recipients with
+`GET /external_api/v1.0/search/`, called with the access token its user
+logged in with, and reports what the user sent to with
+`POST /external_api/v1.0/interactions/` so they rank higher next time.
+Contacts must list `messages` in `OIDC_RS_ALLOWED_AUDIENCES`, and Messages'
+tokens must name Contacts in their audience. See
+[resource_server.md](resource_server.md).
 
 ## 2. Address book over CardDAV
 

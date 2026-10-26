@@ -3,27 +3,24 @@
 La Suite Contacts is the Suite's **contacts app**: personal address book,
 labels, groups, trash, vCard/CSV import-export.
 
-People/group suggestion across the Suite (sharing modals in Docs, recipient
-fields in Messages, attendee pickers in Calendars) is **not** this app's job:
-it belongs to the standalone **directory** service, which aggregates every
-source Suite-wide. Contacts is **one of its sources**:
-the directory service reads this app's contacts and groups over a service
-channel (`contacts:read` / `groups:read`), so a user's saved contacts surface
-wherever the Suite suggests people.
+It is also where the Suite suggests people and groups: sharing modals in
+Drive or Docs, recipient fields in Messages, attendee pickers in Calendars
+call its [external API](resource_server.md) on behalf of their user, with
+the user's own access token. Suggestions are the user's contacts and
+groups (personal, organization and synced rows), ranked by how often and how
+recently the user picked them.
 
 ```
-                                       ┌─────────────────────────┐
-   Docs / Messages / Calendars ... ──▶ │   directory service     │
-                                       └───────────┬─────────────┘
-                                                   │ reads as one source
-                                                   │ (X-Channel-Id / X-API-Key)
+   Drive / Docs / Messages backends ──▶ /external_api/v1.0/
+   (user's access token, introspected)   search · interactions · group members
+                                                   │
                  ┌─────────────────────────────────▼───┐
    Contacts UI ─▶│  contacts app                       │
                  │  GET /contacts/  GET /groups/       │
                  └─────────────┬───────────────────────┘
                                ▼
                             local PG
-                         contacts + groups
+                 contacts + groups + interactions
 ```
 
 ## Components
@@ -48,13 +45,17 @@ wherever the Suite suggests people.
 | `Contact`                 | vCard-ish card. `scope` says whose it is: `personal` (its `owner`'s) or `organization` (the organization's curated address book, no `owner`; a database constraint ties the two). Who sees a row is `Contact.objects.visible_to(user)`, who writes it `Contact.is_writable`: its owner, or for an organization row the organization's administrators (`can_admin`); a row from a `source` is read-only. `created_by` / `updated_by` record who wrote it. `overlay_of` + `overridden_fields` hold a user's local **overlay** merged on top of a contact they cannot edit (created via `POST /contacts/{id}/fork/`); deleting that contact for good detaches the overlays into personal contacts. Multi-valued props (emails, phones, ...) are JSONB `{type, value}` lists; unmodeled vCard props survive in `vcard_extra`. Names follow vCard: `full_name` is `FN` (the only name required, filled from the parts when blank), the `N` parts and `nickname` are optional; the list is sorted by family name, or by full name when there is none. |
 | `ContactLabel`            | Per-user colored labels (libellés); a predefined set is seeded when the user is created. |
 | `ContactGroup` (+membership) | Named sets of contacts, scoped like contacts. A personal group is its owner's; an organization group is visible to the whole organization and edited by its administrators (`can_admin`, see [entitlements.md](entitlements.md)), and only holds contacts the whole organization sees; one from a `source` is read-only. Groups are never overlaid. |
-| `Channel`                 | Service API keys, see [channels.md](channels.md): how the directory service and CardDAV clients authenticate to this app. |
+| `Channel`                 | Service API keys, see [channels.md](channels.md): how services and CardDAV clients authenticate to this app. |
+| `Interaction`             | How often and how recently a user picked a contact or a group in another Suite app (a count, and a score halving every `INTERACTION_HALF_LIFE_DAYS`); ranks [external search](resource_server.md) results. |
 
-Search uses a denormalized `search_text` column, stored lowercased and
-accent-folded (`core.utils.strip_diacritics`). The query is folded the same
-way and matched word by word with a case-sensitive `contains` (`LIKE`), which
-the `pg_trgm` GIN index on `search_text` serves; `icontains` would compare
-`UPPER(...)` and skip the index.
+Search uses a denormalized `search_text` column (contacts and groups),
+stored lowercased and accent-folded, with every word preceded by a space and
+words joined by punctuation also listed apart (`core.utils.build_search_text`).
+The query is folded the same way and matched word by word with a
+case-sensitive `contains` (`LIKE`), which the `pg_trgm` GIN index on
+`search_text` serves; `icontains` would compare `UPPER(...)` and skip the
+index. The leading space makes "a word starts with" (`contains(" ma")`)
+servable by the index from one character on.
 
 Phone numbers are indexed as digit strings (`core/phones.py`): as written,
 international (`33639986309`) and national (`0639986309`), read with
@@ -71,8 +72,9 @@ so a client's delta cannot silently miss one).
 ## Key flows
 
 - **Search**: `GET /contacts/?q=` over the denormalized `search_text`,
-  serving the header search. Consumed by the directory service too,
-  over a `contacts:read` channel.
+  serving the header search. Other Suite apps search through
+  `GET /external_api/v1.0/search/` instead: contacts and groups in one
+  list, ranked ([resource_server.md](resource_server.md)).
 - **The organization's address book**: administrators create organization
   contacts and groups (`is_org_contact` / `is_org_group` at creation),
   import a file into it (`scope=organization` on the import endpoints), and

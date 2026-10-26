@@ -75,8 +75,9 @@ assumed. With the default local backend this is invisible, since it grants
 access to everyone and never fails.
 
 Organization and global service channels are a separate axis. A request
-carrying `contacts:read` passes on its scope, so the directory service
-keeps federating regardless of any individual's entitlement. A
+carrying `contacts:read` passes on its scope, so a service keeps reading
+regardless of any individual's entitlement. The [external API](resource_server.md)
+acts as the token's user, who must pass `can_access` like in the web app. A
 `user`-scoped channel is that user's own credential, so it is checked like
 the user (`core/authentication/channel.py`), fail-closed too.
 
