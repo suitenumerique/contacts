@@ -32,7 +32,7 @@ company is "Mairie de Brigny".
 
 from dataclasses import dataclass
 
-from django.db.models import Count, Exists, F, OuterRef, Q, Subquery
+from django.db.models import Count, F, OuterRef, Q, Subquery, Value
 from django.db.models.functions import Coalesce, Lower
 
 from core import models
@@ -173,17 +173,25 @@ def group_book(user):
 def with_members_count(groups, user):
     """Annotate ``members_count``: visible, non-trashed members.
 
-    An overlay and its parent are one logical contact. Only apply it to the
-    few groups a response returns: it counts every member.
+    An overlay and its parent are one logical contact. Counted per group
+    from its own memberships (an index lookup each), not by checking members
+    against everything the user can see.
     """
-    visible = models.Contact.objects.visible_to(user)
-    return groups.annotate(
-        members_count=Count(
-            Coalesce("members__overlay_of_id", "members__id"),
-            filter=Q(members__deleted_at__isnull=True, members__in=visible),
-            distinct=True,
+    memberships = (
+        models.ContactGroupMembership.objects.filter(
+            group=OuterRef("pk"),
+            contact__organization_id=user.organization_id,
+            contact__deleted_at__isnull=True,
         )
+        .filter(Q(contact__scope=Scope.ORGANIZATION) | Q(contact__owner_id=user.pk))
+        .order_by()
+        .values("group")
+        .annotate(
+            count=Count(Coalesce("contact__overlay_of_id", "contact_id"), distinct=True)
+        )
+        .values("count")
     )
+    return groups.annotate(members_count=Coalesce(Subquery(memberships), Value(0)))
 
 
 def _sort_key(kind, row):
@@ -310,26 +318,41 @@ class _Search:
         self._keep((kind, row) for _rank, kind, row in rows)
 
     def favorites(self):
-        """Step 2: rows matching the query that the user starred."""
+        """Step 2: rows matching the query that the user starred.
+
+        Stars are few: they are read first, and the step costs nothing more
+        for a user who has none.
+        """
         user = self.user
-        starred_contact = models.Contact.favorited_by.through.objects.filter(
-            user_id=user.pk
-        )
-        starred_group = models.ContactGroup.favorited_by.through.objects.filter(
-            user_id=user.pk
-        )
+        # Loaded in Python on purpose (unlike step 1's subquery): an empty
+        # list lets the step skip its three queries.
+        starred = {
+            CONTACT: list(
+                models.Contact.favorited_by.through.objects.filter(
+                    user_id=user.pk
+                ).values_list("contact_id", flat=True)
+            )
+            if CONTACT in self.kinds
+            else [],
+            GROUP: list(
+                models.ContactGroup.favorited_by.through.objects.filter(
+                    user_id=user.pk
+                ).values_list("contactgroup_id", flat=True)
+            )
+            if GROUP in self.kinds
+            else [],
+        }
+        if not starred[CONTACT] and not starred[GROUP]:
+            return
 
         def condition(kind):
+            ids = starred[kind]
             if kind == CONTACT:
+                # A star on the row an overlay covers counts for the overlay.
                 return self.query.anywhere() & (
-                    Exists(starred_contact.filter(contact_id=OuterRef("pk")))
-                    | Exists(
-                        starred_contact.filter(contact_id=OuterRef("overlay_of_id"))
-                    )
+                    Q(pk__in=ids) | Q(overlay_of_id__in=ids)
                 )
-            return self.query.anywhere() & Exists(
-                starred_group.filter(contactgroup_id=OuterRef("pk"))
-            )
+            return self.query.anywhere() & Q(pk__in=ids)
 
         self._alphabetical(condition)
 
