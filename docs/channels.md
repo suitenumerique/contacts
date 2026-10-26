@@ -41,10 +41,10 @@ REST API: REST authentication only looks up `api_key` channels and CardDAV
 authentication only `carddav` ones. Validation also keeps each type to its
 own scopes.
 
-The typical consumer is the standalone **directory service**, which gets an
-`organization` or `global` channel with `contacts:read` + `groups:read` and
-federates this app's contacts and groups into the Suite-wide directory it
-serves to the other Suite apps.
+A service that reads address books for many users gets an `organization`
+or `global` channel with `contacts:read` + `groups:read`. Suite apps that
+suggest people to their user use the [external API](resource_server.md)
+instead, with that user's own access token.
 
 ## Creating a channel from the CLI
 
@@ -77,7 +77,7 @@ one and shows it once, together with the Basic Auth password for a
 `carddav` channel.
 
 See [messages-integration.md](messages-integration.md) for the credentials
-Messages and the directory service each need.
+Messages needs.
 
 ## Endpoints
 
