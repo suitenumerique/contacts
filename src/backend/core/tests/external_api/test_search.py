@@ -315,6 +315,43 @@ def test_a_pick_of_an_overlay_ranks_the_overlay(api, user):
     assert [row["id"] for row in rows][0] == str(overlay.pk)
 
 
+def test_a_picked_card_shared_with_the_organization_keeps_its_rank(api, user):
+    """A picked card shared with the organization keeps its rank.
+
+    Kept as the owner's overlay (it has notes), it used to carry the
+    Interaction row while its rank was read on the new shared row: NULL,
+    and the search failed with a 500.
+    """
+    zelda = contact(user, full_name="Zelda Partage", notes="private")
+    abel = contact(user, full_name="Abel Zelda")
+    _pick(user, zelda, times=2)
+
+    shared = zelda.share_with_organization(by=user)
+    zelda.refresh_from_db()
+    assert zelda.overlay_of_id == shared.pk
+
+    rows = api.get(URL, {"q": "zelda"}).json()["results"]
+    assert [row["id"] for row in rows] == [str(zelda.pk), str(abel.pk)]
+
+
+def test_an_interaction_row_left_on_an_overlay_ranks_last(api, user):
+    """An Interaction row written past record(), on an overlay, ranks 0."""
+    synced = contact(
+        org=user.organization, full_name="Claire Dubois", source="ldap", external_id="1"
+    )
+    overlay = models.Contact(
+        owner=user, organization=user.organization, overlay_of=synced
+    )
+    overlay.save()
+    models.Interaction.objects.create(
+        user=user, contact=overlay, count=1, score=1, last_interaction_at=timezone.now()
+    )
+    picked = contact(user, full_name="Claire Picked")
+    _pick(user, picked)
+
+    assert _names(api.get(URL, {"q": "claire"})) == ["Claire Picked", "Claire Dubois"]
+
+
 def test_an_empty_query_lists_only_picked_rows(api, user):
     """An empty query lists only picked rows."""
     contact(user, full_name="Never picked")

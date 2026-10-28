@@ -11,6 +11,7 @@ import logging
 from django.conf import settings
 from django.db import OperationalError, connection, transaction
 from django.db.models import Exists, OuterRef, Q
+from django.utils import timezone
 
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from lasuite.oidc_resource_server.authentication import ResourceServerAuthentication
@@ -123,10 +124,13 @@ class InteractionsView(ExternalAPIView):
         groups = models.ContactGroup.objects.visible_to(user).filter(
             pk__in=wanted[search_service.GROUP]
         )
+        # One timestamp for the whole share: the people picked together get
+        # the same rank, so the name orders them, not microseconds apart.
+        now = timezone.now()
         for contact in contacts:
-            models.Interaction.record(user, contact=contact)
+            models.Interaction.record(user, contact=contact, now=now)
         for group in groups:
-            models.Interaction.record(user, group=group)
+            models.Interaction.record(user, group=group, now=now)
         return response.Response(status=status.HTTP_204_NO_CONTENT)
 
 

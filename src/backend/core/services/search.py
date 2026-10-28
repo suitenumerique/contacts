@@ -291,11 +291,14 @@ class _Search:
                 # the row it covers).
                 picked |= Q(overlay_of_id__in=recent)
             queryset = self._untaken(queryset.filter(match), kind)
+            # No Interaction row for the target gives NULL, which would reach
+            # the sort below as None and fail on -None: count it as 0. Models
+            # keep Interaction rows on canonical rows, so this is a backstop.
             return [
                 (row.rank, kind, row)
                 for row in queryset.filter(picked)
-                .annotate(rank=Subquery(rank))
-                .order_by(F("rank").desc(nulls_last=True), "pk")[:size]
+                .annotate(rank=Coalesce(Subquery(rank), Value(0.0)))
+                .order_by(F("rank").desc(), "pk")[:size]
             ]
 
         rows = []

@@ -570,10 +570,10 @@ class Contact(BaseModel):
         """Copy this personal contact into its organization's address book.
 
         Everything is copied but the notes and the labels, which stay
-        private. The owner's groups and star move to the shared contact
-        (memberships are stored on canonical rows). This row then shows
-        the shared one: it is deleted, or kept as the owner's overlay when
-        it holds notes or labels. Returns the shared contact.
+        private. The owner's groups, star and Interaction rows move to the
+        shared contact (they are stored on canonical rows). This row then
+        shows the shared one: it is deleted, or kept as the owner's overlay
+        when it holds notes or labels. Returns the shared contact.
         """
         shared = Contact(
             scope=Scope.ORGANIZATION,
@@ -595,6 +595,10 @@ class Contact(BaseModel):
         if self.favorited_by.filter(pk=self.owner_id).exists():
             shared.favorited_by.add(self.owner_id)
             self.favorited_by.remove(self.owner_id)
+        # Before the delete below would cascade them away. Left here, they
+        # would sit on an overlay, where search reads no rank. The shared
+        # row is new, so no unique (user, contact) pair can clash.
+        self.interactions.update(contact=shared)
 
         if not (self.notes or self.labels.exists()):
             self.delete()
@@ -615,7 +619,7 @@ class Contact(BaseModel):
 
         Each one takes the merged values it was showing, and what was
         stored on this canonical row for its owner: their personal groups'
-        memberships and their star.
+        memberships, their star and their Interaction row.
         """
         memberships = list(
             self.memberships.filter(group__scope=Scope.PERSONAL).values_list(
@@ -644,6 +648,12 @@ class Contact(BaseModel):
             )
             if overlay.owner_id in starred:
                 overlay.favorited_by.add(overlay.owner_id)
+            # The overlay is now its owner's canonical row. It only holds an
+            # Interaction of its own if one was written past record().
+            if not overlay.interactions.exists():
+                self.interactions.filter(user_id=overlay.owner_id).update(
+                    contact=overlay
+                )
 
     def merged_value(self, field):
         """Value of *field* in this row's presented (merged) view.

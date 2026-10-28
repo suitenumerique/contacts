@@ -145,3 +145,56 @@ def test_a_row_points_at_one_target_only(user):
             group=team,
             last_interaction_at=timezone.now(),
         )
+
+
+# Interaction rows follow the canonical row
+
+
+@pytest.mark.parametrize("notes", ["private", ""])
+def test_sharing_a_card_with_the_organization_moves_its_interaction(user, notes):
+    """Sharing a card with the organization moves its Interaction row.
+
+    With notes the card stays as the owner's overlay; without, it is
+    deleted. Either way the row moves to the shared card, with its count.
+    """
+    zelda = contact(user, full_name="Zelda", notes=notes)
+    models.Interaction.record(user, contact=zelda)
+    models.Interaction.record(user, contact=zelda)
+
+    shared = zelda.share_with_organization(by=user)
+
+    interaction = models.Interaction.objects.get(user=user)
+    assert interaction.contact_id == shared.pk
+    assert interaction.count == 2
+
+
+def test_deleting_an_organization_card_moves_interactions_to_overlays(user):
+    """Deleting an organization card hands each overlay owner their row."""
+    colleague = factories.UserFactory(organization=user.organization)
+    card = contact(org=user.organization, full_name="Claire")
+    overlay = models.Contact(
+        owner=user, organization=user.organization, overlay_of=card
+    )
+    overlay.save()
+    models.Interaction.record(user, contact=overlay)
+    models.Interaction.record(colleague, contact=card)
+
+    card.delete()
+
+    overlay.refresh_from_db()
+    assert overlay.overlay_of_id is None
+    assert models.Interaction.objects.get(user=user).contact_id == overlay.pk
+    # The colleague had no overlay: their row goes with the card.
+    assert not models.Interaction.objects.filter(user=colleague).exists()
+
+
+def test_one_share_records_its_picks_at_the_same_time(api, user):
+    """One share records its picks at the same time, so they rank equal."""
+    zoe = contact(user, full_name="Zoé")
+    adam = contact(user, full_name="Adam")
+
+    _post(api, ("contact", zoe.pk), ("contact", adam.pk))
+
+    rows = models.Interaction.objects.filter(user=user)
+    assert len({row.last_interaction_at for row in rows}) == 1
+    assert len({row.score for row in rows}) == 1
