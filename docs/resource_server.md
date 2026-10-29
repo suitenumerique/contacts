@@ -251,7 +251,15 @@ docker compose exec backend-dev python manage.py seed_benchmark --clear
 `seed_benchmark` fills the database to the target size (in `benchmark-*`
 organizations only; options scale it down), then `benchmark_search` calls
 the search function directly (no HTTP, no auth) for common and rare queries
-and reports p50 / p95 per query.
+and reports p50 / p95 per query. It exits with an error when the overall
+p95 reaches `--target-ms` (50 by default).
+
+The `Search benchmark` workflow (`.github/workflows/benchmark.yml`) does the
+same at full size every Monday on `main`, about 30 minutes, mostly seeding.
+Run it on demand from the Actions tab (**Run workflow**), or with
+`gh workflow run benchmark.yml`. The results table is on the run's summary
+page. Its Postgres runs with default settings on shared machines, so compare
+its numbers with earlier runs rather than with production.
 
 Measured on a laptop (dev stack, `DEBUG` on), 1,000,035 contacts (210,000
 in the user's organization), 10.5M interactions, 20 runs per query, limit 10:

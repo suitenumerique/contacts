@@ -1,0 +1,96 @@
+name: Search benchmark
+
+# Seeds a large database and times the people search against its target
+# (docs/resource_server.md, "Performance"). Too slow for every pull request
+# (~30 min, mostly seeding), so it runs weekly on main, or on demand from the
+# Actions tab ("Run workflow").
+on:
+  schedule:
+    - cron: "17 3 * * 1" # Mondays 03:17 UTC
+  workflow_dispatch:
+    inputs:
+      target_ms:
+        description: "Fail when the overall p95 reaches this (ms)"
+        default: "50"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: search-benchmark
+  cancel-in-progress: false
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    defaults:
+      run:
+        working-directory: src/backend
+        # Explicit bash turns on pipefail: `| tee` keeps the command's exit code.
+        shell: bash
+
+    services:
+      postgres:
+        image: postgres:16.6@sha256:557fea37a744d5f4c8faab304b0a90858b53ab119735a88c131fd19dab802f36
+        env:
+          POSTGRES_DB: contacts
+          POSTGRES_USER: pgroot
+          POSTGRES_PASSWORD: pass
+        ports:
+          - 5432:5432
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+
+    env:
+      DJANGO_CONFIGURATION: Test
+      DJANGO_SETTINGS_MODULE: contacts.settings
+      DJANGO_SECRET_KEY: ThisIsAnExampleKeyForTestPurposeOnly
+      OIDC_OP_JWKS_ENDPOINT: /endpoint-for-test-purpose-only
+      DB_HOST: localhost
+      DB_NAME: contacts
+      DB_USER: pgroot
+      DB_PASSWORD: pass
+      DB_PORT: 5432
+      TARGET_MS: ${{ inputs.target_ms || '50' }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Create writable /data
+        run: |
+          sudo mkdir -p /data/media && \
+          sudo mkdir -p /data/static
+
+      - name: "Set up Python"
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version-file: "src/backend/.python-version"
+      - name: Install uv
+        uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
+      - name: Install the dependencies
+        run: uv sync --locked --all-extras
+
+      - name: Migrate
+        run: uv run python manage.py migrate --noinput
+
+      - name: Seed 1M contacts and 10M interactions
+        run: uv run python manage.py seed_benchmark
+
+      - name: Time the search
+        run: |
+          uv run python manage.py benchmark_search --target-ms "$TARGET_MS" \
+            2>&1 | tee benchmark.txt
+
+      - name: Publish the results
+        if: always()
+        run: |
+          {
+            echo "### Search benchmark"
+            echo '```'
+            cat benchmark.txt 2>/dev/null || echo "No results: an earlier step failed."
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
