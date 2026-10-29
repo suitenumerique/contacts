@@ -3,7 +3,8 @@
 Calls ``core.services.search.search`` directly, as the benchmark user, for a
 fixed list of common and rare queries: no HTTP and no authentication, only
 what Contacts owns. Reports p50 / p95 per query and overall, against the
-50 ms target of docs/resource_server.md ("Performance").
+50 ms target of docs/resource_server.md ("Performance"), and exits with an
+error when the overall p95 is over it (the weekly CI run relies on that).
 """
 
 import statistics
@@ -60,6 +61,12 @@ class Command(BaseCommand):
         parser.add_argument("--runs", type=int, default=30)
         parser.add_argument("--limit", type=int, default=10)
         parser.add_argument("--email", default=BENCHMARK_EMAIL)
+        parser.add_argument(
+            "--target-ms",
+            type=float,
+            default=TARGET_MS,
+            help="Fail when the overall p95 reaches it.",
+        )
 
     def handle(self, *args, **options):
         try:
@@ -82,6 +89,7 @@ class Command(BaseCommand):
             f"{'query':<20} {'results':>7} {'SQL':>4} {'p50 ms':>8} {'p95 ms':>8}"
         )
 
+        target = options["target_ms"]
         everything = []
         for label, text in QUERIES.items():
             timings, sql_count, found = [], 0, 0
@@ -97,15 +105,17 @@ class Command(BaseCommand):
                 sql_count, found = counter.count, len(results)
             everything += timings
             p95 = _percentile(timings, 0.95)
-            flag = "" if p95 < TARGET_MS else "  ← over target"
+            flag = "" if p95 < target else "  ← over target"
             self.stdout.write(
                 f"{label:<20} {found:>7} {sql_count:>4} "
                 f"{statistics.median(timings):>8.1f} {p95:>8.1f}{flag}"
             )
 
         p95 = _percentile(everything, 0.95)
-        verdict = "OK" if p95 < TARGET_MS else "OVER TARGET"
         self.stdout.write(
             f"\nAll queries: p50 {statistics.median(everything):.1f} ms, "
-            f"p95 {p95:.1f} ms (target < {TARGET_MS} ms): {verdict}"
+            f"p95 {p95:.1f} ms (target < {target:g} ms)"
         )
+        if p95 >= target:
+            raise CommandError(f"p95 {p95:.1f} ms is over the {target:g} ms target.")
+        self.stdout.write("OK")
