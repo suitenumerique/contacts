@@ -231,6 +231,19 @@ class InteractionsRequestSerializer(serializers.Serializer):  # pylint: disable=
         return value
 
 
+class AddContactSerializer(serializers.Serializer):  # pylint: disable=abstract-method
+    """Body of the "Add as contact" endpoint."""
+
+    email = serializers.EmailField()
+    name = serializers.CharField(
+        required=False,
+        default="",
+        allow_blank=True,
+        max_length=255,
+        help_text="Shown name; the address is shown when empty.",
+    )
+
+
 class GroupMembersResponseSerializer(serializers.Serializer):  # pylint: disable=abstract-method
     """Response of the group members endpoint (for the schema only)."""
 

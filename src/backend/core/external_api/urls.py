@@ -15,6 +15,9 @@ ENDPOINTS = {
     "interactions": path(
         "interactions/", views.InteractionsView.as_view(), name="external-interactions"
     ),
+    "contacts": path(
+        "contacts/", views.AddContactView.as_view(), name="external-add-contact"
+    ),
     "group_members": path(
         "groups/<uuid:group_id>/members/",
         views.GroupMembersView.as_view(),

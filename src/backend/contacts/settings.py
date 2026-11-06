@@ -349,6 +349,11 @@ class Base(Configuration):
                 environ_name="API_EXTERNAL_INTERACTIONS_CHANNEL_THROTTLE_RATE",
                 environ_prefix=None,
             ),
+            "external_contacts": values.Value(
+                default="30/minute",
+                environ_name="API_EXTERNAL_CONTACTS_THROTTLE_RATE",
+                environ_prefix=None,
+            ),
             "external_group_members": values.Value(
                 default="120/minute",
                 environ_name="API_EXTERNAL_GROUP_MEMBERS_THROTTLE_RATE",
@@ -713,6 +718,8 @@ class Base(Configuration):
                 "channel_kinds": ["email_sent", "email_received", "event_invite"],
             },
             "group_members": {"enabled": True},
+            # "Add as contact": creates a personal contact for the user.
+            "contacts": {"enabled": True},
         },
         environ_name="EXTERNAL_API",
         environ_prefix=None,

@@ -6,14 +6,15 @@ from rest_framework.test import APIClient
 pytestmark = pytest.mark.django_db
 
 
-def test_the_external_schema_lists_the_three_endpoints():
-    """The external schema lists the three endpoints."""
+def test_the_external_schema_lists_the_external_endpoints():
+    """The external schema lists the external endpoints."""
     schema = APIClient().get("/external_api/v1.0/swagger.json").json()
 
     assert set(schema["paths"]) == {
         "/external_api/v1.0/search/",
         "/external_api/v1.0/interactions/",
         "/external_api/v1.0/groups/{group_id}/members/",
+        "/external_api/v1.0/contacts/",
     }
     result = schema["components"]["schemas"]["SearchResult"]
     assert result["discriminator"]["propertyName"] == "type"

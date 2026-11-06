@@ -157,6 +157,65 @@ class InteractionsView(ExternalAPIView):
         return config.get("kinds", {}).get(audience, [])
 
 
+class AddContactView(ExternalAPIView):
+    """Add an address to the user's contacts ("Add as contact" buttons)."""
+
+    throttle_scope = "external_contacts"
+
+    @extend_schema(
+        operation_id="external_add_contact",
+        request=serializers.AddContactSerializer,
+        responses={
+            200: serializers.ContactResultSerializer,
+            201: serializers.ContactResultSerializer,
+        },
+        tags=["external"],
+    )
+    def post(self, request):
+        """Create a personal contact for an address, or return the known one.
+
+        ``201`` with the new contact, or ``200`` with the contact the user
+        already sees under that address (their own or the organization's):
+        calling twice is harmless. A new contact gets a one-time boost in
+        the ranking (the ``added_as_contact`` kind).
+        """
+        body = serializers.AddContactSerializer(data=request.data)
+        body.is_valid(raise_exception=True)
+        user = request.user
+        email = body.validated_data["email"].strip()
+        if interactions_service.is_own_address(user, email):
+            raise exceptions.ValidationError({"email": "This is your own address."})
+
+        with transaction.atomic():
+            # One add at a time per user: a double click can't make two.
+            models.User.objects.select_for_update().filter(pk=user.pk).first()
+            existing = interactions_service.find_contact(user, email)
+            if existing is not None:
+                return response.Response(
+                    serializers.ContactResultSerializer(existing).data
+                )
+            contact = models.Contact(
+                owner=user,
+                organization_id=user.organization_id,
+                scope=Scope.PERSONAL,
+                full_name=body.validated_data["name"].strip(),
+                emails=[{"type": "", "value": email}],
+                created_by=user,
+                updated_by=user,
+            )
+            contact.save()
+            if "added_as_contact" in settings.INTERACTION_KINDS:
+                models.Interaction.record(
+                    user,
+                    contact=contact,
+                    weight=interactions_service.weight("added_as_contact"),
+                )
+        return response.Response(
+            serializers.ContactResultSerializer(contact).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+
 class GroupMembersPagination(Pagination):
     """Members page, with the group itself next to the results."""
 
