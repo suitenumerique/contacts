@@ -31,11 +31,12 @@ X-API-Key: <raw secret>
 | --------------- | ------------ | ----------------------------------------------- |
 | `contacts:read` | `api_key`    | Read the acting user's contacts (REST).         |
 | `groups:read`   | `api_key`    | Read the acting user's groups (REST).           |
+| `interactions:write` | `api_key` | Report interactions (emails received...) for the acting user on `POST /external_api/v1.0/interactions/`, see [resource_server.md](resource_server.md). |
 | `carddav:read`  | `carddav`    | Read over [CardDAV](carddav.md).                |
 | `carddav:write` | `carddav`    | Read and write over CardDAV.                    |
 
-The REST scopes are read-only: an `api_key` channel can never mutate an
-address book. Writes are reachable only over CardDAV, with a credential of
+The REST scopes never let an `api_key` channel change an address book:
+`interactions:write` only feeds the acting user's suggestion ranking. Writes are reachable only over CardDAV, with a credential of
 `type="carddav"`. A device sync password cannot be replayed against the
 REST API: REST authentication only looks up `api_key` channels and CardDAV
 authentication only `carddav` ones. Validation also keeps each type to its

@@ -46,7 +46,7 @@ recently the user picked them.
 | `ContactLabel`            | Per-user colored labels (libellés); a predefined set is seeded when the user is created. |
 | `ContactGroup` (+membership) | Named sets of contacts, scoped like contacts. A personal group is its owner's; an organization group is visible to the whole organization and edited by its administrators (`can_admin`, see [entitlements.md](entitlements.md)), and only holds contacts the whole organization sees; one from a `source` is read-only. Groups are never overlaid. |
 | `Channel`                 | Service API keys, see [channels.md](channels.md): how services and CardDAV clients authenticate to this app. |
-| `Interaction`             | How often and how recently a user picked a contact or a group in another Suite app (a count, and a score halving every `INTERACTION_HALF_LIFE_DAYS`); ranks [external search](resource_server.md) results. |
+| `Interaction`             | How often and how recently a user interacted with a contact or a group in another Suite app (shares, emails sent and received, invitations, each kind with its weight; a count, and a score halving every `INTERACTION_HALF_LIFE_DAYS`); ranks [external search](resource_server.md) results. |
 
 Search uses a denormalized `search_text` column (contacts and groups),
 stored lowercased and accent-folded, with every word preceded by a space and
