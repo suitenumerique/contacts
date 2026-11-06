@@ -46,6 +46,9 @@ class ChannelScope(StrEnum):
 
     CONTACTS_READ = "contacts:read"
     GROUPS_READ = "groups:read"
+    # Report interactions (emails received...) for the on_behalf_of user,
+    # on /external_api/v1.0/interactions/.
+    INTERACTIONS_WRITE = "interactions:write"
     CARDDAV_READ = "carddav:read"
     CARDDAV_WRITE = "carddav:write"
 
@@ -54,7 +57,11 @@ class ChannelScope(StrEnum):
 # device password can never be used against the REST API, and vice versa.
 CHANNEL_TYPE_SCOPES = {
     ChannelType.API_KEY: frozenset(
-        {ChannelScope.CONTACTS_READ, ChannelScope.GROUPS_READ}
+        {
+            ChannelScope.CONTACTS_READ,
+            ChannelScope.GROUPS_READ,
+            ChannelScope.INTERACTIONS_WRITE,
+        }
     ),
     ChannelType.CARDDAV: frozenset(
         {ChannelScope.CARDDAV_READ, ChannelScope.CARDDAV_WRITE}

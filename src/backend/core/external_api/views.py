@@ -17,14 +17,19 @@ from lasuite.oidc_resource_server.authentication import ResourceServerAuthentica
 from rest_framework import exceptions, response, status, views
 
 from core import models
-from core.api.permissions import IsEntitledToAccess
+from core.api.permissions import IsEntitledToAccess, channel_scope
 from core.api.viewsets import Pagination
-from core.enums import Scope
+from core.authentication.channel import (
+    ChannelApiKeyAuthentication,
+    resolve_acting_user,
+)
+from core.enums import ChannelScope, Scope
 from core.services import interactions as interactions_service
 from core.services import search as search_service
 
 from . import serializers
 from .permissions import ResourceServerClientPermission
+from .throttles import ExternalRateThrottle
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +47,7 @@ class ExternalAPIView(views.APIView):
 
     authentication_classes = [ResourceServerAuthentication]
     permission_classes = [ResourceServerClientPermission, IsEntitledToAccess]
+    throttle_classes = [ExternalRateThrottle]
 
 
 class SearchView(ExternalAPIView):
@@ -93,8 +99,18 @@ class SearchView(ExternalAPIView):
 
 
 class InteractionsView(ExternalAPIView):
-    """Record what the user picked, to rank it higher next time."""
+    """Record what the user interacted with, to rank it higher next time.
 
+    Also open to service channels with the ``interactions:write`` scope, for
+    events that happen without a user session (an email received): they
+    name the user with ``on_behalf_of``.
+    """
+
+    authentication_classes = [ResourceServerAuthentication, ChannelApiKeyAuthentication]
+    permission_classes = [
+        (ResourceServerClientPermission & IsEntitledToAccess)
+        | channel_scope(ChannelScope.INTERACTIONS_WRITE.value)
+    ]
     throttle_scope = "external_interactions"
 
     @extend_schema(
@@ -111,21 +127,33 @@ class InteractionsView(ExternalAPIView):
         INTERACTION_MASS_THRESHOLD people. Items the user can't see are
         ignored, so the answer never tells whether an id exists.
         """
-        body = serializers.InteractionsRequestSerializer(data=request.data)
+        is_channel = isinstance(request.auth, models.Channel)
+        body = serializers.InteractionsRequestSerializer(
+            data=request.data,
+            context={
+                "max_items": serializers.MAX_CHANNEL_ITEMS
+                if is_channel
+                else serializers.MAX_TOKEN_ITEMS
+            },
+        )
         body.is_valid(raise_exception=True)
         kind = body.validated_data["kind"]
         if kind not in self.allowed_kinds(request):
             raise exceptions.PermissionDenied(
                 f"This application may not report {kind!r} interactions."
             )
-        interactions_service.record(request.user, kind, body.validated_data["items"])
+        # The token's user, or the channel's on_behalf_of user.
+        user = resolve_acting_user(request)
+        interactions_service.record(user, kind, body.validated_data["items"])
         return response.Response(status=status.HTTP_204_NO_CONTENT)
 
     @staticmethod
     def allowed_kinds(request):
-        """The kinds the calling app may report (EXTERNAL_API)."""
-        audience = getattr(request, "resource_server_token_audience", None)
+        """The kinds the calling app or channel may report (EXTERNAL_API)."""
         config = settings.EXTERNAL_API.get("interactions", {})
+        if isinstance(request.auth, models.Channel):
+            return config.get("channel_kinds", [])
+        audience = getattr(request, "resource_server_token_audience", None)
         return config.get("kinds", {}).get(audience, [])
 
 

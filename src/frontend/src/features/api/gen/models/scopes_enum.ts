@@ -7,6 +7,7 @@
 /**
  * * `contacts:read` - contacts:read
  * * `groups:read` - groups:read
+ * * `interactions:write` - interactions:write
  * * `carddav:read` - carddav:read
  * * `carddav:write` - carddav:write
  */
@@ -15,6 +16,7 @@ export type ScopesEnum = (typeof ScopesEnum)[keyof typeof ScopesEnum];
 export const ScopesEnum = {
   "contacts:read": "contacts:read",
   "groups:read": "groups:read",
+  "interactions:write": "interactions:write",
   "carddav:read": "carddav:read",
   "carddav:write": "carddav:write",
 } as const;
