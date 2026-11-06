@@ -10,6 +10,7 @@ from drf_spectacular.utils import PolymorphicProxySerializer
 from rest_framework import serializers
 
 from core.enums import Scope
+from core.services import interactions
 from core.services.search import CONTACT, GROUP, KINDS
 
 
@@ -164,16 +165,31 @@ class SearchQuerySerializer(serializers.Serializer):  # pylint: disable=abstract
 
 
 class InteractionItemSerializer(serializers.Serializer):  # pylint: disable=abstract-method
-    """One contact or group the user picked."""
+    """One contact or group the user interacted with."""
 
-    type = serializers.ChoiceField(choices=KINDS)
+    type = serializers.ChoiceField(choices=interactions.ITEM_TYPES)
     id = serializers.UUIDField()
 
 
 class InteractionsRequestSerializer(serializers.Serializer):  # pylint: disable=abstract-method
-    """Body of the interactions endpoint."""
+    """Body of the interactions endpoint: one event and the people in it."""
 
+    kind = serializers.CharField(
+        required=False,
+        default="share",
+        help_text="What happened: share, email_sent, email_received, "
+        "event_invite, mention... (see INTERACTION_KINDS). Each app may "
+        "report its own kinds only.",
+    )
     items = InteractionItemSerializer(many=True, min_length=1, max_length=50)
+
+    def validate_kind(self, value):
+        """A kind this instance knows."""
+        if value not in interactions.kinds():
+            raise serializers.ValidationError(
+                f"Unknown kind. Use one of: {', '.join(interactions.kinds())}."
+            )
+        return value
 
 
 class GroupMembersResponseSerializer(serializers.Serializer):  # pylint: disable=abstract-method

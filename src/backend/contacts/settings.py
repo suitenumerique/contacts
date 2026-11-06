@@ -687,10 +687,21 @@ class Base(Configuration):
         60, environ_name="OIDC_RS_INTROSPECTION_CACHE_TIMEOUT", environ_prefix=None
     )
     # Endpoints of /external_api/ that are served.
+    # Endpoints of /external_api/ that are served. For interactions,
+    # "kinds" lists the kinds each app (token audience) may report, so
+    # Drive can't report emails sent.
     EXTERNAL_API = values.DictValue(
         default={
             "search": {"enabled": True},
-            "interactions": {"enabled": True},
+            "interactions": {
+                "enabled": True,
+                "kinds": {
+                    "drive": ["share"],
+                    "docs": ["share", "mention"],
+                    "messages": ["email_sent", "email_received"],
+                    "calendars": ["event_invite"],
+                },
+            },
             "group_members": {"enabled": True},
         },
         environ_name="EXTERNAL_API",
@@ -701,6 +712,25 @@ class Base(Configuration):
     # INTERACTION_HALF_LIFE_DAYS days (see core.models.Interaction).
     INTERACTION_HALF_LIFE_DAYS = values.PositiveIntegerValue(
         30, environ_name="INTERACTION_HALF_LIFE_DAYS", environ_prefix=None
+    )
+    # What one interaction of each kind adds to the score: writing to
+    # someone says more than receiving mail from them.
+    INTERACTION_KINDS = values.DictValue(
+        default={
+            "share": {"weight": 1.0},
+            "email_sent": {"weight": 1.0},
+            "event_invite": {"weight": 1.0},
+            "mention": {"weight": 0.5},
+            "email_received": {"weight": 0.2},
+            "added_as_contact": {"weight": 2.0},
+        },
+        environ_name="INTERACTION_KINDS",
+        environ_prefix=None,
+    )
+    # An interaction with more people than this (a mass mailing, a share
+    # with a whole team) weighs threshold / n per person.
+    INTERACTION_MASS_THRESHOLD = values.PositiveIntegerValue(
+        10, environ_name="INTERACTION_MASS_THRESHOLD", environ_prefix=None
     )
     # Database time budget of one search request, in milliseconds.
     SEARCH_STATEMENT_TIMEOUT_MS = values.PositiveIntegerValue(
@@ -892,7 +922,7 @@ class Test(Base):
     OIDC_OP_INTROSPECTION_ENDPOINT = "https://oidc.test/realms/test/introspect"
     OIDC_RS_CLIENT_ID = "contacts"
     OIDC_RS_CLIENT_SECRET = "rs-secret"  # noqa: S105  # fake test server
-    OIDC_RS_ALLOWED_AUDIENCES = ["drive"]
+    OIDC_RS_ALLOWED_AUDIENCES = ["drive", "messages"]
     OIDC_RS_SCOPES = ["openid"]
     OIDC_RS_INTROSPECTION_CACHE_TIMEOUT = 60
 
