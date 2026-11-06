@@ -165,10 +165,25 @@ class SearchQuerySerializer(serializers.Serializer):  # pylint: disable=abstract
 
 
 class InteractionItemSerializer(serializers.Serializer):  # pylint: disable=abstract-method
-    """One contact or group the user interacted with."""
+    """A contact or group the user interacted with, by id or by address.
+
+    ``{"type": "contact" | "group", "id": …}`` for a row picked from the
+    search; ``{"type": "email", "value": …}`` when the app only knows the
+    address (Contacts finds the contact or group behind it, if any).
+    """
 
     type = serializers.ChoiceField(choices=interactions.ITEM_TYPES)
-    id = serializers.UUIDField()
+    id = serializers.UUIDField(required=False, help_text="For contact and group.")
+    value = serializers.EmailField(required=False, help_text="For email.")
+
+    def validate(self, attrs):
+        """An id for a contact or group, an address for an email."""
+        if attrs["type"] == interactions.EMAIL:
+            if not attrs.get("value"):
+                raise serializers.ValidationError({"value": "An address is required."})
+        elif not attrs.get("id"):
+            raise serializers.ValidationError({"id": "An id is required."})
+        return attrs
 
 
 class InteractionsRequestSerializer(serializers.Serializer):  # pylint: disable=abstract-method

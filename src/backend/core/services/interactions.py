@@ -4,16 +4,25 @@ Each kind weighs what ``INTERACTION_KINDS`` says. One call is one event (a
 share, a message, an invitation) and its items are the people or groups in
 it: past ``INTERACTION_MASS_THRESHOLD`` of them, each one weighs less, since
 a message to 200 people says little about any of them.
+
+An item names a contact or group by id (an app that picked it from the
+search) or by email address (an app that only knows addresses, like
+Messages): ``resolve_email`` finds the row behind an address.
 """
 
 from django.conf import settings
+from django.db.models import Case, IntegerField, Value, When
 from django.utils import timezone
 
 from core import models
+from core.utils import fold
 
 CONTACT = "contact"
 GROUP = "group"
-ITEM_TYPES = (CONTACT, GROUP)
+EMAIL = "email"
+ITEM_TYPES = (CONTACT, GROUP, EMAIL)
+# Contacts sharing the searched address considered by resolve_email.
+MAX_EMAIL_CANDIDATES = 20
 
 
 def kinds():
@@ -30,8 +39,45 @@ def weight(kind, people=1):
     return base
 
 
+def _personal_first(user):
+    return Case(
+        When(owner_id=user.pk, then=Value(0)),
+        default=Value(1),
+        output_field=IntegerField(),
+    )
+
+
+def resolve_email(user, address):
+    """The contact or group *user* knows under *address*, or None.
+
+    A contact first: the user's own cards (their overlay of an organization
+    card included) before the organization's, oldest first; then a group
+    with that address (a shared mailbox). The user's own address is never
+    resolved. Every address is a word of ``search_text``, so the trigram
+    index finds the candidates; the exact address is checked on them.
+    """
+    address = (address or "").strip().lower()
+    if not address or address == (user.email or "").strip().lower():
+        return None
+    candidates = (
+        models.Contact.objects.visible_to(user)
+        .filter(deleted_at__isnull=True, search_text__contains=f" {fold(address)}")
+        .select_related("overlay_of")
+        .order_by(_personal_first(user), "created_at", "pk")[:MAX_EMAIL_CANDIDATES]
+    )
+    for contact in candidates:
+        if address in contact.email_values:
+            return contact
+    return (
+        models.ContactGroup.objects.visible_to(user)
+        .filter(email__iexact=address)
+        .order_by(_personal_first(user), "created_at", "pk")
+        .first()
+    )
+
+
 def _visible(user, items):
-    """The contacts and groups *items* name that *user* can see."""
+    """The contacts and groups *items* name by id that *user* can see."""
     wanted = {CONTACT: set(), GROUP: set()}
     for item in items:
         wanted[item["type"]].add(item["id"])
@@ -44,23 +90,45 @@ def _visible(user, items):
     return list(contacts), list(groups)
 
 
+def _target(row):
+    """The key the score of *row* is stored under: a contact's canonical row."""
+    if isinstance(row, models.ContactGroup):
+        return (GROUP, row.pk)
+    return (CONTACT, row.overlay_of_id or row.pk)
+
+
+def _item_key(item):
+    if item["type"] == EMAIL:
+        return (EMAIL, item["value"].strip().lower())
+    return (item["type"], str(item["id"]))
+
+
 def record(user, kind, items):
     """Record one event of *kind* between *user* and *items*.
 
-    Items the user can't see are ignored, and so is a row named twice. A
-    contact counts once with the row its overlay covers. Returns how many
-    rows were bumped.
+    Items the user can't see, and addresses matching nothing they know, are
+    ignored (but still count as people in the event); so is the user's own
+    address. A row named twice, by id or by address, counts once, on the
+    row its overlay covers. Returns how many rows were bumped.
     """
-    unique = {(item["type"], str(item["id"])): item for item in items}
-    contacts, groups = _visible(user, unique.values())
-    # Each person once, on the row the score is stored on.
-    targets = {
-        ("contact", contact.overlay_of_id or contact.pk): contact
-        for contact in contacts
-    }
-    targets.update({("group", group.pk): group for group in groups})
+    unique = {_item_key(item): item for item in items}
+    contacts, groups = _visible(
+        user, [item for item in unique.values() if item["type"] != EMAIL]
+    )
+    targets = {_target(row): row for row in [*contacts, *groups]}
+    people = len(unique)
+    for key, item in unique.items():
+        if key[0] != EMAIL:
+            continue
+        if key[1] == (user.email or "").strip().lower():
+            people -= 1  # the user themself (a copy to self)
+            continue
+        if (row := resolve_email(user, item["value"])) is not None:
+            if _target(row) in targets:
+                people -= 1  # also named by id
+            targets[_target(row)] = row
 
-    amount = weight(kind, people=len(unique))
+    amount = weight(kind, people=max(people, 1))
     # One timestamp for the whole event: the people in it get the same
     # rank, so the name orders them, not microseconds apart.
     now = timezone.now()
