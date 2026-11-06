@@ -8,7 +8,7 @@ import pytest
 
 from core import factories, models
 
-from .conftest import contact, group
+from .conftest import card_email, card_id, card_name, contact, group, vendor
 
 pytestmark = pytest.mark.django_db
 
@@ -34,24 +34,25 @@ def test_members_are_listed_alphabetically_with_the_group(api, user):
     assert data["count"] == 2
     assert data["next"] is None
     assert data["group"] == {
-        "type": "group",
-        "id": str(team.pk),
-        "display_name": "Team",
-        "email": None,
-        "members_count": 2,
-        "is_org": False,
-        "source": "",
+        "@type": "Card",
+        "version": "1.0",
+        "uid": f"urn:uuid:{team.pk}",
+        "kind": "group",
+        "name": {"full": "Team"},
+        "numerique.gouv.fr:isOrg": False,
+        "numerique.gouv.fr:source": "",
+        "numerique.gouv.fr:membersCount": 2,
     }
     assert [
-        (row["type"], row["display_name"], row["email"]) for row in data["results"]
+        (row["kind"], card_name(row), card_email(row)) for row in data["results"]
     ] == [
-        ("contact", "Adam", "adam@example.org"),
-        ("contact", "Zoé", "zoe@example.org"),
+        ("individual", "Adam", "adam@example.org"),
+        ("individual", "Zoé", "zoe@example.org"),
     ]
 
 
-def test_members_without_email_are_kept_with_null(api, user):
-    """Members without email are kept with null."""
+def test_members_without_email_are_kept(api, user):
+    """Members without email are kept, as cards without emails."""
     nomail = contact(user, full_name="No mail", emails=())
     team = group(user, name="Team", members=[nomail])
 
@@ -59,16 +60,13 @@ def test_members_without_email_are_kept_with_null(api, user):
 
     assert rows == [
         {
-            "type": "contact",
-            "id": str(nomail.pk),
-            "display_name": "No mail",
-            "email": None,
-            "emails": [],
-            "company": None,
-            "job_title": None,
-            "photo": None,
-            "is_org": False,
-            "source": "",
+            "@type": "Card",
+            "version": "1.0",
+            "uid": f"urn:uuid:{nomail.pk}",
+            "kind": "individual",
+            "name": {"full": "No mail"},
+            "numerique.gouv.fr:isOrg": False,
+            "numerique.gouv.fr:source": "",
         }
     ]
 
@@ -90,7 +88,7 @@ def test_an_overlaid_member_is_listed_as_the_overlay(api, user):
 
     rows = api.get(_url(team.pk)).json()["results"]
 
-    assert [(row["id"], row["display_name"]) for row in rows] == [
+    assert [(card_id(row), card_name(row)) for row in rows] == [
         (str(overlay.pk), "Claire D.")
     ]
 
@@ -107,8 +105,8 @@ def test_hidden_and_trashed_members_are_left_out(api, user):
 
     data = api.get(_url(team.pk)).json()
 
-    assert [row["display_name"] for row in data["results"]] == ["Shared"]
-    assert data["group"]["members_count"] == 1
+    assert [card_name(row) for row in data["results"]] == ["Shared"]
+    assert vendor(data["group"], "membersCount") == 1
 
 
 def test_large_groups_are_paginated(api, user):
@@ -123,9 +121,9 @@ def test_large_groups_are_paginated(api, user):
     last = api.get(_url(team.pk), {"page_size": 2, "page": 3}).json()
 
     assert first["count"] == 5
-    assert [row["display_name"] for row in first["results"]] == ["M00", "M01"]
+    assert [card_name(row) for row in first["results"]] == ["M00", "M01"]
     assert first["next"].endswith("page=2&page_size=2")
-    assert [row["display_name"] for row in last["results"]] == ["M04"]
+    assert [card_name(row) for row in last["results"]] == ["M04"]
     assert last["next"] is None
 
 

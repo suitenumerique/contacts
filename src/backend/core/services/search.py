@@ -113,7 +113,7 @@ def _has_email(personal):
     return own | inherited
 
 
-# Columns a result needs (ContactResultSerializer, display_name, the self
+# Columns a result needs (core.services.jscontact.contact_card, the self
 # filter); the rest (notes, vCard extras, addresses, search_text...) stays
 # in the database.
 CONTACT_FIELDS = (
@@ -124,13 +124,17 @@ CONTACT_FIELDS = (
     "source",
     "overlay_of_id",
     "overridden_fields",
+    "civility",
     "full_name",
+    "name_prefix",
     "given_name",
     "middle_name",
     "family_name",
     "name_suffix",
+    "nickname",
     "emails",
     "company",
+    "department",
     "job_title",
     "photo",
     "sort_key",

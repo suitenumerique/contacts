@@ -17,9 +17,14 @@ URL = "/external_api/v1.0/interactions/"
 
 
 def _post(api, *items):
+    """Post interactions with the cards of *items*, (kind, row id) pairs.
+
+    The kind is only there to read the tests: a uid names a contact or a
+    group alike.
+    """
     return api.post(
         URL,
-        {"items": [{"type": kind, "id": str(row_id)} for kind, row_id in items]},
+        {"items": [{"uid": f"urn:uuid:{row_id}"} for _kind, row_id in items]},
         format="json",
     )
 
@@ -88,9 +93,10 @@ def test_rows_the_user_cannot_see_are_ignored_silently(api, user):
     [
         {},
         {"items": []},
-        {"items": [{"type": "user", "id": str(uuid.uuid4())}]},
-        {"items": [{"type": "contact", "id": "not-a-uuid"}]},
-        {"items": [{"type": "contact", "id": str(uuid.uuid4())}] * 51},
+        {"items": [{}]},
+        {"items": [{"uid": "urn:uuid:not-a-uuid"}]},
+        {"items": [{"uid": f"urn:uuid:{uuid.uuid4()}", "email": "a@b.org"}]},
+        {"items": [{"uid": f"urn:uuid:{uuid.uuid4()}"}] * 51},
     ],
 )
 def test_bad_bodies_are_refused(api, body):

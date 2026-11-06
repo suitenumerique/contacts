@@ -40,7 +40,7 @@ def _received(user, *addresses, **extra):
     return {
         "kind": "email_received",
         "on_behalf_of": user.email,
-        "items": [{"type": "email", "value": address} for address in addresses],
+        "items": [{"email": address} for address in addresses],
         **extra,
     }
 
@@ -112,7 +112,7 @@ def test_a_channel_may_send_up_to_500_items(user):
 
 def test_a_user_token_may_send_up_to_50_items(messages_api):
     """A user token may send up to 50 items."""
-    items = [{"type": "email", "value": f"p{i}@example.org"} for i in range(51)]
+    items = [{"email": f"p{i}@example.org"} for i in range(51)]
 
     response = messages_api.post(
         URL, {"kind": "email_sent", "items": items}, format="json"
@@ -131,7 +131,7 @@ def test_on_behalf_of_is_ignored_with_a_user_token(messages_api, user):
         {
             "kind": "email_sent",
             "on_behalf_of": colleague.email,
-            "items": [{"type": "email", "value": "bob@example.org"}],
+            "items": [{"email": "bob@example.org"}],
         },
         format="json",
     )

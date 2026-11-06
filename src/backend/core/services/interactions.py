@@ -5,9 +5,11 @@ share, a message, an invitation) and its items are the people or groups in
 it: past ``INTERACTION_MASS_THRESHOLD`` of them, each one weighs less, since
 a message to 200 people says little about any of them.
 
-An item names a contact or group by id (an app that picked it from the
-search) or by email address (an app that only knows addresses, like
-Messages): ``resolve_email`` finds the row behind an address.
+An item names a contact or group by the uid of its card (an app that picked
+it from the search) or by email address (an app that only knows addresses,
+like Messages): ``resolve_email`` finds the row behind an address. A uid
+doesn't say whether it is a contact or a group, and doesn't need to: ids
+are random UUIDs, so one exists in at most one of the two tables.
 """
 
 from django.conf import settings
@@ -19,8 +21,9 @@ from core.utils import fold
 
 CONTACT = "contact"
 GROUP = "group"
+UID = "uid"
 EMAIL = "email"
-ITEM_TYPES = (CONTACT, GROUP, EMAIL)
+ITEM_TYPES = (UID, EMAIL)
 # Contacts sharing the searched address considered by resolve_email.
 MAX_EMAIL_CANDIDATES = 20
 
@@ -99,16 +102,17 @@ def resolve_email(user, address):
 
 
 def _visible(user, items):
-    """The contacts and groups *items* name by id that *user* can see."""
-    wanted = {CONTACT: set(), GROUP: set()}
-    for item in items:
-        wanted[item["type"]].add(item["id"])
+    """The contacts and groups *items* name by uid that *user* can see.
+
+    Each uid is looked up in both tables: it matches in at most one.
+    """
+    ids = {item["id"] for item in items}
     contacts = (
         models.Contact.objects.visible_to(user)
-        .filter(pk__in=wanted[CONTACT], deleted_at__isnull=True)
+        .filter(pk__in=ids, deleted_at__isnull=True)
         .select_related("overlay_of")
     )
-    groups = models.ContactGroup.objects.visible_to(user).filter(pk__in=wanted[GROUP])
+    groups = models.ContactGroup.objects.visible_to(user).filter(pk__in=ids)
     return list(contacts), list(groups)
 
 
@@ -122,7 +126,7 @@ def _target(row):
 def _item_key(item):
     if item["type"] == EMAIL:
         return (EMAIL, item["value"].strip().lower())
-    return (item["type"], str(item["id"]))
+    return (UID, str(item["id"]))
 
 
 def record(user, kind, items):

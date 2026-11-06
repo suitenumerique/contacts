@@ -25,6 +25,7 @@ from core.authentication.channel import (
 )
 from core.enums import ChannelScope, Scope
 from core.services import interactions as interactions_service
+from core.services import jscontact
 from core.services import search as search_service
 
 from . import serializers
@@ -62,7 +63,7 @@ class SearchView(ExternalAPIView):
         tags=["external"],
     )
     def get(self, request):
-        """Contacts and groups matching ``q``, best first.
+        """Contacts and groups matching ``q``, as JSContact cards, best first.
 
         Ranked by how often and how recently the user picked them (see
         ``/interactions/``), then the user's favorites, then names or
@@ -85,12 +86,10 @@ class SearchView(ExternalAPIView):
                 results = search_service.search(
                     request.user,
                     params.validated_data["q"],
-                    kinds=params.validated_data["types"],
+                    kinds=params.validated_data["kind"],
                     limit=params.validated_data["limit"],
                 )
-                data = [
-                    serializers.serialize_result(kind, row) for kind, row in results
-                ]
+                data = [serializers.card(kind, row) for kind, row in results]
         except OperationalError as exc:
             # statement_timeout cancels the query (QueryCanceled).
             logger.warning("Search timed out for user %s", request.user.pk)
@@ -166,8 +165,8 @@ class AddContactView(ExternalAPIView):
         operation_id="external_add_contact",
         request=serializers.AddContactSerializer,
         responses={
-            200: serializers.ContactResultSerializer,
-            201: serializers.ContactResultSerializer,
+            200: serializers.ContactCardSerializer,
+            201: serializers.ContactCardSerializer,
         },
         tags=["external"],
     )
@@ -191,9 +190,7 @@ class AddContactView(ExternalAPIView):
             models.User.objects.select_for_update().filter(pk=user.pk).first()
             existing = interactions_service.find_contact(user, email)
             if existing is not None:
-                return response.Response(
-                    serializers.ContactResultSerializer(existing).data
-                )
+                return response.Response(jscontact.contact_card(existing))
             contact = models.Contact(
                 owner=user,
                 organization_id=user.organization_id,
@@ -211,8 +208,7 @@ class AddContactView(ExternalAPIView):
                     weight=interactions_service.weight("added_as_contact"),
                 )
         return response.Response(
-            serializers.ContactResultSerializer(contact).data,
-            status=status.HTTP_201_CREATED,
+            jscontact.contact_card(contact), status=status.HTTP_201_CREATED
         )
 
 
@@ -254,11 +250,11 @@ class GroupMembersView(ExternalAPIView):
         tags=["external"],
     )
     def get(self, request, group_id):
-        """Visible members, alphabetical, with members that have no email.
+        """Visible members as JSContact cards, alphabetical, with the group.
 
         A member the user has a local copy of (an overlay) is listed as that
-        copy. Members without an address keep ``"email": null``, so the app
-        can tell the user who can't be invited.
+        copy. Members without an address are listed too (a card without
+        ``emails``), so the app can tell the user who can't be invited.
         """
         user = request.user
         groups = search_service.with_members_count(
@@ -285,9 +281,8 @@ class GroupMembersView(ExternalAPIView):
             .select_related("overlay_of")
             .order_by("sort_key", "pk")
         )
-        paginator = GroupMembersPagination(
-            serializers.GroupResultSerializer(group).data
-        )
+        paginator = GroupMembersPagination(jscontact.group_card(group))
         page = paginator.paginate_queryset(members, request, view=self)
-        data = serializers.ContactResultSerializer(page, many=True).data
-        return paginator.get_paginated_response(data)
+        return paginator.get_paginated_response(
+            [jscontact.contact_card(member) for member in page]
+        )

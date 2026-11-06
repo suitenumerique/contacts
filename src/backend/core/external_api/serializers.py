@@ -1,139 +1,222 @@
-"""Response and request shapes of the /external_api/ endpoints.
+"""Request and response shapes of the /external_api/ endpoints.
 
-A contact has the same shape everywhere (search results, group members) and
-a group its own; ``type`` tells them apart. Both carry what a picker needs
-to draw a row without branching: ``type``, ``id``, ``display_name``,
-``email``, ``is_org``, ``source``.
+Contacts and groups are JSContact cards (RFC 9553), built by
+``core.services.jscontact``. The card serializers below only describe them
+for the OpenAPI schema. Keys that aren't Python names (``@type``, vendor
+properties with their configurable prefix) are added in ``get_fields``.
 """
+
+import uuid
 
 from drf_spectacular.utils import PolymorphicProxySerializer
 from rest_framework import serializers
 
-from core.enums import Scope
-from core.services import interactions
-from core.services.search import CONTACT, GROUP, KINDS
+from core.services import interactions, jscontact
+from core.services import search as search_service
+
+# pylint: disable=abstract-method
+
+# JSContact card kinds to the search service's kinds.
+SEARCH_KINDS = {
+    jscontact.INDIVIDUAL: search_service.CONTACT,
+    jscontact.GROUP: search_service.GROUP,
+}
 
 
-class EmailSerializer(serializers.Serializer):  # pylint: disable=abstract-method
-    """One address of a contact."""
+class NameComponentSerializer(serializers.Serializer):
+    """One part of a name."""
 
-    type = serializers.CharField(help_text='"work", "home", "other" or free text.')
+    kind = serializers.ChoiceField(
+        choices=["title", "given", "given2", "surname", "credential"]
+    )
     value = serializers.CharField()
 
 
-def _or_none(value):
-    return value or None
+class NameSerializer(serializers.Serializer):
+    """A JSContact Name: the displayed name and its parts."""
+
+    full = serializers.CharField(help_text="Displayed name.")
+    components = NameComponentSerializer(many=True, required=False)
 
 
-class ContactResultSerializer(serializers.Serializer):  # pylint: disable=abstract-method
-    """A contact as other apps see it.
+class EmailAddressSerializer(serializers.Serializer):
+    """A JSContact EmailAddress."""
+
+    address = serializers.EmailField()
+    contexts = serializers.DictField(
+        child=serializers.BooleanField(),
+        required=False,
+        help_text='{"work": true} or {"private": true}.',
+    )
+    pref = serializers.IntegerField(
+        required=False, help_text="1 on the preferred address."
+    )
+    label = serializers.CharField(required=False, help_text="Free-text type.")
+
+
+class NicknameSerializer(serializers.Serializer):
+    """A JSContact Nickname."""
+
+    name = serializers.CharField()
+
+
+class SpeakToAsSerializer(serializers.Serializer):
+    """How to address the person (from the civility)."""
+
+    grammaticalGender = serializers.ChoiceField(  # JSContact's name
+        choices=["masculine", "feminine"]
+    )
+
+
+class OrgUnitSerializer(serializers.Serializer):
+    """A unit (department) of an organization."""
+
+    name = serializers.CharField()
+
+
+class OrganizationSerializer(serializers.Serializer):
+    """A JSContact Organization: company and department."""
+
+    name = serializers.CharField(required=False)
+    units = OrgUnitSerializer(many=True, required=False)
+
+
+class TitleSerializer(serializers.Serializer):
+    """A JSContact Title (job title)."""
+
+    kind = serializers.ChoiceField(choices=["title"])
+    name = serializers.CharField()
+
+
+class MediaSerializer(serializers.Serializer):
+    """A JSContact Media: the photo, as an https URL."""
+
+    kind = serializers.ChoiceField(choices=["photo"])
+    uri = serializers.URLField()
+
+
+class _CardSerializer(serializers.Serializer):
+    """Base of the card schemas: fields whose keys aren't Python names."""
+
+    card_kind = ""
+
+    def card_fields(self):
+        """Fields specific to the kind of card, keyed by property name."""
+        return {}
+
+    def vendor_fields(self):
+        """Vendor properties, by unprefixed name."""
+        return {}
+
+    def get_fields(self):
+        fields = {
+            "@type": serializers.ChoiceField(choices=["Card"]),
+            "version": serializers.ChoiceField(choices=[jscontact.VERSION]),
+            "uid": serializers.CharField(help_text='"urn:uuid:" and the row id.'),
+            "kind": serializers.ChoiceField(choices=[self.card_kind]),
+            "name": NameSerializer(),
+            **self.card_fields(),
+        }
+        for name, field in self.vendor_fields().items():
+            fields[jscontact.vendor(name)] = field
+        return fields
+
+
+class ContactCardSerializer(_CardSerializer):
+    """A contact as a JSContact card (schema only).
 
     An overlay (the user's local copy of a read-only contact) is shown
-    merged, under its own id.
+    merged, under its own uid.
     """
 
-    type = serializers.SerializerMethodField()
-    id = serializers.UUIDField()
-    display_name = serializers.CharField()
-    email = serializers.SerializerMethodField(
-        help_text="Preferred address: the first of `emails`."
-    )
-    emails = serializers.SerializerMethodField()
-    company = serializers.SerializerMethodField()
-    job_title = serializers.SerializerMethodField()
-    photo = serializers.SerializerMethodField(
-        help_text="https URL of the photo. Photos stored inline are left out "
-        "to keep responses small."
-    )
-    is_org = serializers.SerializerMethodField(
-        help_text="In the organization's address book, not the user's own."
-    )
-    source = serializers.CharField(
-        help_text='"" or the directory the contact is synced from.'
-    )
+    card_kind = jscontact.INDIVIDUAL
 
-    def get_type(self, contact) -> str:  # pylint: disable=unused-argument
-        """Always "contact"."""
-        return CONTACT
+    def card_fields(self):
+        return {
+            "nicknames": serializers.DictField(
+                child=NicknameSerializer(), required=False
+            ),
+            "speakToAs": SpeakToAsSerializer(required=False),
+            "emails": serializers.DictField(
+                child=EmailAddressSerializer(),
+                required=False,
+                help_text="By id (e1, e2...); the preferred one has pref 1.",
+            ),
+            "organizations": serializers.DictField(
+                child=OrganizationSerializer(), required=False
+            ),
+            "titles": serializers.DictField(child=TitleSerializer(), required=False),
+            "media": serializers.DictField(
+                child=MediaSerializer(),
+                required=False,
+                help_text="Photos stored inline are left out to keep responses small.",
+            ),
+        }
 
-    def get_emails(self, contact) -> list[EmailSerializer]:
-        """Every address, as typed."""
-        return [
-            {"type": item.get("type") or "", "value": item["value"]}
-            for item in contact.merged_value("emails") or []
-            if isinstance(item, dict) and item.get("value")
-        ]
-
-    def get_email(self, contact) -> str | None:
-        """The first address."""
-        emails = self.get_emails(contact)
-        return emails[0]["value"] if emails else None
-
-    def get_company(self, contact) -> str | None:
-        """Company, merged for an overlay."""
-        return _or_none(contact.merged_value("company"))
-
-    def get_job_title(self, contact) -> str | None:
-        """Job title, merged for an overlay."""
-        return _or_none(contact.merged_value("job_title"))
-
-    def get_photo(self, contact) -> str | None:
-        """The photo when it is a URL; inline (data:) photos are left out."""
-        photo = contact.merged_value("photo") or ""
-        return photo if photo.startswith("https://") else None
-
-    def get_is_org(self, contact) -> bool:
-        """Whether the row is the organization's."""
-        return contact.scope == Scope.ORGANIZATION
+    def vendor_fields(self):
+        return {
+            "isOrg": serializers.BooleanField(
+                help_text="In the organization's address book, not the user's own."
+            ),
+            "source": serializers.CharField(
+                allow_blank=True,
+                help_text='"" or the directory the contact is synced from.',
+            ),
+        }
 
 
-class GroupResultSerializer(serializers.Serializer):  # pylint: disable=abstract-method
-    """A group as other apps see it."""
+class GroupCardSerializer(_CardSerializer):
+    """A group as a JSContact card of kind "group" (schema only).
 
-    type = serializers.SerializerMethodField()
-    id = serializers.UUIDField()
-    display_name = serializers.CharField(source="name")
-    email = serializers.SerializerMethodField(
-        help_text="Set only for an addressable group (a shared mailbox)."
-    )
-    members_count = serializers.IntegerField()
-    is_org = serializers.SerializerMethodField(
-        help_text="Shared with the whole organization, not the user's own."
-    )
-    source = serializers.CharField()
+    Members aren't listed (``members`` would hold all of them): their count
+    is, and the group members endpoint lists them.
+    """
 
-    def get_type(self, group) -> str:  # pylint: disable=unused-argument
-        """Always "group"."""
-        return GROUP
+    card_kind = jscontact.GROUP
 
-    def get_email(self, group) -> str | None:
-        """The group's address, if any."""
-        return _or_none(group.email)
+    def card_fields(self):
+        return {
+            "emails": serializers.DictField(
+                child=EmailAddressSerializer(),
+                required=False,
+                help_text="Only for an addressable group (a shared mailbox).",
+            ),
+        }
 
-    def get_is_org(self, group) -> bool:
-        """Whether the group is the organization's."""
-        return group.scope == Scope.ORGANIZATION
-
-
-def serialize_result(kind, row):
-    """One search result."""
-    if kind == CONTACT:
-        return ContactResultSerializer(row).data
-    return GroupResultSerializer(row).data
+    def vendor_fields(self):
+        return {
+            "isOrg": serializers.BooleanField(
+                help_text="Shared with the whole organization, not the user's own."
+            ),
+            "source": serializers.CharField(allow_blank=True),
+            "membersCount": serializers.IntegerField(
+                help_text="Visible members; the members endpoint lists them."
+            ),
+        }
 
 
-class SearchResponseSerializer(serializers.Serializer):  # pylint: disable=abstract-method
-    """Response of the search endpoint (for the schema only)."""
+def card(kind, row):
+    """One search result, as a card."""
+    if kind == search_service.CONTACT:
+        return jscontact.contact_card(row)
+    return jscontact.group_card(row)
+
+
+class SearchResponseSerializer(serializers.Serializer):
+    """Response of the search endpoint (schema only)."""
 
     results = PolymorphicProxySerializer(
-        component_name="SearchResult",
-        serializers={CONTACT: ContactResultSerializer, GROUP: GroupResultSerializer},
-        resource_type_field_name="type",
+        component_name="Card",
+        serializers={
+            jscontact.INDIVIDUAL: ContactCardSerializer,
+            jscontact.GROUP: GroupCardSerializer,
+        },
+        resource_type_field_name="kind",
         many=True,
     )
 
 
-class SearchQuerySerializer(serializers.Serializer):  # pylint: disable=abstract-method
+class SearchQuerySerializer(serializers.Serializer):
     """Query parameters of the search endpoint."""
 
     q = serializers.CharField(
@@ -144,24 +227,24 @@ class SearchQuerySerializer(serializers.Serializer):  # pylint: disable=abstract
         trim_whitespace=True,
         help_text="Empty: the contacts and groups the user interacts with most.",
     )
-    types = serializers.CharField(
+    kind = serializers.CharField(
         required=False,
-        default=",".join(KINDS),
-        help_text='Comma-separated kinds to return: "contact", "group".',
+        default=",".join(jscontact.KINDS),
+        help_text='Comma-separated card kinds to return: "individual", "group".',
     )
     limit = serializers.IntegerField(
         required=False, default=10, min_value=1, max_value=50
     )
 
-    def validate_types(self, value):
-        """A non-empty subset of the known kinds."""
+    def validate_kind(self, value):
+        """A non-empty subset of the card kinds, as the search's kinds."""
         kinds = [kind.strip() for kind in value.split(",") if kind.strip()]
-        unknown = sorted(set(kinds) - set(KINDS))
+        unknown = sorted(set(kinds) - set(jscontact.KINDS))
         if unknown or not kinds:
             raise serializers.ValidationError(
-                f"Use a comma-separated list of: {', '.join(KINDS)}."
+                f"Use a comma-separated list of: {', '.join(jscontact.KINDS)}."
             )
-        return tuple(dict.fromkeys(kinds))
+        return tuple(dict.fromkeys(SEARCH_KINDS[kind] for kind in kinds))
 
 
 # Items per interactions call: an email to a whole department, reported by a
@@ -170,29 +253,35 @@ MAX_TOKEN_ITEMS = 50
 MAX_CHANNEL_ITEMS = 500
 
 
-class InteractionItemSerializer(serializers.Serializer):  # pylint: disable=abstract-method
-    """A contact or group the user interacted with, by id or by address.
+class InteractionItemSerializer(serializers.Serializer):
+    """A card the user interacted with, by uid or by address.
 
-    ``{"type": "contact" | "group", "id": …}`` for a row picked from the
-    search; ``{"type": "email", "value": …}`` when the app only knows the
-    address (Contacts finds the contact or group behind it, if any).
+    ``{"uid": …}`` for a card picked from the search, contact or group alike
+    (their ids never collide); ``{"email": …}`` when the app only knows the
+    address: Contacts finds the contact or group behind it, if any.
     """
 
-    type = serializers.ChoiceField(choices=interactions.ITEM_TYPES)
-    id = serializers.UUIDField(required=False, help_text="For contact and group.")
-    value = serializers.EmailField(required=False, help_text="For email.")
+    uid = serializers.CharField(
+        required=False, help_text='A card uid ("urn:uuid:…") from the search.'
+    )
+    email = serializers.EmailField(required=False)
 
     def validate(self, attrs):
-        """An id for a contact or group, an address for an email."""
-        if attrs["type"] == interactions.EMAIL:
-            if not attrs.get("value"):
-                raise serializers.ValidationError({"value": "An address is required."})
-        elif not attrs.get("id"):
-            raise serializers.ValidationError({"id": "An id is required."})
-        return attrs
+        """Exactly one of uid and email, as the interactions service's item."""
+        if bool(attrs.get("uid")) == bool(attrs.get("email")):
+            raise serializers.ValidationError("Give either a uid or an email.")
+        if attrs.get("email"):
+            return {"type": interactions.EMAIL, "value": attrs["email"]}
+        try:
+            row_id = uuid.UUID(jscontact.parse_uid(attrs["uid"]))
+        except ValueError as exc:
+            raise serializers.ValidationError(
+                {"uid": "Not a card uid from this service."}
+            ) from exc
+        return {"type": interactions.UID, "id": row_id}
 
 
-class InteractionsRequestSerializer(serializers.Serializer):  # pylint: disable=abstract-method
+class InteractionsRequestSerializer(serializers.Serializer):
     """Body of the interactions endpoint: one event and the people in it."""
 
     kind = serializers.CharField(
@@ -231,7 +320,7 @@ class InteractionsRequestSerializer(serializers.Serializer):  # pylint: disable=
         return value
 
 
-class AddContactSerializer(serializers.Serializer):  # pylint: disable=abstract-method
+class AddContactSerializer(serializers.Serializer):
     """Body of the "Add as contact" endpoint."""
 
     email = serializers.EmailField()
@@ -244,11 +333,11 @@ class AddContactSerializer(serializers.Serializer):  # pylint: disable=abstract-
     )
 
 
-class GroupMembersResponseSerializer(serializers.Serializer):  # pylint: disable=abstract-method
-    """Response of the group members endpoint (for the schema only)."""
+class GroupMembersResponseSerializer(serializers.Serializer):
+    """Response of the group members endpoint (schema only)."""
 
     count = serializers.IntegerField()
     next = serializers.URLField(allow_null=True)
     previous = serializers.URLField(allow_null=True)
-    group = GroupResultSerializer()
-    results = ContactResultSerializer(many=True)
+    group = GroupCardSerializer()
+    results = ContactCardSerializer(many=True)
