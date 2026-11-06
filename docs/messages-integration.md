@@ -18,11 +18,25 @@ one without the others.
 
 Messages' backend suggests recipients with
 `GET /external_api/v1.0/search/`, called with the access token its user
-logged in with, and reports what the user sent to with
-`POST /external_api/v1.0/interactions/` so they rank higher next time.
-Contacts must list `messages` in `OIDC_RS_ALLOWED_AUDIENCES`, and Messages'
-tokens must name Contacts in their audience. See
-[resource_server.md](resource_server.md).
+logged in with. Contacts must list `messages` in
+`OIDC_RS_ALLOWED_AUDIENCES`, and Messages' tokens must name Contacts in
+their audience. See [resource_server.md](resource_server.md).
+
+It reports what happens to mail with `POST /external_api/v1.0/interactions/`,
+by address (`{"type": "email", "value": …}`), so people rank higher next
+time:
+
+- **Sent** (`email_sent`, each To / Cc recipient), with the user's token;
+- **Received** (`email_received`, the sender), from the server when mail
+  arrives, with a channel holding `interactions:write` and `on_behalf_of`:
+
+  ```bash
+  python manage.py create_channel --name "Messages interactions" \
+    --scope-level global --scopes interactions:write
+  ```
+
+An "Add to contacts" button on a sender calls
+`POST /external_api/v1.0/contacts/`.
 
 ## 2. Address book over CardDAV
 

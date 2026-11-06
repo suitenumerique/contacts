@@ -26,8 +26,9 @@ token in the frontend.
 | Endpoint | Purpose |
 | --- | --- |
 | `GET  /external_api/v1.0/search/` | contacts **and** groups in one ranked list |
-| `POST /external_api/v1.0/interactions/` | "the user just picked these": feeds the ranking |
+| `POST /external_api/v1.0/interactions/` | "the user just shared with, wrote to, invited... these": feeds the ranking |
 | `GET  /external_api/v1.0/groups/{id}/members/` | expand a group into people, for apps that invite one by one |
+| `POST /external_api/v1.0/contacts/` | "Add as contact": save an address in the user's contacts |
 
 The OpenAPI schema is served at `/external_api/v1.0/swagger.json` (UI at
 `/external_api/v1.0/swagger/`) when `USE_SWAGGER` is on. It is separate from
@@ -46,12 +47,36 @@ the web app's schema, so the frontend client doesn't list these endpoints.
 | `OIDC_RS_SCOPES` | `openid` | a token must carry at least one of them |
 | `OIDC_RS_INTROSPECTION_CACHE_TIMEOUT` | `60` | seconds an introspection is reused; `0` turns the cache off |
 | `OIDC_RS_BACKEND_CLASS` | `core.authentication.resource_server.ContactsResourceServerBackend` | |
-| `EXTERNAL_API` | all enabled | `{"search": {"enabled": true}, "interactions": {...}, "group_members": {...}}` |
+| `EXTERNAL_API` | all enabled | endpoints served, and the interaction kinds each app may report (see below) |
+| `INTERACTION_KINDS` | see [Interaction kinds](#interaction-kinds) | weight of each kind |
+| `INTERACTION_MASS_THRESHOLD` | `10` | past this many people, an interaction weighs `threshold / n` per person |
 | `INTERACTION_HALF_LIFE_DAYS` | `30` | ranking decay, see below |
 | `SEARCH_STATEMENT_TIMEOUT_MS` | `300` | database budget of one search request |
 | `API_EXTERNAL_SEARCH_THROTTLE_RATE` | `300/minute` | per user |
 | `API_EXTERNAL_INTERACTIONS_THROTTLE_RATE` | `60/minute` | per user |
+| `API_EXTERNAL_INTERACTIONS_CHANNEL_THROTTLE_RATE` | `1200/minute` | per service channel |
 | `API_EXTERNAL_GROUP_MEMBERS_THROTTLE_RATE` | `120/minute` | per user |
+| `API_EXTERNAL_CONTACTS_THROTTLE_RATE` | `30/minute` | per user |
+
+`EXTERNAL_API` replaces the whole default when set, so give every key:
+
+```json
+{
+  "search": {"enabled": true},
+  "interactions": {
+    "enabled": true,
+    "kinds": {
+      "drive": ["share"],
+      "docs": ["share", "mention"],
+      "messages": ["email_sent", "email_received"],
+      "calendars": ["event_invite"]
+    },
+    "channel_kinds": ["email_sent", "email_received", "event_invite"]
+  },
+  "group_members": {"enabled": true},
+  "contacts": {"enabled": true}
+}
+```
 
 ### What the authorization server must do
 
@@ -75,9 +100,11 @@ A request is served when all of these hold, in order:
 3. The app it was issued to is in `OIDC_RS_ALLOWED_AUDIENCES`: else **403**.
 4. The user passes the `can_access` entitlement: else **403**.
 
-A session cookie or a channel key (`X-Channel-Id`) is never accepted here.
-If the authorization server is unreachable, the answer is **503**: the
-caller should retry, not refresh its token.
+A session cookie is never accepted here, and a channel key (`X-Channel-Id`)
+only on `POST /interactions/` (see
+[Events without a user](#events-without-a-user-service-channels)). If the
+authorization server is unreachable, the answer is **503**: the caller
+should retry, not refresh its token.
 
 ### Introspection cache
 
@@ -94,7 +121,8 @@ until its entry expires (60 s by default).
 
 Contacts and groups have one shape each, told apart by `type`. Both carry
 what a picker needs to draw a row: `type`, `id`, `display_name`, `email`,
-`is_org`, `source`.
+`is_org`, `source`. **Skip results whose `type` you don't know**: new types
+may be added without a new API version.
 
 ```ts
 type ContactResult = {
@@ -162,16 +190,99 @@ returned.
 
 ### `POST /interactions/`
 
-Called by the consumer's backend **after a share succeeded**, so the ranking
-reflects real shares, not clicks.
+One call is **one event** (a share, a message, an invitation) and the people
+or groups in it. Called by the consumer's backend **after the event
+happened**, so the ranking reflects real shares and messages, not clicks.
 
 ```json
-{"items": [{"type": "contact", "id": "79aa…"}, {"type": "group", "id": "02e2…"}]}
+{
+  "kind": "email_sent",
+  "items": [
+    {"type": "contact", "id": "79aa…"},
+    {"type": "group", "id": "02e2…"},
+    {"type": "email", "value": "bob.martin@example.org"}
+  ]
+}
 ```
 
-Answers `204`. 1 to 50 items. Ids the user can't see are ignored, so the
-answer never tells whether an id exists. A pick of an overlay counts for the
-row it covers; a pick of a group counts for the group, not its members.
+- **`kind`**: what happened, `share` when left out (see
+  [Interaction kinds](#interaction-kinds)). An app may only report the kinds
+  `EXTERNAL_API` lists for it, else **403**: Drive can't report emails.
+- **Items by id** (`contact`, `group`): for an app whose user picked from
+  `GET /search/`; the id says exactly which row.
+- **Items by address** (`email`): for an app that only knows addresses
+  (Messages, Calendars). Contacts finds the row behind it: a contact the user
+  sees with that address, their own cards before the organization's, then a
+  group with that address (a shared mailbox). An address matching nothing
+  is ignored (**nothing is created**), and so is the user's own.
+
+Answers `204`. 1 to 50 items with a user token, 500 with a channel. Ids the
+user can't see are ignored, so the answer never tells whether an id exists.
+A person named twice (by id and by address) counts once; an interaction with
+an overlay counts for the row it covers; with a group, for the group, not
+its members.
+
+#### Interaction kinds
+
+| Kind | Weight | Reported by |
+| --- | ---: | --- |
+| `share` | 1 | Drive, Docs, after a share |
+| `email_sent` | 1 | Messages, for each To / Cc recipient |
+| `event_invite` | 1 | Calendars |
+| `mention` | 0.5 | Docs (@mention) |
+| `email_received` | 0.2 | Messages, server side (a channel) |
+| `added_as_contact` | 2 | Contacts itself, see `POST /contacts/` |
+
+Writing to someone says more than receiving mail from them. An event with
+more than `INTERACTION_MASS_THRESHOLD` people (10) weighs `threshold / n`
+per person: a message to 200 people says little about any of them.
+Addresses matching nothing still count as people in the event. Weights are
+set with `INTERACTION_KINDS`, e.g. `{"email_received": {"weight": 0}}` to
+ignore received mail; an unknown kind answers **400**.
+
+#### Events without a user (service channels)
+
+Some events happen on a server with no user session: Messages receives mail
+when nobody is logged in, so it has no access token. It reports them with a
+service channel holding the `interactions:write` scope, naming the user
+with `on_behalf_of` (in the body), like the other channel endpoints:
+
+```bash
+python manage.py create_channel --name "Messages interactions" \
+  --scope-level global --scopes interactions:write
+```
+
+```http
+POST /external_api/v1.0/interactions/
+X-Channel-Id: <channel id>
+X-API-Key: <key>
+
+{"kind": "email_received", "on_behalf_of": "alice@brigny.example",
+ "items": [{"type": "email", "value": "bob.martin@example.org"}]}
+```
+
+A channel may report `EXTERNAL_API["interactions"]["channel_kinds"]`, up to
+500 items per call, and is rate limited per channel. An organization
+channel only acts for its organization's users. With a user token,
+`on_behalf_of` is ignored.
+
+### `POST /contacts/`
+
+"Add as contact" buttons (a sender in Messages, a share recipient in Drive):
+
+```json
+{"email": "bob.martin@example.org", "name": "Bob Martin"}
+```
+
+- **`201`** with a new personal contact of the user (a contact, as in the
+  search results). `name` is optional: without it the contact shows its
+  address.
+- **`200`** with the contact the user already sees under that address,
+  their own or the organization's: calling twice is harmless.
+- **`400`** for an invalid address or the user's own.
+
+A new contact gets a one-time boost in the ranking (`added_as_contact`):
+saving someone says they matter.
 
 ### `GET /groups/{id}/members/`
 
@@ -199,15 +310,17 @@ the user who can't be invited. `404` for a group the user can't see.
 
 `core.models.Interaction` keeps one row per (user, contact) or (user,
 group): a lifetime `count`, and a `score` that loses half its weight every
-`INTERACTION_HALF_LIFE_DAYS`:
+`INTERACTION_HALF_LIFE_DAYS`, a *frecency* (frequency + recency) score with
+exponential decay:
 
 ```
-on pick:   score = score × 0.5^(days since last pick / half-life) + 1
-on read:   rank  = score × 0.5^(days since last pick / half-life)
+on interaction:  score = score × 0.5^(days since last / half-life) + weight
+on read:         rank  = score × 0.5^(days since last / half-life)
 ```
 
-So someone shared with every week this month outranks someone shared with
-often a year ago. The decay is applied in SQL when reading: no background
+`weight` is the kind's (see [Interaction kinds](#interaction-kinds)). So
+someone written to every week this month outranks someone shared with often
+a year ago. The decay is applied in SQL when reading: no background
 job. A pick of an overlay is stored on the row it covers, like group
 memberships, so the history survives dropping the overlay.
 
