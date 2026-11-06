@@ -11,7 +11,6 @@ import logging
 from django.conf import settings
 from django.db import OperationalError, connection, transaction
 from django.db.models import Exists, OuterRef, Q
-from django.utils import timezone
 
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from lasuite.oidc_resource_server.authentication import ResourceServerAuthentication
@@ -21,6 +20,7 @@ from core import models
 from core.api.permissions import IsEntitledToAccess
 from core.api.viewsets import Pagination
 from core.enums import Scope
+from core.services import interactions as interactions_service
 from core.services import search as search_service
 
 from . import serializers
@@ -104,34 +104,29 @@ class InteractionsView(ExternalAPIView):
         tags=["external"],
     )
     def post(self, request):
-        """Count one pick of each item, after the share succeeded.
+        """Record one event (a share, an email...) with the people in it.
 
-        Items the user can't see are ignored, so the answer never tells
-        whether an id exists.
+        Called after the event happened, not on every click. Each kind
+        weighs what INTERACTION_KINDS says, less per person past
+        INTERACTION_MASS_THRESHOLD people. Items the user can't see are
+        ignored, so the answer never tells whether an id exists.
         """
         body = serializers.InteractionsRequestSerializer(data=request.data)
         body.is_valid(raise_exception=True)
-        user = request.user
-        wanted = {search_service.CONTACT: set(), search_service.GROUP: set()}
-        for item in body.validated_data["items"]:
-            wanted[item["type"]].add(item["id"])
-
-        contacts = (
-            models.Contact.objects.visible_to(user)
-            .filter(pk__in=wanted[search_service.CONTACT], deleted_at__isnull=True)
-            .select_related("overlay_of")
-        )
-        groups = models.ContactGroup.objects.visible_to(user).filter(
-            pk__in=wanted[search_service.GROUP]
-        )
-        # One timestamp for the whole share: the people picked together get
-        # the same rank, so the name orders them, not microseconds apart.
-        now = timezone.now()
-        for contact in contacts:
-            models.Interaction.record(user, contact=contact, now=now)
-        for group in groups:
-            models.Interaction.record(user, group=group, now=now)
+        kind = body.validated_data["kind"]
+        if kind not in self.allowed_kinds(request):
+            raise exceptions.PermissionDenied(
+                f"This application may not report {kind!r} interactions."
+            )
+        interactions_service.record(request.user, kind, body.validated_data["items"])
         return response.Response(status=status.HTTP_204_NO_CONTENT)
+
+    @staticmethod
+    def allowed_kinds(request):
+        """The kinds the calling app may report (EXTERNAL_API)."""
+        audience = getattr(request, "resource_server_token_audience", None)
+        config = settings.EXTERNAL_API.get("interactions", {})
+        return config.get("kinds", {}).get(audience, [])
 
 
 class GroupMembersPagination(Pagination):

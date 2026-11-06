@@ -1327,14 +1327,16 @@ class InteractionQuerySet(models.QuerySet):
 
 
 class Interaction(BaseModel):
-    """How often, and how recently, a user picked a contact or a group.
+    """How often, and how recently, a user interacted with a contact or group.
 
     Feeds the ranking of the people and groups suggested to other Suite
-    apps (``/external_api/v1.0/search/``). ``score`` is a counter that
-    loses half its weight every ``INTERACTION_HALF_LIFE_DAYS``: each pick
-    adds 1 on top of the previous score decayed to that day, so a regular
-    contact of this month outranks one picked often long ago. ``count``
-    is the plain lifetime total.
+    apps (``/external_api/v1.0/search/``). An interaction is a share, an
+    email sent or received, an invitation... each kind with its weight
+    (``INTERACTION_KINDS``). ``score`` loses half its value every
+    ``INTERACTION_HALF_LIFE_DAYS``: each interaction adds its weight on top
+    of the previous score decayed to that day, so a regular contact of this
+    month outranks one picked often long ago. ``count`` is the plain
+    lifetime total.
 
     A pick of an overlay is stored on the row it overlays (like group
     memberships), so the history survives dropping the overlay.
@@ -1403,10 +1405,11 @@ class Interaction(BaseModel):
         return score * 0.5 ** (elapsed / half_life)
 
     @classmethod
-    def record(cls, user, *, contact=None, group=None, now=None):
-        """Count one pick of *contact* or *group* by *user*.
+    def record(cls, user, *, contact=None, group=None, weight=1.0, now=None):  # pylint: disable=too-many-arguments
+        """Count one interaction of *user* with *contact* or *group*.
 
-        The row is locked while it is bumped, so two shares landing at
+        *weight* is what it adds to the score (see INTERACTION_KINDS). The
+        row is locked while it is bumped, so two interactions landing at
         the same time both count.
         """
         now = now or timezone.now()
@@ -1420,7 +1423,8 @@ class Interaction(BaseModel):
                 defaults={"last_interaction_at": now},
             )
             score = (
-                cls.decayed(interaction.score, interaction.last_interaction_at, now) + 1
+                cls.decayed(interaction.score, interaction.last_interaction_at, now)
+                + weight
             )
             # A plain update: full_clean would re-validate every constraint.
             cls.objects.filter(pk=interaction.pk).update(

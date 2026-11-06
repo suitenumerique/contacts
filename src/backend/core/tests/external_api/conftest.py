@@ -59,6 +59,20 @@ def fixture_api(user):
         yield client
 
 
+@pytest.fixture(name="messages_api")
+def fixture_messages_api(user):
+    """A client calling as Messages with *user*'s token."""
+    with responses.RequestsMock(assert_all_requests_are_fired=False) as mock:
+        mock.add(
+            responses.POST,
+            settings.OIDC_OP_INTROSPECTION_ENDPOINT,
+            json=introspection(user, audience="messages"),
+        )
+        client = APIClient()
+        client.credentials(HTTP_AUTHORIZATION="Bearer messages-access-token")
+        yield client
+
+
 def contact(owner=None, *, org=None, emails=("x@example.org",), **fields):
     """A personal contact of *owner*, or an organization one of *org*."""
     if org is not None:
