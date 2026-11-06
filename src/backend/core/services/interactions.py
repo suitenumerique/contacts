@@ -47,17 +47,21 @@ def _personal_first(user):
     )
 
 
-def resolve_email(user, address):
-    """The contact or group *user* knows under *address*, or None.
+def is_own_address(user, address):
+    """Whether *address* is *user*'s own."""
+    return (address or "").strip().lower() == (user.email or "").strip().lower()
 
-    A contact first: the user's own cards (their overlay of an organization
-    card included) before the organization's, oldest first; then a group
-    with that address (a shared mailbox). The user's own address is never
-    resolved. Every address is a word of ``search_text``, so the trigram
-    index finds the candidates; the exact address is checked on them.
+
+def find_contact(user, address):
+    """The contact *user* knows under *address*, or None.
+
+    The user's own cards (their overlay of an organization card included)
+    before the organization's, oldest first. Every address is a word of
+    ``search_text``, so the trigram index finds the candidates; the exact
+    address is checked on them.
     """
     address = (address or "").strip().lower()
-    if not address or address == (user.email or "").strip().lower():
+    if not address:
         return None
     candidates = (
         models.Contact.objects.visible_to(user)
@@ -65,9 +69,27 @@ def resolve_email(user, address):
         .select_related("overlay_of")
         .order_by(_personal_first(user), "created_at", "pk")[:MAX_EMAIL_CANDIDATES]
     )
+    # The filter above only checks that a word *starts* with the address,
+    # anywhere in search_text: it also matches longer addresses
+    # (bob@example.org.uk) and an address typed in another field (company,
+    # nickname). Keep the first contact whose own addresses include it.
     for contact in candidates:
         if address in contact.email_values:
             return contact
+    return None
+
+
+def resolve_email(user, address):
+    """The contact or group *user* knows under *address*, or None.
+
+    A contact first (``find_contact``), then a group with that address (a
+    shared mailbox). The user's own address is never resolved.
+    """
+    address = (address or "").strip().lower()
+    if not address or is_own_address(user, address):
+        return None
+    if (contact := find_contact(user, address)) is not None:
+        return contact
     return (
         models.ContactGroup.objects.visible_to(user)
         .filter(email__iexact=address)
@@ -120,7 +142,7 @@ def record(user, kind, items):
     for key, item in unique.items():
         if key[0] != EMAIL:
             continue
-        if key[1] == (user.email or "").strip().lower():
+        if is_own_address(user, key[1]):
             people -= 1  # the user themself (a copy to self)
             continue
         if (row := resolve_email(user, item["value"])) is not None:
