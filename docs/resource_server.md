@@ -47,6 +47,7 @@ the web app's schema, so the frontend client doesn't list these endpoints.
 | `OIDC_RS_SCOPES` | `openid` | a token must carry at least one of them |
 | `OIDC_RS_INTROSPECTION_CACHE_TIMEOUT` | `60` | seconds an introspection is reused; `0` turns the cache off |
 | `OIDC_RS_BACKEND_CLASS` | `core.authentication.resource_server.ContactsResourceServerBackend` | |
+| `JSCONTACT_VENDOR_PREFIX` | `numerique.gouv.fr` | domain prefix of the cards' vendor properties (`numerique.gouv.fr:isOrg`); part of the contract, see [Cards](#cards-jscontact) |
 | `EXTERNAL_API` | all enabled | endpoints served, and the interaction kinds each app may report (see below) |
 | `INTERACTION_KINDS` | see [Interaction kinds](#interaction-kinds) | weight of each kind |
 | `INTERACTION_MASS_THRESHOLD` | `10` | past this many people, an interaction weighs `threshold / n` per person |
@@ -119,42 +120,67 @@ until its entry expires (60 s by default).
 
 ## Endpoints
 
-Contacts and groups have one shape each, told apart by `type`. Both carry
-what a picker needs to draw a row: `type`, `id`, `display_name`, `email`,
-`is_org`, `source`. **Skip results whose `type` you don't know**: new types
-may be added without a new API version.
+### Cards (JSContact)
 
-```ts
-type ContactResult = {
-  type: "contact";
-  id: string;                 // an overlay's id when the user has one
-  display_name: string;
-  email: string | null;       // first of `emails`
-  emails: { type: string; value: string }[];
-  company: string | null;
-  job_title: string | null;
-  photo: string | null;       // https URL; photos stored inline are left out
-  is_org: boolean;
-  source: string;             // "" or the directory it is synced from
-};
+Contacts and groups are **JSContact cards** ([RFC 9553](https://www.rfc-editor.org/rfc/rfc9553)),
+the IETF's JSON format for contact data, so apps read them with the
+standard's vocabulary. A card carries only what a picker needs; properties
+with nothing to say are left out.
 
-type GroupResult = {
-  type: "group";
-  id: string;
-  display_name: string;
-  email: string | null;       // addressable groups only (shared mailbox)
-  members_count: number;
-  is_org: boolean;
-  source: string;
-};
+```json
+{
+  "@type": "Card",
+  "version": "1.0",
+  "uid": "urn:uuid:79aa8714-94af-4ea5-8fc3-55673153af3e",
+  "kind": "individual",
+  "name": {
+    "full": "Félix Marchand",
+    "components": [{"kind": "given", "value": "Félix"}, {"kind": "surname", "value": "Marchand"}]
+  },
+  "emails": {
+    "e1": {"address": "felix.marchand@brigny.example", "contexts": {"work": true}, "pref": 1},
+    "e2": {"address": "felix@home.example", "contexts": {"private": true}}
+  },
+  "organizations": {"o1": {"name": "Mairie de Brigny", "units": [{"name": "Conseil"}]}},
+  "titles": {"t1": {"kind": "title", "name": "Conseiller municipal"}},
+  "media": {"m1": {"kind": "photo", "uri": "https://cdn.example/felix.png"}},
+  "numerique.gouv.fr:isOrg": false,
+  "numerique.gouv.fr:source": ""
+}
 ```
+
+| Contacts | Card |
+| --- | --- |
+| id | `uid`: `urn:uuid:<id>`; an overlay has its own |
+| contact / group | `kind`: `individual` / `group` |
+| displayed name | `name.full` |
+| prefix, given, middle, family name, suffix | `name.components`: `title`, `given`, `given2`, `surname`, `credential` |
+| nickname | `nicknames.k1.name` |
+| civility M. / Mme | `speakToAs.grammaticalGender`: `masculine` / `feminine` |
+| emails | `emails` by id (`e1`…): type `work` → `contexts.work`, `home` → `contexts.private`, other text → `label`; the first one has `pref: 1` |
+| company, department | `organizations.o1.name`, `.units[0].name` |
+| job title | `titles.t1` |
+| photo (https only; inline photos are left out) | `media.m1.uri` |
+| in the organization's book | `numerique.gouv.fr:isOrg` |
+| synced from | `numerique.gouv.fr:source` (`""` when not synced) |
+| group members | `numerique.gouv.fr:membersCount`; `members` isn't listed (`GET /groups/{id}/members/` is) |
+
+- **Vendor properties** (RFC 9553, 1.8) carry what JSContact has no
+  property for. Their prefix is `JSCONTACT_VENDOR_PREFIX`: changing it
+  renames them for every caller.
+- **Ids in maps** (`e1`, `o1`…) are positions, stable for a given card, not
+  across edits.
+- `@type` is only on the card: RFC 9553 makes it optional on nested
+  objects.
+- **Skip cards whose `kind` you don't know**: new kinds may come without a
+  new API version.
 
 ### `GET /search/`
 
 | Param | Default | |
 | --- | --- | --- |
 | `q` | `""` | empty: the user's most picked contacts and groups |
-| `types` | `contact,group` | kinds to return |
+| `kind` | `individual,group` | card kinds to return |
 | `limit` | `10` | 1 to 50 |
 
 Each word of `q` must match, accents and case ignored. A word matches the
@@ -176,14 +202,16 @@ returned.
 ```json
 {
   "results": [
-    {"type": "contact", "id": "79aa…", "display_name": "Félix Marchand",
-     "email": "felix.marchand@brigny.example",
-     "emails": [{"type": "work", "value": "felix.marchand@brigny.example"}],
-     "company": "Mairie de Brigny", "job_title": null, "photo": null,
-     "is_org": false, "source": ""},
-    {"type": "group", "id": "5d0b…", "display_name": "Marchés publics",
-     "email": "marches@brigny.example", "members_count": 6,
-     "is_org": true, "source": ""}
+    {"@type": "Card", "version": "1.0", "uid": "urn:uuid:79aa…",
+     "kind": "individual", "name": {"full": "Félix Marchand"},
+     "emails": {"e1": {"address": "felix.marchand@brigny.example",
+                       "contexts": {"work": true}, "pref": 1}},
+     "numerique.gouv.fr:isOrg": false, "numerique.gouv.fr:source": ""},
+    {"@type": "Card", "version": "1.0", "uid": "urn:uuid:5d0b…",
+     "kind": "group", "name": {"full": "Marchés publics"},
+     "emails": {"e1": {"address": "marches@brigny.example", "pref": 1}},
+     "numerique.gouv.fr:isOrg": true, "numerique.gouv.fr:source": "",
+     "numerique.gouv.fr:membersCount": 6}
   ]
 }
 ```
@@ -198,9 +226,9 @@ happened**, so the ranking reflects real shares and messages, not clicks.
 {
   "kind": "email_sent",
   "items": [
-    {"type": "contact", "id": "79aa…"},
-    {"type": "group", "id": "02e2…"},
-    {"type": "email", "value": "bob.martin@example.org"}
+    {"uid": "urn:uuid:79aa…"},
+    {"uid": "urn:uuid:02e2…"},
+    {"email": "bob.martin@example.org"}
   ]
 }
 ```
@@ -208,17 +236,19 @@ happened**, so the ranking reflects real shares and messages, not clicks.
 - **`kind`**: what happened, `share` when left out (see
   [Interaction kinds](#interaction-kinds)). An app may only report the kinds
   `EXTERNAL_API` lists for it, else **403**: Drive can't report emails.
-- **Items by id** (`contact`, `group`): for an app whose user picked from
-  `GET /search/`; the id says exactly which row.
+- **Items by uid**: for an app whose user picked from `GET /search/`; send
+  the card's `uid` back as is. Contacts and groups alike: their ids are
+  random UUIDs, so a uid matches at most one of them.
 - **Items by address** (`email`): for an app that only knows addresses
   (Messages, Calendars). Contacts finds the row behind it: a contact the user
   sees with that address, their own cards before the organization's, then a
   group with that address (a shared mailbox). An address matching nothing
   is ignored (**nothing is created**), and so is the user's own.
 
-Answers `204`. 1 to 50 items with a user token, 500 with a channel. Ids the
-user can't see are ignored, so the answer never tells whether an id exists.
-A person named twice (by id and by address) counts once; an interaction with
+Answers `204`. 1 to 50 items with a user token, 500 with a channel; each
+item is exactly one `uid` or one `email`. Uids the user can't see are
+ignored, so the answer never tells whether a row exists. A person named
+twice (by uid and by address) counts once; an interaction with
 an overlay counts for the row it covers; with a group, for the group, not
 its members.
 
@@ -258,7 +288,7 @@ X-Channel-Id: <channel id>
 X-API-Key: <key>
 
 {"kind": "email_received", "on_behalf_of": "alice@brigny.example",
- "items": [{"type": "email", "value": "bob.martin@example.org"}]}
+ "items": [{"email": "bob.martin@example.org"}]}
 ```
 
 A channel may report `EXTERNAL_API["interactions"]["channel_kinds"]`, up to
@@ -274,10 +304,9 @@ channel only acts for its organization's users. With a user token,
 {"email": "bob.martin@example.org", "name": "Bob Martin"}
 ```
 
-- **`201`** with a new personal contact of the user (a contact, as in the
-  search results). `name` is optional: without it the contact shows its
-  address.
-- **`200`** with the contact the user already sees under that address,
+- **`201`** with the card of a new personal contact of the user. `name` is
+  optional: without it the contact shows its address.
+- **`200`** with the card of the contact the user already sees under that address,
   their own or the organization's: calling twice is harmless.
 - **`400`** for an invalid address or the user's own.
 
@@ -286,25 +315,28 @@ saving someone says they matter.
 
 ### `GET /groups/{id}/members/`
 
-Visible, non-trashed members, alphabetical, paginated (`page`, `page_size`,
-100 by default), with the group itself:
+Visible, non-trashed members as cards, alphabetical, paginated (`page`,
+`page_size`, 100 by default), with the group's card:
 
 ```json
 {
   "count": 8, "next": null, "previous": null,
-  "group": {"type": "group", "id": "02e2…", "display_name": "Conseil municipal",
-            "email": null, "members_count": 8, "is_org": false, "source": ""},
+  "group": {"@type": "Card", "version": "1.0", "uid": "urn:uuid:02e2…",
+            "kind": "group", "name": {"full": "Conseil municipal"},
+            "numerique.gouv.fr:isOrg": false, "numerique.gouv.fr:source": "",
+            "numerique.gouv.fr:membersCount": 8},
   "results": [
-    {"type": "contact", "id": "c269…", "display_name": "Amandine Aminoff",
-     "email": "amandine.aminoff@brigny.example", "emails": […], …},
-    {"type": "contact", "id": "3c7e…", "display_name": "Louis Garnier",
-     "email": null, "emails": [], …}
+    {"@type": "Card", "version": "1.0", "uid": "urn:uuid:c269…",
+     "kind": "individual", "name": {"full": "Amandine Aminoff"},
+     "emails": {"e1": {"address": "amandine.aminoff@brigny.example", "pref": 1}}, …},
+    {"@type": "Card", "version": "1.0", "uid": "urn:uuid:3c7e…",
+     "kind": "individual", "name": {"full": "Louis Garnier"}, …}
   ]
 }
 ```
 
-Members without an email stay, with `"email": null`, so the app can tell
-the user who can't be invited. `404` for a group the user can't see.
+Members without an email stay, as cards without `emails`, so the app can
+tell the user who can't be invited. `404` for a group the user can't see.
 
 ## Ranking
 
@@ -348,7 +380,7 @@ How the search holds it:
 - **Rank computed in SQL**, only for the user's 1000 most recent picks, and
   only the rows the response needs are loaded, with only the columns it
   shows.
-- `members_count` is computed for the returned groups only, from each
+- The member count (`membersCount`) is computed for the returned groups only, from each
   group's own memberships.
 - `SEARCH_STATEMENT_TIMEOUT_MS` cancels a search over its budget (**503**),
   so one bad plan can't pile up on the database.

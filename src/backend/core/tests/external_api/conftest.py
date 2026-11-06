@@ -10,8 +10,36 @@ from rest_framework.test import APIClient
 
 from core import factories, models
 from core.enums import Scope
+from core.services import jscontact
 
 TOKEN = "drive-access-token"
+
+
+def uid(row):
+    """The card uid of *row*."""
+    return jscontact.uid(row.pk)
+
+
+def card_id(card):
+    """The row id of a JSContact *card*, as text."""
+    return jscontact.parse_uid(card["uid"])
+
+
+def card_name(card):
+    """The displayed name of a JSContact *card*."""
+    return card["name"]["full"]
+
+
+def card_email(card):
+    """The preferred address of a JSContact *card*, or None."""
+    emails = list((card.get("emails") or {}).values())
+    preferred = [entry for entry in emails if entry.get("pref") == 1]
+    return (preferred or emails or [{}])[0].get("address")
+
+
+def vendor(card, name):
+    """The vendor property *name* of a JSContact *card*."""
+    return card[jscontact.vendor(name)]
 
 
 def introspection(

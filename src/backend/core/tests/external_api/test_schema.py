@@ -16,8 +16,12 @@ def test_the_external_schema_lists_the_external_endpoints():
         "/external_api/v1.0/groups/{group_id}/members/",
         "/external_api/v1.0/contacts/",
     }
-    result = schema["components"]["schemas"]["SearchResult"]
-    assert result["discriminator"]["propertyName"] == "type"
+    card = schema["components"]["schemas"]["Card"]
+    assert card["discriminator"]["propertyName"] == "kind"
+    assert set(card["discriminator"]["mapping"]) == {"individual", "group"}
+    contact_card = schema["components"]["schemas"]["ContactCard"]["properties"]
+    assert {"@type", "version", "uid", "kind", "name", "emails"} <= set(contact_card)
+    assert "numerique.gouv.fr:isOrg" in contact_card
 
 
 def test_the_web_app_schema_does_not_list_them():

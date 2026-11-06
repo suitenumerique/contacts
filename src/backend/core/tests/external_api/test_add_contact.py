@@ -5,7 +5,7 @@ import pytest
 from core import factories, models
 from core.enums import Scope
 
-from .conftest import contact
+from .conftest import card_id, card_name, contact
 
 pytestmark = pytest.mark.django_db
 
@@ -33,16 +33,14 @@ def test_an_unknown_address_becomes_a_personal_contact(api, user):
     )
     assert created.created_by == user
     assert response.json() == {
-        "type": "contact",
-        "id": str(created.pk),
-        "display_name": "Bob Martin",
-        "email": "bob.martin@example.org",
-        "emails": [{"type": "", "value": "bob.martin@example.org"}],
-        "company": None,
-        "job_title": None,
-        "photo": None,
-        "is_org": False,
-        "source": "",
+        "@type": "Card",
+        "version": "1.0",
+        "uid": f"urn:uuid:{created.pk}",
+        "kind": "individual",
+        "name": {"full": "Bob Martin"},
+        "emails": {"e1": {"address": "bob.martin@example.org", "pref": 1}},
+        "numerique.gouv.fr:isOrg": False,
+        "numerique.gouv.fr:source": "",
     }
 
 
@@ -51,7 +49,7 @@ def test_without_a_name_the_address_is_shown(api):
     response = _add(api, "bob@example.org")
 
     assert response.status_code == 201
-    assert response.json()["display_name"] == "bob@example.org"
+    assert card_name(response.json()) == "bob@example.org"
 
 
 def test_a_new_contact_gets_a_one_time_boost(api, user):
@@ -70,7 +68,7 @@ def test_adding_twice_returns_the_same_contact(api):
     second = _add(api, "BOB@example.org", "Bob")
 
     assert (first.status_code, second.status_code) == (201, 200)
-    assert first.json()["id"] == second.json()["id"]
+    assert first.json()["uid"] == second.json()["uid"]
     assert models.Contact.objects.count() == 1
 
 
@@ -81,8 +79,8 @@ def test_a_contact_the_user_already_has_is_returned(api, user):
     response = _add(api, "bob@example.org", "Robert")
 
     assert response.status_code == 200
-    assert response.json()["id"] == str(bob.pk)
-    assert response.json()["display_name"] == "Bob"
+    assert card_id(response.json()) == str(bob.pk)
+    assert card_name(response.json()) == "Bob"
     assert not models.Interaction.objects.exists()
 
 
@@ -95,7 +93,7 @@ def test_an_organization_contact_is_returned_too(api, user):
     response = _add(api, "bob@example.org")
 
     assert response.status_code == 200
-    assert response.json()["id"] == str(shared.pk)
+    assert card_id(response.json()) == str(shared.pk)
 
 
 def test_a_colleagues_contact_does_not_count(api, user):

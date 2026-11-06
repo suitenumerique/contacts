@@ -698,6 +698,14 @@ class Base(Configuration):
     OIDC_RS_INTROSPECTION_CACHE_TIMEOUT = values.PositiveIntegerValue(
         60, environ_name="OIDC_RS_INTROSPECTION_CACHE_TIMEOUT", environ_prefix=None
     )
+    # Domain prefix of the JSContact vendor properties /external_api/ cards
+    # carry ("numerique.gouv.fr:isOrg", RFC 9553 section 1.8). Part of the
+    # API contract: changing it renames properties the calling apps read.
+    JSCONTACT_VENDOR_PREFIX = values.Value(
+        "numerique.gouv.fr",
+        environ_name="JSCONTACT_VENDOR_PREFIX",
+        environ_prefix=None,
+    )
     # Endpoints of /external_api/ that are served.
     # Endpoints of /external_api/ that are served. For interactions,
     # "kinds" lists the kinds each app (token audience) may report, so

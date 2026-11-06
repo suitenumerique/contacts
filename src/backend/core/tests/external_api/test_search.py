@@ -11,7 +11,7 @@ import pytest
 from core import factories, models
 from core.services import search as search_service
 
-from .conftest import contact, group
+from .conftest import card_email, card_id, card_name, contact, group, vendor
 
 pytestmark = pytest.mark.django_db
 
@@ -20,7 +20,7 @@ URL = "/external_api/v1.0/search/"
 
 def _names(response):
     assert response.status_code == 200, response.content
-    return [row["display_name"] for row in response.json()["results"]]
+    return [card_name(row) for row in response.json()["results"]]
 
 
 def _pick(user, row, *, days_ago=0, times=1):
@@ -55,44 +55,56 @@ def test_contacts_and_groups_come_in_one_list(api, user):
     assert response.json() == {
         "results": [
             {
-                "type": "contact",
-                "id": str(felix.pk),
-                "display_name": "Félix Marchand",
-                "email": "felix.marchand@brigny.example",
-                "emails": [
-                    {"type": "work", "value": "felix.marchand@brigny.example"},
-                    {"type": "work", "value": "felix@home.example"},
-                ],
-                "company": "Mairie de Brigny",
-                "job_title": "Conseiller municipal",
-                "photo": "https://cdn.example/felix.png",
-                "is_org": False,
-                "source": "",
+                "@type": "Card",
+                "version": "1.0",
+                "uid": f"urn:uuid:{felix.pk}",
+                "kind": "individual",
+                "name": {"full": "Félix Marchand"},
+                "emails": {
+                    "e1": {
+                        "address": "felix.marchand@brigny.example",
+                        "contexts": {"work": True},
+                        "pref": 1,
+                    },
+                    "e2": {
+                        "address": "felix@home.example",
+                        "contexts": {"work": True},
+                    },
+                },
+                "organizations": {"o1": {"name": "Mairie de Brigny"}},
+                "titles": {"t1": {"kind": "title", "name": "Conseiller municipal"}},
+                "media": {
+                    "m1": {"kind": "photo", "uri": "https://cdn.example/felix.png"}
+                },
+                "numerique.gouv.fr:isOrg": False,
+                "numerique.gouv.fr:source": "",
             },
             {
-                "type": "group",
-                "id": str(team.pk),
-                "display_name": "Marchés publics",
-                "email": "marches@brigny.example",
-                "members_count": 0,
-                "is_org": True,
-                "source": "",
+                "@type": "Card",
+                "version": "1.0",
+                "uid": f"urn:uuid:{team.pk}",
+                "kind": "group",
+                "name": {"full": "Marchés publics"},
+                "emails": {"e1": {"address": "marches@brigny.example", "pref": 1}},
+                "numerique.gouv.fr:isOrg": True,
+                "numerique.gouv.fr:source": "",
+                "numerique.gouv.fr:membersCount": 0,
             },
         ]
     }
 
 
-def test_empty_fields_are_null_and_inline_photos_left_out(api, user):
-    """Empty fields are null and inline photos left out."""
+def test_empty_fields_and_inline_photos_are_left_out(api, user):
+    """Empty fields and inline photos are left out of the card."""
     contact(user, full_name="Ada", photo="data:image/png;base64,iVBORw0KGgo=")
     group(user, name="Adas")
 
     rows = api.get(URL, {"q": "ada"}).json()["results"]
 
-    assert rows[0]["company"] is None
-    assert rows[0]["job_title"] is None
-    assert rows[0]["photo"] is None
-    assert rows[1]["email"] is None
+    assert "organizations" not in rows[0]
+    assert "titles" not in rows[0]
+    assert "media" not in rows[0]
+    assert "emails" not in rows[1]
 
 
 def test_members_count_counts_visible_members(api, user):
@@ -107,7 +119,7 @@ def test_members_count_counts_visible_members(api, user):
 
     rows = api.get(URL, {"q": "team"}).json()["results"]
 
-    assert rows[0]["members_count"] == 3
+    assert vendor(rows[0], "membersCount") == 3
 
 
 # Visibility
@@ -152,7 +164,7 @@ def test_an_overlay_stands_for_the_contact_it_covers(api, user):
 
     rows = api.get(URL, {"q": "claire"}).json()["results"]
 
-    assert [(row["id"], row["display_name"], row["email"]) for row in rows] == [
+    assert [(card_id(row), card_name(row), card_email(row)) for row in rows] == [
         (str(overlay.pk), "Claire D. (annuaire)", "claire.dubois@brigny.example")
     ]
 
@@ -312,7 +324,7 @@ def test_a_pick_of_an_overlay_ranks_the_overlay(api, user):
 
     rows = api.get(URL, {"q": "claire"}).json()["results"]
 
-    assert [row["id"] for row in rows][0] == str(overlay.pk)
+    assert [card_id(row) for row in rows][0] == str(overlay.pk)
 
 
 def test_a_picked_card_shared_with_the_organization_keeps_its_rank(api, user):
@@ -331,7 +343,7 @@ def test_a_picked_card_shared_with_the_organization_keeps_its_rank(api, user):
     assert zelda.overlay_of_id == shared.pk
 
     rows = api.get(URL, {"q": "zelda"}).json()["results"]
-    assert [row["id"] for row in rows] == [str(zelda.pk), str(abel.pk)]
+    assert [card_id(row) for row in rows] == [str(zelda.pk), str(abel.pk)]
 
 
 def test_an_interaction_row_left_on_an_overlay_ranks_last(api, user):
@@ -367,8 +379,8 @@ def test_types_filters_the_kinds(api, user):
     contact(user, full_name="Team member")
     group(user, name="Team")
 
-    assert _names(api.get(URL, {"q": "team", "types": "group"})) == ["Team"]
-    assert _names(api.get(URL, {"q": "team", "types": "contact"})) == ["Team member"]
+    assert _names(api.get(URL, {"q": "team", "kind": "group"})) == ["Team"]
+    assert _names(api.get(URL, {"q": "team", "kind": "individual"})) == ["Team member"]
 
 
 def test_limit_caps_the_results_across_kinds(api, user):
@@ -383,8 +395,8 @@ def test_limit_caps_the_results_across_kinds(api, user):
 @pytest.mark.parametrize(
     "params",
     [
-        {"types": "people"},
-        {"types": " , "},
+        {"kind": "contact"},
+        {"kind": " , "},
         {"limit": 0},
         {"limit": 51},
         {"q": "x" * 201},

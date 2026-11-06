@@ -17,7 +17,7 @@ def _send(client, *items, kind="email_sent"):
 
 
 def _email(address):
-    return {"type": "email", "value": address}
+    return {"email": address}
 
 
 def test_an_address_counts_for_the_contact_behind_it(messages_api, user):
@@ -123,9 +123,7 @@ def test_a_person_named_by_id_and_address_counts_once(messages_api, user):
     """A person named by id and by address counts once."""
     bob = contact(user, full_name="Bob", emails=("bob@example.org",))
 
-    _send(
-        messages_api, {"type": "contact", "id": str(bob.pk)}, _email("bob@example.org")
-    )
+    _send(messages_api, {"uid": f"urn:uuid:{bob.pk}"}, _email("bob@example.org"))
 
     interaction = models.Interaction.objects.get(user=user)
     assert interaction.count == 1
@@ -148,12 +146,13 @@ def test_unknown_addresses_still_count_as_people(messages_api, user, settings):
 @pytest.mark.parametrize(
     "item",
     [
-        {"type": "email"},
-        {"type": "email", "value": "not-an-address"},
-        {"type": "contact"},
-        {"type": "contact", "value": "bob@example.org"},
+        {},
+        {"email": "not-an-address"},
+        {"uid": ""},
+        {"uid": "urn:uuid:not-a-uuid"},
+        {"uid": "urn:uuid:79aa8714-94af-4ea5-8fc3-55673153af3e", "email": "a@b.org"},
     ],
 )
-def test_an_item_needs_what_its_type_requires(messages_api, item):
-    """An email item needs an address, a contact or group item an id."""
+def test_an_item_is_a_uid_or_an_email(messages_api, item):
+    """An item is exactly one valid uid or one valid address."""
     assert _send(messages_api, item).status_code == 400

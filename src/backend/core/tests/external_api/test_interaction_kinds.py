@@ -13,7 +13,7 @@ URL = "/external_api/v1.0/interactions/"
 
 
 def _post(client, kind, rows):
-    body = {"items": [{"type": "contact", "id": str(row.pk)} for row in rows]}
+    body = {"items": [{"uid": f"urn:uuid:{row.pk}"} for row in rows]}
     if kind is not None:
         body["kind"] = kind
     return client.post(URL, body, format="json")
@@ -62,9 +62,7 @@ def test_an_unknown_kind_is_refused(api):
         URL,
         {
             "kind": "telepathy",
-            "items": [
-                {"type": "contact", "id": "79aa8714-94af-4ea5-8fc3-55673153af3e"}
-            ],
+            "items": [{"uid": "urn:uuid:79aa8714-94af-4ea5-8fc3-55673153af3e"}],
         },
         format="json",
     )
