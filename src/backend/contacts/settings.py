@@ -342,6 +342,13 @@ class Base(Configuration):
                 environ_name="API_EXTERNAL_INTERACTIONS_THROTTLE_RATE",
                 environ_prefix=None,
             ),
+            # The same, reported by a service channel (every incoming email
+            # of an organization), per channel.
+            "external_interactions_channel": values.Value(
+                default="1200/minute",
+                environ_name="API_EXTERNAL_INTERACTIONS_CHANNEL_THROTTLE_RATE",
+                environ_prefix=None,
+            ),
             "external_group_members": values.Value(
                 default="120/minute",
                 environ_name="API_EXTERNAL_GROUP_MEMBERS_THROTTLE_RATE",
@@ -701,6 +708,9 @@ class Base(Configuration):
                     "messages": ["email_sent", "email_received"],
                     "calendars": ["event_invite"],
                 },
+                # Kinds a service channel (interactions:write) may report:
+                # events that happen without a user session.
+                "channel_kinds": ["email_sent", "email_received", "event_invite"],
             },
             "group_members": {"enabled": True},
         },

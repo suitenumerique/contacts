@@ -3190,11 +3190,12 @@
                 "enum": [
                     "contacts:read",
                     "groups:read",
+                    "interactions:write",
                     "carddav:read",
                     "carddav:write"
                 ],
                 "type": "string",
-                "description": "* `contacts:read` - contacts:read\n* `groups:read` - groups:read\n* `carddav:read` - carddav:read\n* `carddav:write` - carddav:write"
+                "description": "* `contacts:read` - contacts:read\n* `groups:read` - groups:read\n* `interactions:write` - interactions:write\n* `carddav:read` - carddav:read\n* `carddav:write` - carddav:write"
             },
             "StatusEnum": {
                 "enum": [

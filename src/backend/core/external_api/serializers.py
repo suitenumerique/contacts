@@ -164,6 +164,12 @@ class SearchQuerySerializer(serializers.Serializer):  # pylint: disable=abstract
         return tuple(dict.fromkeys(kinds))
 
 
+# Items per interactions call: an email to a whole department, reported by a
+# service channel, can name hundreds of people.
+MAX_TOKEN_ITEMS = 50
+MAX_CHANNEL_ITEMS = 500
+
+
 class InteractionItemSerializer(serializers.Serializer):  # pylint: disable=abstract-method
     """A contact or group the user interacted with, by id or by address.
 
@@ -196,7 +202,25 @@ class InteractionsRequestSerializer(serializers.Serializer):  # pylint: disable=
         "event_invite, mention... (see INTERACTION_KINDS). Each app may "
         "report its own kinds only.",
     )
-    items = InteractionItemSerializer(many=True, min_length=1, max_length=50)
+    items = InteractionItemSerializer(
+        many=True,
+        min_length=1,
+        max_length=MAX_CHANNEL_ITEMS,
+        help_text=f"Up to {MAX_TOKEN_ITEMS} with a user token, "
+        f"{MAX_CHANNEL_ITEMS} with a service channel.",
+    )
+    on_behalf_of = serializers.CharField(
+        required=False,
+        help_text="Service channels only: the email or sub of the user the "
+        "interaction is for.",
+    )
+
+    def validate_items(self, value):
+        """No more items than the caller may send."""
+        limit = self.context.get("max_items", MAX_TOKEN_ITEMS)
+        if len(value) > limit:
+            raise serializers.ValidationError(f"Send at most {limit} items.")
+        return value
 
     def validate_kind(self, value):
         """A kind this instance knows."""
