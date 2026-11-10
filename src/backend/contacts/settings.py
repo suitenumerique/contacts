@@ -294,7 +294,6 @@ class Base(Configuration):
 
     REST_FRAMEWORK = {
         "DEFAULT_AUTHENTICATION_CLASSES": (
-            "mozilla_django_oidc.contrib.drf.OIDCAuthentication",
             "core.authentication.channel.ChannelApiKeyAuthentication",
             "rest_framework.authentication.SessionAuthentication",
         ),

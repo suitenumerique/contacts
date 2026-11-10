@@ -3,16 +3,6 @@
 from drf_spectacular.extensions import OpenApiAuthenticationExtension
 
 
-class OIDCAuthenticationScheme(OpenApiAuthenticationExtension):
-    """OIDC bearer tokens (mozilla-django-oidc)."""
-
-    target_class = "mozilla_django_oidc.contrib.drf.OIDCAuthentication"
-    name = "oidcAuth"
-
-    def get_security_definition(self, auto_schema):
-        return {"type": "http", "scheme": "bearer"}
-
-
 class ChannelApiKeyScheme(OpenApiAuthenticationExtension):
     """Service channel keys: X-Channel-Id and X-API-Key headers, sent together."""
 

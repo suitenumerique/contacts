@@ -56,6 +56,11 @@ class ChannelApiKeyAuthentication(BaseAuthentication):
         channel.mark_used()
         return (AnonymousUser(), channel)
 
+    def authenticate_header(self, request):
+        # DRF takes the challenge of the first authentication class. Without
+        # one, an anonymous request gets a 403 instead of a 401.
+        return "X-API-Key"
+
 
 def _check_entitled(user):
     """Refuse a user the entitlements backend does not let into the app.
