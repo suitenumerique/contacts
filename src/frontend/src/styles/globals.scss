@@ -21,6 +21,8 @@ body {
   background-color: var(--c--contextuals--background--surface--primary);
   color: var(--c--contextuals--content--semantic--neutral--primary);
   font-family: var(--c--globals--font--families--base);
+  // The panes scroll, not the page: no rubber-band under the fixed header.
+  overscroll-behavior: none;
 }
 
 * {
