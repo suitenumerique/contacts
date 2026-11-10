@@ -14,7 +14,7 @@ WORKDIR /home/frontend
 
 # Install as the `node` user (uid/gid 1000), not root. With `umask 0002`
 # every installed file is group-writable for gid 1000, so a runtime user
-# in that group (compose runs the container as the host uid:gid) can
+# in that group (compose runs the container as `<host uid>:1000`) can
 # rewrite node_modules without a recursive chown. Owning the workdir up
 # front is enough; everything created below inherits node ownership.
 RUN chown node:node /home/frontend

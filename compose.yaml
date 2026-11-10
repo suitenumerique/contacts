@@ -113,7 +113,11 @@ services:
         condition: service_healthy
 
   frontend-dev:
-    user: "${DOCKER_USER:-1000}"
+    # Host UID, so files written to the bind-mounted sources belong to the
+    # developer. GID 1000 is the `node` group that owns the image's
+    # group-writable node_modules. On macOS the host GID is 20, and Vite
+    # cannot write node_modules/.vite with it.
+    user: "${DOCKER_UID:-1000}:1000"
     build:
       context: src/frontend
       target: contacts-dev
