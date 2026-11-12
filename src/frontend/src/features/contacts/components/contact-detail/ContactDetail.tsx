@@ -1,7 +1,8 @@
 /**
  * Right pane: the open contact as a card. Identity and quick actions on
  * top, then each coordinate with a copy button, then notes (editable in
- * place on the user's own cards). Card actions live in the "…" menu.
+ * place when the contact is writable and not trashed). Card actions live in
+ * the "…" menu.
  */
 
 import { useEffect, useState } from "react";
@@ -9,9 +10,11 @@ import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { Link } from "@tanstack/react-router";
 import {
+  Alert,
   Button,
   DropdownMenu,
   Spinner,
+  VariantType,
   type DropdownMenuItem,
 } from "@gouvfr-lasuite/ui-components";
 import {
@@ -117,7 +120,7 @@ const RoundAction = ({
 
 const telHref = (phone: string) => `tel:${phone.replace(/[^\d+]/g, "")}`;
 
-/** Notes field, saved on blur for the user's own cards. */
+/** Notes saved on blur when the contact is writable and not trashed. */
 const Notes = ({ contact }: { contact: Contact }) => {
   const { t } = useTranslation();
   const updateContact = useUpdateContact();
@@ -157,7 +160,7 @@ const Notes = ({ contact }: { contact: Contact }) => {
   );
 };
 
-const useCardMenu = (contact: Contact, isTrash: boolean): DropdownMenuItem[] => {
+const useCardMenu = (contact: Contact): DropdownMenuItem[] => {
   const { t } = useTranslation();
   const { openModal } = useContactsModals();
   const { groups } = useGroups();
@@ -168,7 +171,7 @@ const useCardMenu = (contact: Contact, isTrash: boolean): DropdownMenuItem[] => 
   const removeFromGroup = useRemoveContactFromGroup();
   const { user } = useAuth();
 
-  if (isTrash) {
+  if (contact.deleted_at) {
     return [
       {
         label: t("contacts.trash.restore"),
@@ -270,34 +273,30 @@ const typeLabel = (t: TFunction, value: TypedValue) =>
 
 const joinLabel = (...parts: string[]) => parts.filter(Boolean).join(" · ");
 
-const TrashBanner = ({ contact }: { contact: Contact }) => {
+const TrashBanner = ({ contactId }: { contactId: string }) => {
   const { t } = useTranslation();
   const restore = useRestoreContact();
 
   return (
-    <div className="trash-banner" role="status" data-testid="trash-banner">
-      <Trash size={18} aria-hidden="true" />
-      <p className="trash-banner__text">{t("contacts.trash.banner")}</p>
-      <Button
-        size="small"
-        color="neutral"
-        variant="bordered"
-        icon={<Restore />}
-        disabled={restore.isPending}
-        onClick={() => restore.mutate({ id: contact.id })}
+    <div className="trash-banner" data-testid="trash-banner">
+      <Alert
+        type={VariantType.WARNING}
+        primaryLabel={t("contacts.trash.restore")}
+        primaryOnClick={() => restore.mutate({ id: contactId })}
+        primaryProps={{ size: "small", icon: <Restore />, disabled: restore.isPending }}
       >
-        {t("contacts.trash.restore")}
-      </Button>
+        {t("contacts.trash.banner")}
+      </Alert>
     </div>
   );
 };
 
-const ContactCard = ({ contact, isTrash }: { contact: Contact; isTrash: boolean }) => {
+const ContactCard = ({ contact }: { contact: Contact }) => {
   const { t } = useTranslation();
   const { config } = useConfig();
   const { labels } = useLabels();
   const { groups } = useGroups();
-  const menu = useCardMenu(contact, isTrash);
+  const menu = useCardMenu(contact);
   const [menuOpen, setMenuOpen] = useState(false);
 
   const name = [civilityOf(t, contact), contact.display_name].filter(Boolean).join(" ");
@@ -373,7 +372,7 @@ const ContactCard = ({ contact, isTrash }: { contact: Contact; isTrash: boolean 
         )}
       </div>
 
-      {!isTrash && (
+      {!contact.deleted_at && (
         <div className="contact-card__actions">
           <RoundAction
             icon={<Phone />}
@@ -472,8 +471,8 @@ export const ContactDetail = ({
 }) => {
   const { t } = useTranslation();
   const { contact, isLoading, isError } = useContact(contactId);
-  // The contact decides, not the route: a trashed contact can be open at
-  // the /contacts URL, and a delete on it is permanent.
+  // The contact gives the trash state, not the route. A contact in the trash
+  // can be open at the /contacts URL, and a delete on it is permanent.
   const isTrash = !!contact?.deleted_at;
 
   const shareContact = async (card: Contact) => {
@@ -527,8 +526,8 @@ export const ContactDetail = ({
         </div>
       ) : (
         <>
-          {isTrash && <TrashBanner contact={contact} />}
-          <ContactCard contact={contact} isTrash={isTrash} />
+          {isTrash && <TrashBanner contactId={contact.id} />}
+          <ContactCard contact={contact} />
         </>
       )}
     </div>

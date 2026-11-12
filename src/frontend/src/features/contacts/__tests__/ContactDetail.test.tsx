@@ -1,12 +1,12 @@
 import { act, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { DropdownMenuItem } from "@gouvfr-lasuite/ui-components";
+import { CunninghamProvider, type DropdownMenuItem } from "@gouvfr-lasuite/ui-components";
 import { ContactDetail } from "../components/contact-detail/ContactDetail";
 import type { Contact } from "../types";
 
 const mocks = vi.hoisted(() => ({
-  contact: undefined as unknown,
+  contact: undefined as Contact | undefined,
   openModal: vi.fn(),
 }));
 
@@ -71,16 +71,24 @@ describe("ContactDetail on the contacts route", () => {
 
   const render = (value: Contact) => {
     mocks.contact = value;
-    act(() => root.render(<ContactDetail contactId={value.id} mode="contacts" />));
-  };
-  const menuLabels = () =>
-    [...container.querySelectorAll("[data-testid=menu-option]")].map((node) => node.textContent);
-  const clickOption = (label: string) => {
-    const option = [...container.querySelectorAll<HTMLElement>("[data-testid=menu-option]")].find(
-      (node) => node.textContent === label,
+    act(() =>
+      root.render(
+        <CunninghamProvider>
+          <ContactDetail contactId={value.id} mode="contacts" />
+        </CunninghamProvider>,
+      ),
     );
-    act(() => option?.click());
   };
+  const menuOptions = () => [
+    ...container.querySelectorAll<HTMLElement>("[data-testid=menu-option]"),
+  ];
+  const menuLabels = () => menuOptions().map((option) => option.textContent);
+  const clickOption = (label: string) =>
+    act(() =>
+      menuOptions()
+        .find((option) => option.textContent === label)
+        ?.click(),
+    );
 
   beforeEach(() => {
     (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -111,7 +119,7 @@ describe("ContactDetail on the contacts route", () => {
     });
   });
 
-  it("moves a live contact to the trash", () => {
+  it("opens non-permanent delete confirmation for a live contact", () => {
     const live = contact({ deleted_at: null });
     render(live);
 

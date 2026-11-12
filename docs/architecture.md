@@ -91,8 +91,9 @@ so a client's delta cannot silently miss one).
   `deleted_at`, `GET /contacts/?trash=true` lists the user's trashed rows
   (plus the organization's, for an administrator),
   `POST /contacts/{id}/restore/` brings one back, a second `DELETE` is
-  permanent. A trashed contact carries its `deleted_at` in the payload
-  and refuses edits (400) until restored. `purge_trashed_contacts` hard-deletes rows trashed for longer
+  permanent. A trashed contact carries its `deleted_at` in the payload.
+  `PATCH` and `PUT` reject updates to a trashed contact (400) until it is
+  restored. `purge_trashed_contacts` hard-deletes rows trashed for longer
   than `TRASHBIN_CUTOFF_DAYS` (default 30), and `purge_carddav_changes`
   drops the sync tombstones that outlived them. Both have to be scheduled,
   see [Scheduled jobs](#scheduled-jobs).
