@@ -100,12 +100,12 @@ const POP_ISOLATE = "\u2069";
 const PARAGRAPH_SEPARATORS = "\n\r\u001C\u001D\u001E\u0085\u2029";
 
 /**
- * Wrap user text in a Unicode directional isolate, to quote it in a sentence.
- * A direction control character in the text (U+202E for example) then cannot
- * reorder the sentence around it. The isolates of the text itself are
- * balanced first, because a stray U+2069 would close the wrapper early.
- * Paragraph separators become spaces, because an isolate ends with its
- * paragraph.
+ * Isolate the text direction of a user value, to show it in a sentence.
+ * The function replaces paragraph separators with spaces. It removes each
+ * U+2069 that has no initiator. It closes each initiator that has no U+2069.
+ * Then it puts the result between U+2068 and U+2069. A direction control
+ * character in the value cannot reorder the sentence after these steps.
+ * Use the result for display only, because it contains invisible characters.
  */
 export const bidiIsolate = (text: string) => {
   let depth = 0;

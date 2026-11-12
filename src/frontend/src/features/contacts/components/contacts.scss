@@ -28,20 +28,6 @@ $radius: 4px;
   cursor: pointer;
 }
 
-// A name in these elements keeps its own text direction. Its direction
-// control characters do not reorder the text or the icons next to it.
-.sidebar-item__label,
-.pane-header__title,
-.contact-row__name,
-.group-row__name,
-.label-badge,
-.contact-card__name,
-.contact-card__group,
-.group-card__name,
-.member-row__name {
-  unicode-bidi: isolate;
-}
-
 /* --- Sidebar ------------------------------------------------------------ */
 
 .sidebar {
