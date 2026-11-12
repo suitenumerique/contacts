@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { Button } from "@gouvfr-lasuite/ui-components";
 import { XMark, Zoom } from "@gouvfr-lasuite/ui-components/icons";
+import { useCmdK } from "@/hooks/useCmdK";
 
 const DEBOUNCE_MS = 250;
 
@@ -16,6 +17,14 @@ export const HeaderSearch = () => {
   const [value, setValue] = useState(query);
   const [syncedQuery, setSyncedQuery] = useState(query);
   const lastSent = useRef(query);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useCmdK(
+    useCallback(() => {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    }, []),
+  );
 
   // Follow the URL when it changes elsewhere (history, nav links).
   if (query !== syncedQuery) {
@@ -55,8 +64,10 @@ export const HeaderSearch = () => {
       </label>
       <input
         id="header-search"
+        ref={inputRef}
         className="header-search__input"
         type="search"
+        aria-keyshortcuts="Meta+K Control+K"
         autoComplete="off"
         placeholder={t("contacts.search.placeholder")}
         value={value}
