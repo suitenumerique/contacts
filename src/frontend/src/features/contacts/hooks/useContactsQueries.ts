@@ -5,7 +5,7 @@
  */
 
 import { useMemo } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   contactsImportCsvCreate,
   contactsImportVcfCreate,
@@ -64,6 +64,9 @@ export const useContactsList = (filters: ContactFilters, { enabled = true } = {}
   const result = useContactsListInfinite(listParams(filters), {
     query: {
       enabled,
+      // A search keeps the previous rows until the new ones arrive.
+      // The list does not blank out between keystrokes.
+      placeholderData: filters.q ? keepPreviousData : undefined,
       initialPageParam: 1,
       getNextPageParam: (lastPage) => {
         const next = lastPage.data.next;

@@ -217,9 +217,9 @@ export const ContactList = ({ mode, search, selectedId }: ContactListProps) => {
       <header className="pane-header">
         <div className="pane-header__titles">
           <h1 className="pane-header__title">{title}</h1>
-          {!isLoading && (
-            <span className="pane-header__subtitle">{t("contacts.list.count", { count })}</span>
-          )}
+          <span className="pane-header__subtitle">
+            {isLoading ? "\u00a0" : t("contacts.list.count", { count })}
+          </span>
         </div>
         {!isTrash && <ListToolbar search={search} />}
       </header>
