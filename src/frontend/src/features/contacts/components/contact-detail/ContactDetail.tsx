@@ -125,7 +125,7 @@ const Notes = ({ contact }: { contact: Contact }) => {
 
   useEffect(() => setValue(contact.notes ?? ""), [contact.id, contact.notes]);
 
-  if (!contact.is_writable) {
+  if (!contact.is_writable || contact.deleted_at) {
     return contact.notes ? (
       <div className="contact-notes">
         <span className="contact-notes__label">{t("contacts.form.notes")}</span>
@@ -450,6 +450,9 @@ export const ContactDetail = ({
 }) => {
   const { t } = useTranslation();
   const { contact, isLoading, isError } = useContact(contactId);
+  // The contact decides, not the route: a trashed contact can be open at
+  // the /contacts URL, and a delete on it is permanent.
+  const isTrash = !!contact?.deleted_at;
 
   const shareContact = async (card: Contact) => {
     const text = [card.display_name, card.emails?.[0]?.value, card.phones?.[0]?.value]
@@ -486,7 +489,7 @@ export const ContactDetail = ({
         >
           <ArrowLeft />
         </Link>
-        {contact && mode === "contacts" && (
+        {contact && !isTrash && (
           <Button color="neutral" variant="bordered" onClick={() => void shareContact(contact)}>
             {t("contacts.detail.share")}
           </Button>
@@ -501,7 +504,7 @@ export const ContactDetail = ({
           <Spinner />
         </div>
       ) : (
-        <ContactCard contact={contact} isTrash={mode === "trash"} />
+        <ContactCard contact={contact} isTrash={isTrash} />
       )}
     </div>
   );

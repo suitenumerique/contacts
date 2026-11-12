@@ -161,6 +161,31 @@ def test_restore_from_trash(client, user):
     assert client.get(CONTACTS_URL).json()["count"] == 1
 
 
+def test_contact_payload_tells_the_trashed_state(client, user):
+    contact = factories.ContactFactory(owner=user, full_name="Doomed")
+    url = f"{CONTACTS_URL}{contact.id}/"
+    assert client.get(url).json()["deleted_at"] is None
+
+    client.delete(url)
+    assert client.get(url).json()["deleted_at"] is not None
+
+
+def test_trashed_contact_is_not_editable(client, user):
+    contact = factories.ContactFactory(
+        owner=user, full_name="Doomed", deleted_at=timezone.now()
+    )
+    url = f"{CONTACTS_URL}{contact.id}/"
+
+    response = client.patch(url, {"full_name": "Edited"}, format="json")
+    assert response.status_code == 400
+    contact.refresh_from_db()
+    assert contact.full_name == "Doomed"
+
+    client.post(f"{url}restore/")
+    response = client.patch(url, {"full_name": "Edited"}, format="json")
+    assert response.status_code == 200
+
+
 def test_purge_command_respects_retention(user, settings):
     settings.TRASHBIN_CUTOFF_DAYS = 30
     old = factories.ContactFactory(owner=user, full_name="Old")
