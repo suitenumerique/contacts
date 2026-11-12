@@ -96,17 +96,25 @@ export const contactMatches = (
 const ISOLATE_INITIATORS = "\u2066\u2067\u2068";
 const FIRST_STRONG_ISOLATE = "\u2068";
 const POP_ISOLATE = "\u2069";
+// The characters of the Unicode bidi class B (paragraph separator).
+const PARAGRAPH_SEPARATORS = "\n\r\u001C\u001D\u001E\u0085\u2029";
 
 /**
  * Wrap user text in a Unicode directional isolate, to quote it in a sentence.
  * A direction control character in the text (U+202E for example) then cannot
  * reorder the sentence around it. The isolates of the text itself are
  * balanced first, because a stray U+2069 would close the wrapper early.
+ * Paragraph separators become spaces, because an isolate ends with its
+ * paragraph.
  */
 export const bidiIsolate = (text: string) => {
   let depth = 0;
   let balanced = "";
   for (const char of text) {
+    if (PARAGRAPH_SEPARATORS.includes(char)) {
+      balanced += " ";
+      continue;
+    }
     if (char === POP_ISOLATE) {
       if (depth === 0) continue;
       depth -= 1;

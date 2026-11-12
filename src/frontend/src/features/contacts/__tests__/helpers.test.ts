@@ -193,4 +193,9 @@ describe("bidiIsolate", () => {
     expect(bidiIsolate("a\u2067b")).toBe("\u2068a\u2067b\u2069\u2069");
     expect(bidiIsolate("a\u2066b\u2069c")).toBe("\u2068a\u2066b\u2069c\u2069");
   });
+
+  it("replaces paragraph separators, which end the wrapper", () => {
+    expect(bidiIsolate("Zz\u2029\u202Egnol")).toBe("\u2068Zz \u202Egnol\u2069");
+    expect(bidiIsolate("a\nb\r\u0085c\u001Cd")).toBe("\u2068a b  c d\u2069");
+  });
 });
