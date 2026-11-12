@@ -557,6 +557,29 @@ $radius: 4px;
   }
 }
 
+.trash-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--c--globals--spacings--xs);
+  max-width: 600px;
+  margin: 0 auto var(--c--globals--spacings--xs);
+  padding: var(--c--globals--spacings--xs) var(--c--globals--spacings--sm);
+  border: 1px solid var(--c--contextuals--border--semantic--warning--tertiary);
+  border-radius: $radius;
+  background: var(--c--contextuals--background--semantic--warning--tertiary);
+  color: var(--c--contextuals--content--semantic--warning--secondary);
+  font-size: var(--c--globals--font--sizes--sm);
+
+  > svg {
+    flex-shrink: 0;
+  }
+
+  &__text {
+    flex: 1;
+    margin: 0;
+  }
+}
+
 .card {
   position: relative;
   max-width: 600px;

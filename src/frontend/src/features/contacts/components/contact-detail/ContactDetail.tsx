@@ -270,6 +270,28 @@ const typeLabel = (t: TFunction, value: TypedValue) =>
 
 const joinLabel = (...parts: string[]) => parts.filter(Boolean).join(" · ");
 
+const TrashBanner = ({ contact }: { contact: Contact }) => {
+  const { t } = useTranslation();
+  const restore = useRestoreContact();
+
+  return (
+    <div className="trash-banner" role="status" data-testid="trash-banner">
+      <Trash size={18} aria-hidden="true" />
+      <p className="trash-banner__text">{t("contacts.trash.banner")}</p>
+      <Button
+        size="small"
+        color="neutral"
+        variant="bordered"
+        icon={<Restore />}
+        disabled={restore.isPending}
+        onClick={() => restore.mutate({ id: contact.id })}
+      >
+        {t("contacts.trash.restore")}
+      </Button>
+    </div>
+  );
+};
+
 const ContactCard = ({ contact, isTrash }: { contact: Contact; isTrash: boolean }) => {
   const { t } = useTranslation();
   const { config } = useConfig();
@@ -504,7 +526,10 @@ export const ContactDetail = ({
           <Spinner />
         </div>
       ) : (
-        <ContactCard contact={contact} isTrash={isTrash} />
+        <>
+          {isTrash && <TrashBanner contact={contact} />}
+          <ContactCard contact={contact} isTrash={isTrash} />
+        </>
       )}
     </div>
   );
