@@ -594,6 +594,7 @@ $radius: 4px;
   }
 
   &__star {
+    flex-shrink: 0;
     color: $text-subtle;
   }
 
