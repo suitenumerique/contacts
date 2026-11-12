@@ -9,8 +9,8 @@ export const useCmdK = (callback: () => void) => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key.toLowerCase() !== "k") return;
       if (!(event.metaKey || event.ctrlKey) || event.shiftKey || event.altKey) return;
-      // The page behind a modal is not inert. Menus and popovers that have
-      // the dialog role do not set `aria-modal`.
+      // Modals have different owners, so no React state knows if one is open.
+      // The DOM does: an open modal sets `aria-modal`.
       if (document.querySelector('[aria-modal="true"]')) return;
       event.preventDefault();
       callback();
