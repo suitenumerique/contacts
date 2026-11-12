@@ -7,6 +7,7 @@ import { useTranslation } from "react-i18next";
 import { Button, Modal, ModalSize } from "@gouvfr-lasuite/ui-components";
 import { useDeleteContact } from "../../hooks/useContactsQueries";
 import type { Contact } from "../../types";
+import { bidiIsolate } from "../../utils";
 
 interface DeleteContactModalProps {
   isOpen: boolean;
@@ -70,7 +71,7 @@ export const DeleteContactModal = ({
         </>
       }
     >
-      <p>{t(`${prefix}.message`, { name: contact.display_name })}</p>
+      <p>{t(`${prefix}.message`, { name: bidiIsolate(contact.display_name) })}</p>
     </Modal>
   );
 };

@@ -17,6 +17,7 @@ import { errorToString } from "@/features/api/APIError";
 import { CopyableInput } from "@/features/ui/components/copyable-input/CopyableInput";
 import { useCreateChannel } from "../../hooks/useContactsQueries";
 import type { ChannelWithKey } from "../../types";
+import { bidiIsolate } from "../../utils";
 
 export const CarddavDeviceModal = ({ onClose }: { onClose: () => void }) => {
   const { t } = useTranslation();
@@ -79,7 +80,7 @@ export const CarddavDeviceModal = ({ onClose }: { onClose: () => void }) => {
       {created?.carddav_password ? (
         <div className="modal-form">
           <Alert type={VariantType.WARNING}>
-            {t("contacts.settings.carddav.createdOnce", { name: created.name })}
+            {t("contacts.settings.carddav.createdOnce", { name: bidiIsolate(created.name) })}
           </Alert>
           <label className="settings__field-label" htmlFor="carddav-password">
             {t("contacts.settings.carddav.password")}

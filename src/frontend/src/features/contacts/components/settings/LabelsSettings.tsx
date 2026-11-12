@@ -20,6 +20,7 @@ import { Plus, Trash } from "@gouvfr-lasuite/ui-components/icons";
 import { addErrorToast, addSuccessToast } from "@/features/ui/components/toaster/Toaster";
 import { useDeleteLabel, useLabels } from "../../hooks/useContactsQueries";
 import type { ContactLabel } from "../../types";
+import { bidiIsolate } from "../../utils";
 import { LabelBadge } from "../labels/LabelBadge";
 import { LabelFormModal } from "./LabelFormModal";
 import { ResourceSectionHeader } from "./ResourceSectionHeader";
@@ -38,7 +39,7 @@ export const LabelsSettings = () => {
 
   const handleDelete = async (label: ContactLabel) => {
     const decision = await modals.deleteConfirmationModal({
-      title: t("contacts.labels.deleteTitle", { name: label.name }),
+      title: t("contacts.labels.deleteTitle", { name: bidiIsolate(label.name) }),
       children: t("contacts.labels.confirmDelete"),
     });
     if (decision !== "delete") return;

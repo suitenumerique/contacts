@@ -23,6 +23,7 @@ import { CopyableInput } from "@/features/ui/components/copyable-input/CopyableI
 import { addErrorToast, addSuccessToast } from "@/features/ui/components/toaster/Toaster";
 import { useCarddavChannels, useDeleteChannel } from "../../hooks/useContactsQueries";
 import type { Channel } from "../../types";
+import { bidiIsolate } from "../../utils";
 import { CarddavDeviceModal } from "./CarddavDeviceModal";
 import { ResourceSectionHeader } from "./ResourceSectionHeader";
 
@@ -46,7 +47,7 @@ export const CarddavSettings = () => {
 
   const handleRevoke = async (channel: Channel) => {
     const decision = await modals.deleteConfirmationModal({
-      title: t("contacts.settings.carddav.revokeTitle", { name: channel.name }),
+      title: t("contacts.settings.carddav.revokeTitle", { name: bidiIsolate(channel.name) }),
       children: t("contacts.settings.carddav.revokeConfirm"),
     });
     if (decision !== "delete") return;

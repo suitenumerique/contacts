@@ -93,6 +93,31 @@ export const contactMatches = (
     .every((word) => haystack.includes(word));
 };
 
+const ISOLATE_INITIATORS = "\u2066\u2067\u2068";
+const FIRST_STRONG_ISOLATE = "\u2068";
+const POP_ISOLATE = "\u2069";
+
+/**
+ * Wrap user text in a Unicode directional isolate, to quote it in a sentence.
+ * A direction control character in the text (U+202E for example) then cannot
+ * reorder the sentence around it. The isolates of the text itself are
+ * balanced first, because a stray U+2069 would close the wrapper early.
+ */
+export const bidiIsolate = (text: string) => {
+  let depth = 0;
+  let balanced = "";
+  for (const char of text) {
+    if (char === POP_ISOLATE) {
+      if (depth === 0) continue;
+      depth -= 1;
+    } else if (ISOLATE_INITIATORS.includes(char)) {
+      depth += 1;
+    }
+    balanced += char;
+  }
+  return FIRST_STRONG_ISOLATE + balanced + POP_ISOLATE.repeat(depth + 1);
+};
+
 /** Initial letter a contact is filed under, accents folded ("É" → "E"). */
 export const sectionLetterOf = (name: string) => {
   const first = name

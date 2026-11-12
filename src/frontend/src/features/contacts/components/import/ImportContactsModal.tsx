@@ -19,6 +19,7 @@ import { errorToString } from "@/features/api/APIError";
 import { useAuth } from "@/features/auth/Auth";
 import { useImportContacts } from "../../hooks/useContactsQueries";
 import type { ImportTaskStatus } from "../../types";
+import { bidiIsolate } from "../../utils";
 
 interface ImportContactsModalProps {
   isOpen: boolean;
@@ -152,12 +153,12 @@ export const ImportContactsModal = ({ isOpen, onClose }: ImportContactsModalProp
                       ? t("contacts.import.wholeFile")
                       : t("contacts.import.entry", {
                           entry: detail.entry,
-                          name: detail.name || t("contacts.import.unnamed"),
+                          name: bidiIsolate(detail.name || t("contacts.import.unnamed")),
                         })}
                   </span>
                   <span>
                     {t(`contacts.import.reasons.${detail.reason}`, {
-                      value: detail.value ?? "",
+                      value: bidiIsolate(detail.value ?? ""),
                     })}
                   </span>
                 </li>

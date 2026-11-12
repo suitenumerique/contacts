@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { Button, Modal, ModalSize } from "@gouvfr-lasuite/ui-components";
 import { useDeleteGroup } from "../../hooks/useContactsQueries";
 import type { ContactGroup } from "../../types";
+import { bidiIsolate } from "../../utils";
 
 interface DeleteGroupModalProps {
   isOpen: boolean;
@@ -46,7 +47,7 @@ export const DeleteGroupModal = ({ isOpen, group, onClose, onDeleted }: DeleteGr
         </>
       }
     >
-      <p>{t("contacts.groups.deleteModal.message", { name: group.name })}</p>
+      <p>{t("contacts.groups.deleteModal.message", { name: bidiIsolate(group.name) })}</p>
     </Modal>
   );
 };

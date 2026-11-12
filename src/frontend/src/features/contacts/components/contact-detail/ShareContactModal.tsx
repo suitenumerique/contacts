@@ -8,6 +8,7 @@ import { Alert, Button, Modal, ModalSize, VariantType } from "@gouvfr-lasuite/ui
 import { errorToString } from "@/features/api/APIError";
 import { useShareContact } from "../../hooks/useContactsQueries";
 import type { Contact } from "../../types";
+import { bidiIsolate } from "../../utils";
 
 interface ShareContactModalProps {
   isOpen: boolean;
@@ -55,7 +56,7 @@ export const ShareContactModal = ({
       {shareContact.isError && (
         <Alert type={VariantType.ERROR}>{errorToString(shareContact.error as Error)}</Alert>
       )}
-      <p>{t("contacts.shareModal.message", { name: contact.display_name })}</p>
+      <p>{t("contacts.shareModal.message", { name: bidiIsolate(contact.display_name) })}</p>
     </Modal>
   );
 };

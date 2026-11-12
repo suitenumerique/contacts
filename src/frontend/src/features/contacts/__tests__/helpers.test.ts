@@ -4,6 +4,7 @@ import { colorOf, initialsOf } from "../components/avatar/ContactAvatar";
 import { deleteModalPrefix } from "../components/contact-detail/DeleteContactModal";
 import { filtersFromSearch, parseContactsSearch } from "../navigation";
 import {
+  bidiIsolate,
   civilityOf,
   composedNameOf,
   contactMatches,
@@ -178,5 +179,18 @@ describe("deleteModalPrefix", () => {
   it("uses the revert wording for overlays and trash wording otherwise", () => {
     expect(deleteModalPrefix({ overlay_of: "abc" })).toBe("contacts.revertModal");
     expect(deleteModalPrefix({ overlay_of: null })).toBe("contacts.deleteModal");
+  });
+});
+
+describe("bidiIsolate", () => {
+  it("wraps the text in a first strong isolate", () => {
+    expect(bidiIsolate("Zoé")).toBe("\u2068Zoé\u2069");
+    expect(bidiIsolate("Zz\u202Egnol")).toBe("\u2068Zz\u202Egnol\u2069");
+  });
+
+  it("keeps the wrapper closed whatever isolates the text holds", () => {
+    expect(bidiIsolate("a\u2069\u202Eb")).toBe("\u2068a\u202Eb\u2069");
+    expect(bidiIsolate("a\u2067b")).toBe("\u2068a\u2067b\u2069\u2069");
+    expect(bidiIsolate("a\u2066b\u2069c")).toBe("\u2068a\u2066b\u2069c\u2069");
   });
 });
