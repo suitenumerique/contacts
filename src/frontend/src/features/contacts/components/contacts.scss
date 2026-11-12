@@ -580,6 +580,7 @@ $radius: 4px;
     align-items: center;
     gap: var(--c--globals--spacings--3xs);
     text-align: center;
+    overflow-wrap: anywhere;
   }
 
   &__name {
@@ -593,6 +594,7 @@ $radius: 4px;
   }
 
   &__star {
+    flex-shrink: 0;
     color: $text-subtle;
   }
 
@@ -649,6 +651,7 @@ $radius: 4px;
     border-radius: $radius;
     font-size: var(--c--globals--font--sizes--sm);
     text-decoration: none;
+    overflow-wrap: anywhere;
     color: var(--c--contextuals--content--semantic--brand--primary);
     background: var(--c--contextuals--background--semantic--brand--tertiary);
 
@@ -752,6 +755,7 @@ $radius: 4px;
     margin: 0;
     font-size: var(--c--globals--font--sizes--md);
     white-space: pre-wrap;
+    overflow-wrap: anywhere;
   }
 }
 
@@ -767,6 +771,7 @@ $radius: 4px;
 
   &__heading {
     min-width: 0;
+    overflow-wrap: anywhere;
   }
 
   &__name {
@@ -1054,6 +1059,7 @@ $radius: 4px;
   &__filename {
     font-size: var(--c--globals--font--sizes--sm);
     color: $text-muted;
+    overflow-wrap: anywhere;
   }
 
   &__errors {
@@ -1074,6 +1080,7 @@ $radius: 4px;
       flex-wrap: wrap;
       gap: var(--c--globals--spacings--2xs);
       color: $text-muted;
+      overflow-wrap: anywhere;
     }
 
     &__where {
