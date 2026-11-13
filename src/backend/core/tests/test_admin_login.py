@@ -91,10 +91,17 @@ def test_failed_logins_are_limited_per_username(budgets):
     assert login("other@example.com", "bad").status_code == 200
 
 
-def test_username_budget_ignores_case_and_spaces(budgets):
-    budgets("100/minute", "2/minute")
-    names = [ADMIN_EMAIL, ADMIN_EMAIL.upper(), f" {ADMIN_EMAIL} "]
-    assert [login(name, "bad").status_code for name in names] == [200, 200, 429]
+def test_username_budget_ignores_case_spaces_and_unicode_forms(budgets):
+    budgets("100/minute", "3/minute")
+    # The last username starts with a fullwidth "a" (U+FF41).
+    names = [
+        ADMIN_EMAIL,
+        ADMIN_EMAIL.upper(),
+        f" {ADMIN_EMAIL} ",
+        "ａ" + ADMIN_EMAIL[1:],
+    ]
+    codes = [login(name, "bad").status_code for name in names]
+    assert codes == [200, 200, 200, 429]
 
 
 @pytest.mark.usefixtures("staff")

@@ -7,6 +7,7 @@ or the limit would not slow a guesser down.
 """
 
 import hashlib
+import unicodedata
 from typing import Any
 
 from django.contrib import admin
@@ -28,7 +29,11 @@ class AdminLoginUsernameThrottle(AuthFailureThrottle):
     scope = "admin_login_username"
 
     def get_cache_key(self, request: HttpRequest, view: object) -> str | None:
-        username = request.POST.get("username", "").strip().lower()
+        # The login form applies NFKC to the username. Do the same, or
+        # equivalent spellings of one account get separate budgets.
+        username = unicodedata.normalize(
+            "NFKC", request.POST.get("username", "").strip()
+        ).lower()
         if not username:
             return None
         # The digest keeps the cache key short and free of unsafe characters.
