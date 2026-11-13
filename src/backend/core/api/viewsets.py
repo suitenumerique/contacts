@@ -32,8 +32,8 @@ from core.authentication.channel import resolve_acting_user
 from core.entitlements import user_can_admin
 from core.enums import ChannelScope, Scope
 from core.phones import phone_query_digits
+from core.services.import_validation import validate_import_file
 from core.utils import strip_diacritics
-from core.validators import validate_import_file
 
 from . import permissions, serializers
 
