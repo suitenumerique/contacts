@@ -4,6 +4,7 @@
 
 import csv
 import io
+import logging
 from datetime import timedelta
 
 from django.core.cache import cache
@@ -494,6 +495,34 @@ def test_csv_oversized_field_is_one_error_not_a_failed_import():
     cards, errors = parse_csv(data)
     assert errors >= 1
     assert {"Jeanne", "Paul"} <= {card["given_name"] for card in cards}
+
+
+@pytest.fixture
+def csv_log(caplog, monkeypatch):
+    """Records of the CSV parser. The "core" logger does not propagate."""
+    monkeypatch.setattr(logging.getLogger("core"), "propagate", True)
+    caplog.set_level("WARNING", logger="core.services.csv_service")
+    return caplog
+
+
+def test_csv_unreadable_rows_give_one_log_record(csv_log):
+    cards, errors = parse_csv(b"\xff\r\xff\n" * 1000)
+
+    assert not cards
+    assert errors == 1000
+    assert len(csv_log.records) == 1
+
+
+def test_csv_failed_rows_give_one_traceback(csv_log, monkeypatch):
+    def fail(*args):
+        raise ValueError("bad row")
+
+    monkeypatch.setattr("core.services.csv_service._to_fields", fail)
+    cards, errors = parse_csv("prenom,nom\n" + "Ada,Lovelace\n" * 50)
+
+    assert not cards
+    assert errors == 50
+    assert [bool(record.exc_info) for record in csv_log.records] == [True, False]
 
 
 # --- import rules ---------------------------------------------------------------

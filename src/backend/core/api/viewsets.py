@@ -3,7 +3,6 @@
 import functools
 import json
 import logging
-import re
 import uuid
 
 from django.conf import settings
@@ -212,12 +211,15 @@ def _import_file_error(file_format: str, data: bytes) -> str:
     The checks use the content only. The client chooses the file name and
     the Content-Type of the upload, and a valid export can have any of them.
     """
+    # pylint: disable-next=import-outside-toplevel
+    from core.services.vcf_service import contains_vcard  # noqa: PLC0415
+
     if not data.strip():
         return "The file is empty."
     # The parsers read UTF-8 and Windows-1252 text. Such text has no NUL byte.
     if b"\0" in data:
         return "The file is not a text file."
-    if file_format == "vcf" and not re.search(rb"BEGIN:[ \t]*VCARD", data, re.I):
+    if file_format == "vcf" and not contains_vcard(data):
         return "The file contains no vCard."
     return ""
 

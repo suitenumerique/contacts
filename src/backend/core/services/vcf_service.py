@@ -399,6 +399,18 @@ def _read_components(data):
         raise InvalidVCardError(f"BEGIN:{stack[0]} is never closed")
 
 
+def contains_vcard(data):
+    """Tell if *data* holds a vCard component.
+
+    A file with an unbalanced BEGIN/END also counts. The import reports
+    it as an error.
+    """
+    try:
+        return any(name == "VCARD" for name, _lines in _read_components(data))
+    except InvalidVCardError:
+        return True
+
+
 def parse_vcf(data):
     """Parse VCF bytes/str into a list of contact field dicts.
 

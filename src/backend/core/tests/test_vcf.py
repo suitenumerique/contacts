@@ -357,6 +357,7 @@ def test_import_endpoint_rejects_large_file(settings):
         ("import-csv", "sheet.csv", b"PK\x03\x04\x14\0\x06\0", "not a text file"),
         ("import-csv", "utf16.csv", "Email\na@example.org\n".encode("utf-16"), "text"),
         ("import-vcf", "contacts.vcf", b"Email\na@example.org\n", "no vCard"),
+        ("import-vcf", "note.vcf", b"NOTE:BEGIN:VCARD\r\n", "no vCard"),
     ],
 )
 def test_import_endpoint_rejects_a_file_of_another_type(endpoint, name, content, error):
@@ -384,6 +385,9 @@ def test_import_endpoint_rejects_a_file_of_another_type(endpoint, name, content,
         ("bom.vcf", b"\xef\xbb\xbf\r\n" + SAMPLE_VCF.encode()),
         ("latin.vcf", SAMPLE_VCF.replace("Jeanne", "Ren\xe9e").encode("cp1252")),
         ("lower.vcf", SAMPLE_VCF.replace("BEGIN:VCARD", "begin: vcard").encode()),
+        ("folded.vcf", SAMPLE_VCF.replace("BEGIN:VCARD", "BEGIN:VC\r\n ARD").encode()),
+        # The import reports a card that never ends as an error.
+        ("truncated.vcf", b"BEGIN:VCARD\r\nVERSION:3.0\r\nFN:Alice\r\n"),
     ],
 )
 def test_import_endpoint_accepts_vcard_variants(name, content):
