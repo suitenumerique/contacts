@@ -101,8 +101,8 @@ so a client's delta cannot silently miss one).
   dramatiq task, polled with `GET /tasks/{id}/`. The view refuses (400) a
   file whose name does not end in `.vcf`/`.vcard` (resp. `.csv`), an empty
   or binary file, and a vCard upload without any `BEGIN:VCARD`. A card
-  matching one of the user's own contacts is skipped: the match is on any email address, or for
-  a card without email, on first + last name (or the full name when there
+  matching one of the user's own contacts is skipped: the match is on any
+  email address, or for a card without email, on first + last name (or the full name when there
   is neither) and the digits of the first phone. Trashed contacts count as
   matches, and a matched trashed contact is restored, so re-importing a
   file creates nothing new. vCard `CATEGORIES` become labels, except the
