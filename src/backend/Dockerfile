@@ -1,7 +1,7 @@
 # Django contacts
 
 # ---- base image to inherit from ----
-FROM python:3.14.7-alpine@sha256:9e9fde4d32eedce0b661d9ab91e826b62dddf28e928c230ec55f1866cac66b01 AS base
+FROM python:3.14.10-alpine@sha256:5862d971d1f0ae26b258cefa4e893556b1d3aba81bd2ff30888704ad378bab67 AS base
 
 # Upgrade system packages to install security updates
 RUN apk update && \
