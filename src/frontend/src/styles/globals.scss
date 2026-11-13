@@ -49,6 +49,14 @@ body {
   overflow-wrap: break-word;
 }
 
-.c__modal__scroller {
-  padding-top: 1rem;
+// The browser gives a text input 2px of side padding. Without it, the value
+// starts at the same place as the label above it.
+.c__input__wrapper .c__input {
+  padding-inline: 0;
+}
+
+// Start the helper text at the same place as the label and the value of
+// its field: the wrapper padding plus the border.
+.c__field__footer {
+  padding-inline: calc(0.5rem + 1px);
 }
