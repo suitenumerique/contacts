@@ -57,3 +57,25 @@ requests `/__heartbeat__/` on `localhost:8000`, so the container is
 unhealthy when Django does not answer or when the database is unreachable.
 The probe sends the container IP as the `Host` header:
 `Production.ALLOWED_HOSTS` always holds it.
+
+### Distroless image
+
+The `backend-distroless` stage builds the same application on
+`gcr.io/distroless/cc-debian13:nonroot`: no shell, no package manager. It
+holds a standalone Python installed by uv, the virtual environment, the
+application and the collected static files.
+
+```bash
+docker build --target backend-distroless -t contacts-backend-distroless src/backend
+```
+
+Differences from `backend-production`:
+
+- It runs as the image's `nonroot` user (uid 65532) and does not use the
+  `entrypoint` script.
+- Commands are given in exec form, for example
+  `python manage.py migrate`. A command that needs `sh` does not run.
+- It has the same `HEALTHCHECK`.
+
+The release workflow publishes `backend-production`. It does not publish
+this stage.

@@ -129,3 +129,56 @@ CMD ["gunicorn", "-c", "/app/gunicorn.conf.py", "contacts.wsgi:application"]
 # holds it.
 HEALTHCHECK --interval=30s --timeout=2s --start-period=30s \
   CMD ["python", "-c", "import socket; from urllib.request import Request, urlopen; urlopen(Request('http://localhost:8000/__heartbeat__/', headers={'Host': socket.gethostbyname(socket.gethostname())}), timeout=2)"]
+
+# ---- Distroless builder ----
+# Debian, like the distroless image: the alpine stages above link against
+# musl, and their Python and wheels do not run on glibc.
+FROM debian:trixie-slim@sha256:a72b4433de1cf7d6bae0c4cee74d0547f58601a643b3375f070c51600d63b6b2 AS distroless-builder
+
+ENV UV_COMPILE_BYTECODE=1
+ENV UV_LINK_MODE=copy
+# uv installs a standalone Python. It links its own dependencies statically,
+# so the final image needs no shared library other than the C runtime.
+ENV UV_PYTHON_INSTALL_DIR=/opt/python
+ENV UV_PROJECT_ENVIRONMENT=/venv
+
+COPY --from=ghcr.io/astral-sh/uv:0.12.13@sha256:b485bd65cc2cf1c9a93b3554012c9c3778cf7b1b5fd3d3096ce9e1226c97e1e6 /uv /uvx /bin/
+
+WORKDIR /app
+
+# The Python version comes from .python-version.
+RUN --mount=type=cache,target=/root/.cache/uv \
+    --mount=type=bind,source=.python-version,target=.python-version \
+    --mount=type=bind,source=uv.lock,target=uv.lock \
+    --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
+    uv python install && \
+    uv sync --locked --no-install-project --no-dev
+COPY . /app
+RUN chmod -R a+rX /app
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --locked --no-dev
+
+# ---- Distroless production image ----
+# No shell and no package manager. The image has its own "nonroot" user, so
+# it does not use the entrypoint.
+# Debug with: docker run --entrypoint='' gcr.io/distroless/cc-debian13:debug-nonroot sh
+FROM gcr.io/distroless/cc-debian13:nonroot@sha256:cb87acc574abe719b6e5c547384defa2f7b1f24af9605d3f618cf852495d8be2 AS backend-distroless
+
+ARG CONTACTS_STATIC_ROOT=/data/static
+
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PATH="/venv/bin:$PATH"
+ENV VIRTUAL_ENV=/venv
+
+COPY --from=distroless-builder /opt/python /opt/python
+COPY --from=distroless-builder /venv /venv
+COPY --from=distroless-builder /app /app
+COPY --from=link-collector ${CONTACTS_STATIC_ROOT} ${CONTACTS_STATIC_ROOT}
+
+WORKDIR /app
+
+CMD ["gunicorn", "-c", "/app/gunicorn.conf.py", "contacts.wsgi:application"]
+
+HEALTHCHECK --interval=30s --timeout=2s --start-period=30s \
+  CMD ["python", "-c", "import socket; from urllib.request import Request, urlopen; urlopen(Request('http://localhost:8000/__heartbeat__/', headers={'Host': socket.gethostbyname(socket.gethostname())}), timeout=2)"]
