@@ -31,13 +31,10 @@ address as a single `X-Forwarded-For` entry.
 
 ### Content-Security-Policy
 
-Caddy sends one `Content-Security-Policy` header on every response. It
-starts from `default-src 'none'` and allows the app's own origin for
-scripts, styles, fonts, images and API calls. It also allows inline
-styles (the UI kit needs them), `data:` and `blob:` images, and images
-from any `https:` URL, because a contact photo can be a remote URL.
-
-Each origin outside the app must be added with a variable:
+Caddy sends a `Content-Security-Policy` header that starts from
+`default-src 'none'` and allows the app's own origin. Each origin outside
+the app must be added with a variable. Without it the browser blocks the
+feature, and the rest of the app still works.
 
 | Feature | `CONTACTS_FRONTEND_CSP_SCRIPT_SRC` | `CONTACTS_FRONTEND_CSP_CONNECT_SRC` |
 | ------- | ---------------------------------- | ----------------------------------- |
@@ -45,20 +42,8 @@ Each origin outside the app must be added with a variable:
 | Feedback widget (`FRONTEND_FEEDBACK_MESSAGES_WIDGET_ENABLED`) | Origin of `FRONTEND_FEEDBACK_MESSAGES_WIDGET_PATH` | Origin of `FRONTEND_FEEDBACK_MESSAGES_WIDGET_API_URL` |
 | API on another origin (frontend built with `API_ORIGIN`) | | That origin |
 
-For example, with the app launcher and its default URLs:
-
-```
-CONTACTS_FRONTEND_CSP_SCRIPT_SRC=https://static.suite.anct.gouv.fr
-CONTACTS_FRONTEND_CSP_CONNECT_SRC=https://lasuite.numerique.gouv.fr
-```
-
-Without these values the browser blocks the widget, and the rest of the
-app still works. Use origins only (scheme and host): a value that
-contains `;` or a quote can change the rest of the policy.
-
-The policy does not allow inline scripts. The Swagger and Redoc pages
-(`USE_SWAGGER`, off in the production settings) need them, so they do not
-work behind this Caddy.
+Use origins only (scheme and host): a value that contains `;` or a quote
+can change the rest of the policy.
 
 ### Client address in Django
 
