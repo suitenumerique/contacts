@@ -2,7 +2,7 @@
 
 # pylint: disable=missing-function-docstring,redefined-outer-name,unused-argument,too-many-arguments
 
-import io
+from django.core.files.base import ContentFile
 
 import pytest
 from rest_framework.test import APIClient
@@ -323,7 +323,7 @@ def test_import_endpoint_queues_task():
 
     response = client.post(
         "/api/v1.0/contacts/import-vcf/",
-        {"file": io.BytesIO(SAMPLE_VCF.encode())},
+        {"file": ContentFile(SAMPLE_VCF.encode(), name="contacts.vcf")},
         format="multipart",
     )
     assert response.status_code == 202, response.content
@@ -340,10 +340,64 @@ def test_import_endpoint_rejects_large_file(settings):
 
     response = client.post(
         "/api/v1.0/contacts/import-vcf/",
-        {"file": io.BytesIO(SAMPLE_VCF.encode())},
+        {"file": ContentFile(SAMPLE_VCF.encode(), name="contacts.vcf")},
         format="multipart",
     )
     assert response.status_code == 400
+
+
+@pytest.mark.parametrize(
+    ("endpoint", "name", "content", "error"),
+    [
+        ("import-vcf", "contacts.csv", SAMPLE_VCF.encode(), "Unsupported file type"),
+        ("import-vcf", "contacts", SAMPLE_VCF.encode(), "Unsupported file type"),
+        ("import-csv", "contacts.vcf", b"Email\na@example.org\n", "Unsupported"),
+        ("import-vcf", "contacts.vcf", b" \r\n", "empty"),
+        ("import-csv", "contacts.csv", b"", "empty"),
+        ("import-vcf", "photo.vcf", b"\x89PNG\r\n\x1a\n\0\0\0\rIHDR", "not a text"),
+        ("import-csv", "sheet.csv", b"PK\x03\x04\x14\0\x06\0", "not a text file"),
+        ("import-csv", "utf16.csv", "Email\na@example.org\n".encode("utf-16"), "text"),
+        ("import-vcf", "contacts.vcf", b"Email\na@example.org\n", "no vCard"),
+    ],
+)
+def test_import_endpoint_rejects_a_file_of_another_type(endpoint, name, content, error):
+    user = factories.UserFactory()
+    client = APIClient()
+    client.force_login(user)
+
+    response = client.post(
+        f"/api/v1.0/contacts/{endpoint}/",
+        {"file": ContentFile(content, name=name)},
+        format="multipart",
+    )
+
+    assert response.status_code == 400
+    assert error in response.json()["detail"]
+    assert not models.Contact.objects.filter(owner=user).exists()
+
+
+@pytest.mark.parametrize(
+    ("name", "content"),
+    [
+        ("CONTACTS.VCF", SAMPLE_VCF.encode()),
+        ("contacts.vcard", SAMPLE_VCF.encode()),
+        ("bom.vcf", b"\xef\xbb\xbf\r\n" + SAMPLE_VCF.encode()),
+        ("latin.vcf", SAMPLE_VCF.replace("Jeanne", "Ren\xe9e").encode("cp1252")),
+        ("lower.vcf", SAMPLE_VCF.replace("BEGIN:VCARD", "begin: vcard").encode()),
+    ],
+)
+def test_import_endpoint_accepts_vcard_variants(name, content):
+    user = factories.UserFactory()
+    client = APIClient()
+    client.force_login(user)
+
+    response = client.post(
+        "/api/v1.0/contacts/import-vcf/",
+        {"file": ContentFile(content, name=name)},
+        format="multipart",
+    )
+
+    assert response.status_code == 202, response.content
 
 
 def test_round_trip_preserves_fields():

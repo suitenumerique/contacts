@@ -3,6 +3,7 @@
 import functools
 import json
 import logging
+import re
 import uuid
 
 from django.conf import settings
@@ -203,6 +204,29 @@ def _get_or_404(queryset, pk, message):
         return queryset.get(pk=pk)
     except (queryset.model.DoesNotExist, DjangoValidationError, ValueError) as exc:
         raise drf_exceptions.NotFound(message) from exc
+
+
+IMPORT_EXTENSIONS = {"vcf": (".vcf", ".vcard"), "csv": (".csv",)}
+
+
+def _import_file_error(file_format: str, name: str, data: bytes) -> str:
+    """Why the upload cannot be a *file_format* file, or "" when it can.
+
+    The checks use the file name and the content. The Content-Type of the
+    upload is not used: browsers send many different values for these
+    files, and the client chooses it.
+    """
+    extensions = IMPORT_EXTENSIONS[file_format]
+    if not name.lower().endswith(extensions):
+        return f"Unsupported file type. Expected a {' or '.join(extensions)} file."
+    if not data.strip():
+        return "The file is empty."
+    # The parsers read UTF-8 and Windows-1252 text. Such text has no NUL byte.
+    if b"\0" in data:
+        return "The file is not a text file."
+    if file_format == "vcf" and not re.search(rb"BEGIN:[ \t]*VCARD", data, re.I):
+        return "The file contains no vCard."
+    return ""
 
 
 def visible_contacts(user):
@@ -549,8 +573,14 @@ class ContactViewSet(ActingUserMixin, SerializerPerActionMixin, viewsets.ModelVi
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        data = uploaded_file.read()
+        if error := _import_file_error(file_format, uploaded_file.name or "", data):
+            return response.Response(
+                {"detail": error}, status=status.HTTP_400_BAD_REQUEST
+            )
+
         file_key = f"import_file:{uuid.uuid4()}"
-        cache.set(file_key, uploaded_file.read(), timeout=IMPORT_FILE_TTL)
+        cache.set(file_key, data, timeout=IMPORT_FILE_TTL)
         task = import_contacts_task.delay(
             str(request.user.id), file_format, file_key, scope
         )

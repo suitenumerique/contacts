@@ -2,9 +2,9 @@
 
 # pylint: disable=missing-function-docstring,redefined-outer-name,unused-argument
 
-import io
 from datetime import timedelta
 
+from django.core.files.base import ContentFile
 from django.core.management import call_command
 from django.db import IntegrityError, transaction
 from django.utils import timezone
@@ -345,7 +345,10 @@ def test_an_administrator_imports_into_the_organization(admin):
 def test_importing_into_the_organization_takes_an_administrator(colleague):
     response = client_for(colleague).post(
         f"{CONTACTS_URL}import-vcf/",
-        {"file": io.BytesIO(VCF.encode()), "scope": "organization"},
+        {
+            "file": ContentFile(VCF.encode(), name="contacts.vcf"),
+            "scope": "organization",
+        },
         format="multipart",
     )
     assert response.status_code == 403
@@ -354,7 +357,10 @@ def test_importing_into_the_organization_takes_an_administrator(colleague):
 def test_the_import_endpoint_imports_into_the_organization(admin):
     response = client_for(admin).post(
         f"{CONTACTS_URL}import-vcf/",
-        {"file": io.BytesIO(VCF.encode()), "scope": "organization"},
+        {
+            "file": ContentFile(VCF.encode(), name="contacts.vcf"),
+            "scope": "organization",
+        },
         format="multipart",
     )
     assert response.status_code == 202, response.content
