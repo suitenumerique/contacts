@@ -3,7 +3,7 @@ import { Button } from "@gouvfr-lasuite/ui-components";
 import { useTranslation } from "react-i18next";
 
 /**
- * Page for an error that a route throws.
+ * Page for an error that stops the application or a route.
  *
  * It uses no layout and no context of the application. The error can
  * come from that code, and this page must still render.

@@ -3,6 +3,7 @@ import { useApiConfig } from "./useApiConfig";
 import { ApiConfig } from "@/features/api/types";
 import { createContext, useContext, useEffect } from "react";
 import { useAppContext } from "@/features/app/AppContext";
+import { AppErrorScreen } from "@/features/errors/AppErrorScreen";
 
 export interface ConfigContextType {
   config: ApiConfig;
@@ -19,7 +20,7 @@ export const useConfig = () => {
 };
 
 export const ConfigProvider = ({ children }: { children: React.ReactNode }) => {
-  const { data: config } = useApiConfig();
+  const { data: config, error } = useApiConfig();
   const { setTheme } = useAppContext();
 
   useEffect(() => {
@@ -28,13 +29,18 @@ export const ConfigProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, [config?.FRONTEND_THEME, setTheme]);
 
-  if (!config) {
-    return (
-      <div className="global-loader">
-        <Spinner size="xl" />
-      </div>
-    );
+  if (config) {
+    return <ConfigContext.Provider value={{ config }}>{children}</ConfigContext.Provider>;
   }
 
-  return <ConfigContext.Provider value={{ config }}>{children}</ConfigContext.Provider>;
+  // The application cannot start without its configuration.
+  if (error) {
+    return <AppErrorScreen error={error} />;
+  }
+
+  return (
+    <div className="global-loader">
+      <Spinner size="xl" />
+    </div>
+  );
 };
