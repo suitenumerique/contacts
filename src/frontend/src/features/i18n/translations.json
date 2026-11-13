@@ -9,6 +9,15 @@
         "title": "You don't have the necessary permissions to access this page.",
         "button": "Home"
       },
+      "404": {
+        "title": "This page does not exist.",
+        "button": "Home"
+      },
+      "error_screen": {
+        "title": "Something went wrong.",
+        "description": "An unexpected error occurred. Please reload the page.",
+        "reload": "Reload"
+      },
       "app_title": "Contacts",
       "login": "Log in",
       "no_access": {
@@ -364,6 +373,15 @@
         "title": "Vous n'avez pas les permissions nécessaires pour accéder à cette page.",
         "button": "Accueil"
       },
+      "404": {
+        "title": "Cette page n'existe pas.",
+        "button": "Accueil"
+      },
+      "error_screen": {
+        "title": "Une erreur est survenue.",
+        "description": "Une erreur inattendue s'est produite. Veuillez recharger la page.",
+        "reload": "Recharger"
+      },
       "app_title": "Contacts",
       "login": "Connexion",
       "no_access": {
@@ -718,6 +736,15 @@
       "403": {
         "title": "U beschikt niet over de benodigde rechten om deze pagina te openen.",
         "button": "Home"
+      },
+      "404": {
+        "title": "Deze pagina bestaat niet.",
+        "button": "Home"
+      },
+      "error_screen": {
+        "title": "Er is iets misgegaan.",
+        "description": "Er is een onverwachte fout opgetreden. Laad de pagina opnieuw.",
+        "reload": "Opnieuw laden"
       },
       "app_title": "Contacten",
       "login": "Inloggen",
