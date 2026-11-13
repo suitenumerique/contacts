@@ -60,54 +60,12 @@ The probe sends the container IP as the `Host` header:
 
 ## Legal pages
 
-Contacts does not host the legal pages. A deployment sets their URLs, and
-the app shows the links in two places.
-
-| Page | Where the link shows | How to set it |
-| ---- | -------------------- | ------------- |
-| Terms of use | User menu (signed-in users) | `FRONTEND_TERMS_OF_SERVICE_URL` |
-| Legal notice, privacy policy, accessibility statement | Footer of the home page (anonymous users) | `footer.<language>.legalLinks` in the theme customization file |
-
-### Theme customization file
-
-The backend reads a JSON file and serves it to the frontend in
-`theme_customization` of `GET /api/v1.0/config/`.
+Contacts does not host the legal pages. A deployment sets their URLs.
 
 | Variable | Default | Description |
 | -------- | ------- | ----------- |
-| `FRONTEND_TERMS_OF_SERVICE_URL` | _(unset)_ | URL of the terms of use. Unset: the user menu has no link. |
-| `THEME_CUSTOMIZATION_FILE_PATH` | `contacts/configuration/theme/default.json` in the backend | Path of the JSON file, readable by the backend container. Empty: no customization, so the footer has no link. |
-| `THEME_CUSTOMIZATION_CACHE_TIMEOUT` | `86400` | Seconds the backend keeps the parsed file in its cache. A change to the file shows after this delay. |
+| `FRONTEND_TERMS_OF_SERVICE_URL` | _(unset)_ | Terms of use link in the user menu. |
+| `THEME_CUSTOMIZATION_FILE_PATH` | `contacts/configuration/theme/default.json` | JSON file that holds the footer of the home page, with its legal links (`footer.<language>.legalLinks`). |
 
-The default file is a placeholder: its legal links point to `#`. A
-production deployment must supply its own file, for example a copy of
-`src/backend/contacts/configuration/theme/default.json` with the real URLs,
-mounted in the backend container.
-
-The `footer` key holds one object per language (`en`, `fr`, `nl`) and a
-`default` object. The frontend merges `default` with the object of the
-current language; a key of the language object replaces the same key of
-`default`. Each object takes the props of the UI kit `Footer` component:
-`legalLinks`, `externalLinks`, `license` and `logo`.
-
-```json
-{
-  "footer": {
-    "default": {
-      "externalLinks": [
-        { "label": "Github", "href": "https://github.com/suitenumerique/contacts/" }
-      ]
-    },
-    "fr": {
-      "legalLinks": [
-        { "label": "Mentions légales", "href": "https://example.org/mentions-legales" },
-        { "label": "Conditions générales d'utilisation", "href": "https://example.org/cgu" },
-        { "label": "Politique de confidentialité", "href": "https://example.org/confidentialite" },
-        { "label": "Accessibilité : non conforme", "href": "https://example.org/accessibilite" }
-      ]
-    }
-  }
-}
-```
-
-Put `legalLinks` in `default` to show the same links in all languages.
+The legal links of the default file point to `#`. A production deployment
+must supply its own copy with the real URLs.

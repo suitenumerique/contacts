@@ -89,7 +89,7 @@ $ make update-api-front
 - [Architecture](docs/architecture.md)
 - [CardDAV](docs/carddav.md)
 - [Channels / service API keys](docs/channels.md)
-- [Deployment (frontend proxy, admin allowlist, legal pages)](docs/deployment.md)
+- [Deployment (frontend proxy, admin allowlist)](docs/deployment.md)
 - [Entitlements](docs/entitlements.md)
 - [Messages integration](docs/messages-integration.md)
 - [Organizations](docs/organizations.md)
