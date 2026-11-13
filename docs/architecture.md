@@ -64,6 +64,15 @@ libphonenumber. Numbers written without `+` are read as numbers of
 and phone separators is looked up as one run of digits, so `06 39 98`,
 `+33 6 39` and `0033639` all find `+33 6 39 98 63 09`.
 
+Names lose their bidi control characters on every write
+(`core.utils.strip_bidi_controls`, called from the models' `clean()`): the
+embeddings, overrides and isolates U+202A to U+202E and U+2066 to U+2069.
+A name that holds one reorders the sentence that quotes it, here and in the
+other Suite apps. This applies to the name, company, department and job
+title of a contact, and to group and label names. The marks U+200E and
+U+200F stay. Rows written before this change keep their characters until
+their next save.
+
 The `carddav` app (`src/backend/carddav/`) exposes the same rows over
 [CardDAV](carddav.md), reusing `Contact.is_writable`. Its own tables only
 hold sync bookkeeping (a change journal numbering every write to a contact,
