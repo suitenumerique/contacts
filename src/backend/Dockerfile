@@ -124,3 +124,8 @@ COPY --from=link-collector ${CONTACTS_STATIC_ROOT} ${CONTACTS_STATIC_ROOT}
 
 # The default command runs gunicorn WSGI server in contacts' main module
 CMD ["gunicorn", "-c", "/app/gunicorn.conf.py", "contacts.wsgi:application"]
+
+# The probe sends the container IP as Host: Production.ALLOWED_HOSTS always
+# holds it.
+HEALTHCHECK --interval=30s --timeout=2s --start-period=30s \
+  CMD ["python", "-c", "import socket; from urllib.request import Request, urlopen; urlopen(Request('http://localhost:8000/__heartbeat__/', headers={'Host': socket.gethostbyname(socket.gethostname())}), timeout=2)"]

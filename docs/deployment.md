@@ -48,3 +48,12 @@ untrusted machines share the private network with Caddy.
 `make test-front-production` builds the image and checks the heartbeat,
 the healthcheck, the backend proxying, the SPA fallback, and the admin
 allowlist with spoofed and trusted `X-Forwarded-For`. CI runs it.
+
+## Backend image
+
+The backend production image (`backend-production` stage of
+`src/backend/Dockerfile`) runs gunicorn on port `8000`. Its `HEALTHCHECK`
+requests `/__heartbeat__/` on `localhost:8000`, so the container is
+unhealthy when Django does not answer or when the database is unreachable.
+The probe sends the container IP as the `Host` header:
+`Production.ALLOWED_HOSTS` always holds it.
