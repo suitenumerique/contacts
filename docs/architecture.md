@@ -98,8 +98,9 @@ so a client's delta cannot silently miss one).
   drops the sync tombstones that outlived them. Both have to be scheduled,
   see [Scheduled jobs](#scheduled-jobs).
 - **Import/export**: `POST /contacts/import-vcf/` or `import-csv/` queues a
-  dramatiq task, polled with `GET /tasks/{id}/`. The view refuses (400) an
-  empty or binary file, and a vCard upload that holds no vCard. A card
+  dramatiq task, polled with `GET /tasks/{id}/`. The view answers
+  400 for an empty file and for a binary file. It also answers 400 for a
+  vCard upload that contains no vCard. A card
   matching one of the user's own contacts is skipped: the match is on any
   email address, or for a card without email, on first + last name (or the
   full name when there is neither) and the digits of the first phone.

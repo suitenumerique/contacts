@@ -499,7 +499,11 @@ def test_csv_oversized_field_is_one_error_not_a_failed_import():
 
 @pytest.fixture
 def csv_log(caplog, monkeypatch):
-    """Records of the CSV parser. The "core" logger does not propagate."""
+    """Capture the log records of the CSV parser.
+
+    The "core" logger does not propagate by default. The fixture enables
+    the propagation, because caplog reads the root logger.
+    """
     monkeypatch.setattr(logging.getLogger("core"), "propagate", True)
     caplog.set_level("WARNING", logger="core.services.csv_service")
     return caplog

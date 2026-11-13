@@ -400,10 +400,10 @@ def _read_components(data):
 
 
 def contains_vcard(data):
-    """Tell if *data* holds a vCard component.
+    """Return True if *data* contains a vCard component.
 
-    A file with an unbalanced BEGIN/END also counts. The import reports
-    it as an error.
+    Also return True if a BEGIN has no END. The import reports this file
+    as an error.
     """
     try:
         return any(name == "VCARD" for name, _lines in _read_components(data))

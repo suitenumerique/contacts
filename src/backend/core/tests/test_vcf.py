@@ -386,7 +386,7 @@ def test_import_endpoint_rejects_a_file_of_another_type(endpoint, name, content,
         ("latin.vcf", SAMPLE_VCF.replace("Jeanne", "Ren\xe9e").encode("cp1252")),
         ("lower.vcf", SAMPLE_VCF.replace("BEGIN:VCARD", "begin: vcard").encode()),
         ("folded.vcf", SAMPLE_VCF.replace("BEGIN:VCARD", "BEGIN:VC\r\n ARD").encode()),
-        # The import reports a card that never ends as an error.
+        # This card has no END. The import reports it as an error.
         ("truncated.vcf", b"BEGIN:VCARD\r\nVERSION:3.0\r\nFN:Alice\r\n"),
     ],
 )

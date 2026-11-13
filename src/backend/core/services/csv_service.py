@@ -348,7 +348,7 @@ def parse_csv(data):
         try:
             cards.append(_to_fields(*_read_row(columns, row), label_separator))
         except Exception:  # pylint: disable=broad-exception-caught
-            # One traceback is sufficient. A file can hold many bad rows.
+            # One traceback is sufficient. A file can contain many bad rows.
             if not failures:
                 logger.exception("Failed to parse a CSV row")
             failures += 1
@@ -378,8 +378,8 @@ def _read_rows(data, dialect):
             continue
         rows.append(row)
     if errors:
-        # One record for the file. A small binary file can hold thousands
-        # of unreadable rows.
+        # Write one record for the file. A small binary file can contain
+        # thousands of unreadable rows.
         logger.warning(
             "Skipped %d unreadable CSV rows, the first one: %s", errors, first_error
         )
