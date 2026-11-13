@@ -24,7 +24,10 @@ export const AppErrorScreen = ({ error }: { error: unknown }) => {
         alignItems: "center",
         justifyContent: "center",
         gap: "1rem",
-        minHeight: "100vh",
+        // Fill the window, but not more than a parent with a fixed height.
+        // The pane of the app layout is such a parent.
+        height: "100vh",
+        maxHeight: "100%",
         padding: "2rem",
         textAlign: "center",
       }}
