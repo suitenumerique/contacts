@@ -7,7 +7,6 @@ import io
 from datetime import timedelta
 
 from django.core.cache import cache
-from django.core.files.base import ContentFile
 from django.core.management import call_command
 from django.utils import timezone
 
@@ -248,7 +247,7 @@ def test_csv_import_task_creates_contacts_with_labels(user):
 def test_csv_import_endpoint(client, user):
     response = client.post(
         f"{CONTACTS_URL}import-csv/",
-        {"file": ContentFile(SAMPLE_CSV.encode(), name="contacts.csv")},
+        {"file": io.BytesIO(SAMPLE_CSV.encode())},
         format="multipart",
     )
     assert response.status_code == 202, response.content
@@ -608,7 +607,7 @@ def test_import_task_reports_a_parser_crash_as_failure(client, user, monkeypatch
     monkeypatch.setattr("core.services.csv_service.parse_csv", explode)
     response = client.post(
         f"{CONTACTS_URL}import-csv/",
-        {"file": ContentFile(SAMPLE_CSV.encode(), name="contacts.csv")},
+        {"file": io.BytesIO(SAMPLE_CSV.encode())},
         format="multipart",
     )
     assert response.status_code == 202
@@ -622,7 +621,7 @@ def test_import_task_reports_a_parser_crash_as_failure(client, user, monkeypatch
 def test_import_task_status_reports_success(client, user):
     response = client.post(
         f"{CONTACTS_URL}import-csv/",
-        {"file": ContentFile(SAMPLE_CSV.encode(), name="contacts.csv")},
+        {"file": io.BytesIO(SAMPLE_CSV.encode())},
         format="multipart",
     )
     status = client.get(f"/api/v1.0/tasks/{response.json()['task_id']}/").json()
@@ -643,7 +642,7 @@ def test_import_task_does_not_carry_the_file(client, user, monkeypatch):
     monkeypatch.setattr(import_contacts_task, "send", send)
     client.post(
         f"{CONTACTS_URL}import-csv/",
-        {"file": ContentFile(SAMPLE_CSV.encode(), name="contacts.csv")},
+        {"file": io.BytesIO(SAMPLE_CSV.encode())},
         format="multipart",
     )
 
@@ -656,7 +655,7 @@ def test_import_task_does_not_carry_the_file(client, user, monkeypatch):
 def test_task_status_is_private_to_its_owner(client, user):
     response = client.post(
         f"{CONTACTS_URL}import-csv/",
-        {"file": ContentFile(SAMPLE_CSV.encode(), name="contacts.csv")},
+        {"file": io.BytesIO(SAMPLE_CSV.encode())},
         format="multipart",
     )
     task_url = f"/api/v1.0/tasks/{response.json()['task_id']}/"
@@ -670,7 +669,7 @@ def test_task_status_is_private_to_its_owner(client, user):
 def test_task_status_requires_the_entitlement(client, user, monkeypatch):
     response = client.post(
         f"{CONTACTS_URL}import-csv/",
-        {"file": ContentFile(SAMPLE_CSV.encode(), name="contacts.csv")},
+        {"file": io.BytesIO(SAMPLE_CSV.encode())},
         format="multipart",
     )
     monkeypatch.setattr(

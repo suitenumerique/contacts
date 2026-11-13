@@ -2,6 +2,8 @@
 
 # pylint: disable=missing-function-docstring,redefined-outer-name,unused-argument,too-many-arguments
 
+import io
+
 from django.core.files.base import ContentFile
 
 import pytest
@@ -323,7 +325,7 @@ def test_import_endpoint_queues_task():
 
     response = client.post(
         "/api/v1.0/contacts/import-vcf/",
-        {"file": ContentFile(SAMPLE_VCF.encode(), name="contacts.vcf")},
+        {"file": io.BytesIO(SAMPLE_VCF.encode())},
         format="multipart",
     )
     assert response.status_code == 202, response.content
@@ -340,7 +342,7 @@ def test_import_endpoint_rejects_large_file(settings):
 
     response = client.post(
         "/api/v1.0/contacts/import-vcf/",
-        {"file": ContentFile(SAMPLE_VCF.encode(), name="contacts.vcf")},
+        {"file": io.BytesIO(SAMPLE_VCF.encode())},
         format="multipart",
     )
     assert response.status_code == 400
@@ -349,9 +351,6 @@ def test_import_endpoint_rejects_large_file(settings):
 @pytest.mark.parametrize(
     ("endpoint", "name", "content", "error"),
     [
-        ("import-vcf", "contacts.csv", SAMPLE_VCF.encode(), "Unsupported file type"),
-        ("import-vcf", "contacts", SAMPLE_VCF.encode(), "Unsupported file type"),
-        ("import-csv", "contacts.vcf", b"Email\na@example.org\n", "Unsupported"),
         ("import-vcf", "contacts.vcf", b" \r\n", "empty"),
         ("import-csv", "contacts.csv", b"", "empty"),
         ("import-vcf", "photo.vcf", b"\x89PNG\r\n\x1a\n\0\0\0\rIHDR", "not a text"),
@@ -381,6 +380,7 @@ def test_import_endpoint_rejects_a_file_of_another_type(endpoint, name, content,
     [
         ("CONTACTS.VCF", SAMPLE_VCF.encode()),
         ("contacts.vcard", SAMPLE_VCF.encode()),
+        ("contacts.txt", SAMPLE_VCF.encode()),
         ("bom.vcf", b"\xef\xbb\xbf\r\n" + SAMPLE_VCF.encode()),
         ("latin.vcf", SAMPLE_VCF.replace("Jeanne", "Ren\xe9e").encode("cp1252")),
         ("lower.vcf", SAMPLE_VCF.replace("BEGIN:VCARD", "begin: vcard").encode()),

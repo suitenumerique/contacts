@@ -206,19 +206,12 @@ def _get_or_404(queryset, pk, message):
         raise drf_exceptions.NotFound(message) from exc
 
 
-IMPORT_EXTENSIONS = {"vcf": (".vcf", ".vcard"), "csv": (".csv",)}
-
-
-def _import_file_error(file_format: str, name: str, data: bytes) -> str:
+def _import_file_error(file_format: str, data: bytes) -> str:
     """Why the upload cannot be a *file_format* file, or "" when it can.
 
-    The checks use the file name and the content. The Content-Type of the
-    upload is not used: browsers send many different values for these
-    files, and the client chooses it.
+    The checks use the content only. The client chooses the file name and
+    the Content-Type of the upload, and a valid export can have any of them.
     """
-    extensions = IMPORT_EXTENSIONS[file_format]
-    if not name.lower().endswith(extensions):
-        return f"Unsupported file type. Expected a {' or '.join(extensions)} file."
     if not data.strip():
         return "The file is empty."
     # The parsers read UTF-8 and Windows-1252 text. Such text has no NUL byte.
@@ -574,7 +567,7 @@ class ContactViewSet(ActingUserMixin, SerializerPerActionMixin, viewsets.ModelVi
             )
 
         data = uploaded_file.read()
-        if error := _import_file_error(file_format, uploaded_file.name or "", data):
+        if error := _import_file_error(file_format, data):
             return response.Response(
                 {"detail": error}, status=status.HTTP_400_BAD_REQUEST
             )
