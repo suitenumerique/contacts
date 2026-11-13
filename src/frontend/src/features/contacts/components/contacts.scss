@@ -557,6 +557,11 @@ $radius: 4px;
   }
 }
 
+.trash-banner {
+  max-width: 600px;
+  margin: 0 auto var(--c--globals--spacings--xs);
+}
+
 .card {
   position: relative;
   max-width: 600px;

@@ -443,6 +443,10 @@ class ContactViewSet(ActingUserMixin, SerializerPerActionMixin, viewsets.ModelVi
 
     def perform_update(self, serializer):
         self._check_writable(serializer.instance)
+        if serializer.instance.deleted_at is not None:
+            raise drf_exceptions.ValidationError(
+                "This contact is in the trash; restore it before you edit it."
+            )
         with transaction.atomic():
             serializer.save()
 

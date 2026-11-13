@@ -231,6 +231,7 @@ class ContactSerializer(serializers.ModelSerializer):
             "label_ids",
             "created_at",
             "updated_at",
+            "deleted_at",
         ]
         read_only_fields = [
             "id",
@@ -244,6 +245,7 @@ class ContactSerializer(serializers.ModelSerializer):
             "group_ids",
             "created_at",
             "updated_at",
+            "deleted_at",
         ]
 
     def __init__(self, *args, **kwargs):

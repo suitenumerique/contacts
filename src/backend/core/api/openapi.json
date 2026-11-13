@@ -2316,10 +2316,18 @@
                         "readOnly": true,
                         "title": "Updated on",
                         "description": "date and time at which a record was last updated"
+                    },
+                    "deleted_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true,
+                        "nullable": true,
+                        "description": "Soft-deletion timestamp (corbeille). Trashed contacts are restorable until purged after TRASHBIN_CUTOFF_DAYS."
                     }
                 },
                 "required": [
                     "created_at",
+                    "deleted_at",
                     "display_name",
                     "external_id",
                     "group_ids",

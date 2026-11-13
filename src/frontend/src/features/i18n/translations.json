@@ -277,6 +277,7 @@
           "restoreNamed": "Restore {{name}}",
           "deleteForever": "Delete forever",
           "deleteForeverNamed": "Delete {{name}} forever",
+          "banner": "This contact is in the trash.",
           "retention": "Contacts in the trash are permanently deleted after {{days}} days."
         },
         "import": {
@@ -631,6 +632,7 @@
           "restoreNamed": "Restaurer {{name}}",
           "deleteForever": "Supprimer définitivement",
           "deleteForeverNamed": "Supprimer définitivement {{name}}",
+          "banner": "Ce contact est dans la corbeille.",
           "retention": "Les contacts de la corbeille sont supprimés définitivement après {{days}} jours."
         },
         "import": {
@@ -985,6 +987,7 @@
           "restoreNamed": "{{name}} herstellen",
           "deleteForever": "Definitief verwijderen",
           "deleteForeverNamed": "{{name}} definitief verwijderen",
+          "banner": "Dit contact staat in de prullenbak.",
           "retention": "Contacten in de prullenbak worden na {{days}} dagen definitief verwijderd."
         },
         "import": {

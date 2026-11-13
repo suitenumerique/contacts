@@ -71,4 +71,9 @@ export interface Contact {
   readonly created_at: string;
   /** date and time at which a record was last updated */
   readonly updated_at: string;
+  /**
+   * Soft-deletion timestamp (corbeille). Trashed contacts are restorable until purged after TRASHBIN_CUTOFF_DAYS.
+   * @nullable
+   */
+  readonly deleted_at: string | null;
 }
