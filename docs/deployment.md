@@ -37,29 +37,17 @@ write when no proxy sets it.
 
 ### Admin login limit
 
-The Django admin accepts a password login. Django counts the failed logins
-in the cache (Redis), in a sliding window:
+Django limits the failed password logins on the admin. When a budget is
+spent, the login form answers `429` with `Retry-After`, also for a correct
+password.
 
 | Variable | Default | Description |
 | -------- | ------- | ----------- |
 | `ADMIN_LOGIN_THROTTLE_RATE` | `20/hour` | Failed admin logins allowed per client address. |
 | `ADMIN_LOGIN_USERNAME_THROTTLE_RATE` | `10/hour` | Failed admin logins allowed per submitted username, from any address. |
 
-A rate is a number and a period: `second`, `minute`, `hour` or `day`. When
-a budget is spent, the login form answers `429` with `Retry-After`. It does
-not check the password, so a correct password is refused too until old
-failures leave the window. Refused attempts are not counted.
-
-Two effects to know:
-
-- With `NUM_PROXIES=0` behind a proxy, all clients share the proxy address
-  and one budget. Set `NUM_PROXIES` correctly.
-- Somebody who knows an admin username can spend its budget and block the
-  password login of that account. Set `DJANGO_ADMIN_IP_ALLOWLIST` to
-  prevent this.
-
-There is no second factor on the admin login. The allowlist and this limit
-are the only protections.
+Somebody who knows an admin username can spend its budget and block that
+account. Set `DJANGO_ADMIN_IP_ALLOWLIST` to prevent this.
 
 ### Scalingo
 
