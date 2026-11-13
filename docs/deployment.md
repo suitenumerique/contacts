@@ -9,6 +9,9 @@ It serves the built SPA and proxies the backend paths to Django: `/api/`,
 `/__heartbeat__/`. The Scalingo deployment runs the same Caddyfile in
 front of gunicorn (`bin/scalingo_postfrontend`, `bin/scalingo_run_web`).
 
+The SPA ships a `/robots.txt` (`src/frontend/public/robots.txt`) that
+disallows all crawling: the whole app is behind login.
+
 | Variable | Default | Description |
 | -------- | ------- | ----------- |
 | `PORT` | `8080` | Port Caddy listens on. Keep `8080` in the Docker image: its HEALTHCHECK hardcodes it. |
@@ -46,8 +49,8 @@ untrusted machines share the private network with Caddy.
 ### Smoke test
 
 `make test-front-production` builds the image and checks the heartbeat,
-the healthcheck, the backend proxying, the SPA fallback, and the admin
-allowlist with spoofed and trusted `X-Forwarded-For`. CI runs it.
+the healthcheck, the backend proxying, the SPA fallback, `robots.txt`,
+and the admin allowlist with spoofed and trusted `X-Forwarded-For`. CI runs it.
 
 ## Backend image
 
