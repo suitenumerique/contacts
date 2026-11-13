@@ -1,2 +1,5 @@
+# Crawling is allowed on purpose. A crawler obeys the noindex directive
+# (X-Robots-Tag header) only on a page that it can fetch. With
+# "Disallow: /", a URL that a crawler already knows can stay in its index.
 User-agent: *
-Disallow: /
+Disallow:

@@ -121,12 +121,19 @@ assert_code 200 "SPA route falls back to index.html" "$BASE/contacts/some-id"
 assert_code 404 "missing asset stays a 404" "$BASE/assets/missing.js"
 
 # The SPA fallback answers index.html with a 200 when the file is missing,
-# so check the type and the body too.
-ROBOTS=$(curl -s --max-time 10 -w '%{content_type}' "$BASE/robots.txt" || true)
-case "$ROBOTS" in
-  *"Disallow: /"*text/plain*) echo "ok: robots.txt disallows all crawling" ;;
-  *) fail "robots.txt: expected a text/plain file with 'Disallow: /'" ;;
-esac
+# so check the type and the rules too. The file must allow crawling:
+# crawlers read the noindex header only on the pages that they can fetch.
+[ "$(curl -s -o /dev/null --max-time 10 -w '%{content_type}' "$BASE/robots.txt")" = "text/plain; charset=utf-8" ] \
+  || fail "robots.txt is not a text/plain file"
+ROBOTS_RULES=$(curl -s --max-time 10 "$BASE/robots.txt" | grep -v '^#' | tr -d '\r' | paste -sd'|' -)
+[ "$ROBOTS_RULES" = "User-agent: *|Disallow:" ] \
+  || fail "robots.txt must allow crawling, got: $ROBOTS_RULES"
+echo "ok: robots.txt allows crawling"
+for path in / /contacts/some-id /api/hello /admin/ /robots.txt; do
+  [ "$(curl -s -o /dev/null -w '%header{x-robots-tag}' "$BASE$path")" = "noindex" ] \
+    || fail "X-Robots-Tag noindex header missing on $path"
+done
+echo "ok: noindex header"
 [ "$(curl -s -o /dev/null -w '%header{x-frame-options}' "$BASE/")" = "DENY" ] \
   || fail "X-Frame-Options header missing"
 echo "ok: security headers"
