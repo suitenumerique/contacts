@@ -57,3 +57,15 @@ requests `/__heartbeat__/` on `localhost:8000`, so the container is
 unhealthy when Django does not answer or when the database is unreachable.
 The probe sends the container IP as the `Host` header:
 `Production.ALLOWED_HOSTS` always holds it.
+
+## Legal pages
+
+Contacts does not host the legal pages. A deployment sets their URLs.
+
+| Variable | Default | Description |
+| -------- | ------- | ----------- |
+| `FRONTEND_TERMS_OF_SERVICE_URL` | _(unset)_ | Terms of use link in the user menu. |
+| `THEME_CUSTOMIZATION_FILE_PATH` | `contacts/configuration/theme/default.json` | JSON file that holds the footer of the home page, with its legal links (`footer.<language>.legalLinks`). |
+
+The legal links of the default file point to `#`. A production deployment
+must supply its own copy with the real URLs.
