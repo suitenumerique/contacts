@@ -372,7 +372,7 @@ def test_import_endpoint_rejects_a_file_of_another_type(endpoint, name, content,
     )
 
     assert response.status_code == 400
-    assert error in response.json()["detail"]
+    assert error in response.json()["errors"][0]["detail"]
     assert not models.Contact.objects.filter(owner=user).exists()
 
 

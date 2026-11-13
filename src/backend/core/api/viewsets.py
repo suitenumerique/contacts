@@ -33,6 +33,7 @@ from core.entitlements import user_can_admin
 from core.enums import ChannelScope, Scope
 from core.phones import phone_query_digits
 from core.utils import strip_diacritics
+from core.validators import validate_import_file
 
 from . import permissions, serializers
 
@@ -203,26 +204,6 @@ def _get_or_404(queryset, pk, message):
         return queryset.get(pk=pk)
     except (queryset.model.DoesNotExist, DjangoValidationError, ValueError) as exc:
         raise drf_exceptions.NotFound(message) from exc
-
-
-def _import_file_error(file_format: str, data: bytes) -> str:
-    """Return the reason why *data* cannot be a *file_format* file.
-
-    Return "" when it can be one. The checks use only the content. The
-    client chooses the file name and the Content-Type of the upload. A valid
-    export can have any name and any Content-Type.
-    """
-    # pylint: disable-next=import-outside-toplevel
-    from core.services.vcf_service import contains_vcard  # noqa: PLC0415
-
-    if not data.strip():
-        return "The file is empty."
-    # The parsers read UTF-8 and Windows-1252 text. This text has no NUL byte.
-    if b"\0" in data:
-        return "The file is not a text file."
-    if file_format == "vcf" and not contains_vcard(data):
-        return "The file contains no vCard."
-    return ""
 
 
 def visible_contacts(user):
@@ -570,10 +551,7 @@ class ContactViewSet(ActingUserMixin, SerializerPerActionMixin, viewsets.ModelVi
             )
 
         data = uploaded_file.read()
-        if error := _import_file_error(file_format, data):
-            return response.Response(
-                {"detail": error}, status=status.HTTP_400_BAD_REQUEST
-            )
+        validate_import_file(file_format, data)
 
         file_key = f"import_file:{uuid.uuid4()}"
         cache.set(file_key, data, timeout=IMPORT_FILE_TTL)
