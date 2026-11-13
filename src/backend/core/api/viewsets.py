@@ -32,6 +32,7 @@ from core.authentication.channel import resolve_acting_user
 from core.entitlements import user_can_admin
 from core.enums import ChannelScope, Scope
 from core.phones import phone_query_digits
+from core.services.import_validation import validate_import_file
 from core.utils import strip_diacritics
 
 from . import permissions, serializers
@@ -549,8 +550,11 @@ class ContactViewSet(ActingUserMixin, SerializerPerActionMixin, viewsets.ModelVi
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        data = uploaded_file.read()
+        validate_import_file(file_format, data)
+
         file_key = f"import_file:{uuid.uuid4()}"
-        cache.set(file_key, uploaded_file.read(), timeout=IMPORT_FILE_TTL)
+        cache.set(file_key, data, timeout=IMPORT_FILE_TTL)
         task = import_contacts_task.delay(
             str(request.user.id), file_format, file_key, scope
         )

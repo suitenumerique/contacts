@@ -341,15 +341,20 @@ def parse_csv(data):
 
     label_separator = "," if dialect.delimiter == ";" else ";"
     cards = []
+    failures = 0
     for row in rows[1:]:
         if not any(cell.strip() for cell in row):
             continue
         try:
             cards.append(_to_fields(*_read_row(columns, row), label_separator))
         except Exception:  # pylint: disable=broad-exception-caught
-            logger.exception("Failed to parse a CSV row")
-            errors += 1
-    return cards, errors
+            # One traceback is sufficient. A file can contain many bad rows.
+            if not failures:
+                logger.exception("Failed to parse a CSV row")
+            failures += 1
+    if failures > 1:
+        logger.error("Failed to parse %d CSV rows", failures)
+    return cards, errors + failures
 
 
 def _read_rows(data, dialect):
@@ -361,16 +366,23 @@ def _read_rows(data, dialect):
     reader = csv.reader(io.StringIO(data), dialect)
     rows = []
     errors = 0
+    first_error = None
     while True:
         try:
             row = next(reader)
         except StopIteration:
             break
-        except csv.Error:
-            logger.warning("Skipping an unreadable CSV row", exc_info=True)
+        except csv.Error as error:
+            first_error = first_error or error
             errors += 1
             continue
         rows.append(row)
+    if errors:
+        # Write one record for the file. A small binary file can contain
+        # thousands of unreadable rows.
+        logger.warning(
+            "Skipped %d unreadable CSV rows, the first one: %s", errors, first_error
+        )
     return rows, errors
 
 

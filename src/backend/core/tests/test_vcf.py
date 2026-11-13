@@ -4,6 +4,8 @@
 
 import io
 
+from django.core.files.base import ContentFile
+
 import pytest
 from rest_framework.test import APIClient
 
@@ -344,6 +346,62 @@ def test_import_endpoint_rejects_large_file(settings):
         format="multipart",
     )
     assert response.status_code == 400
+
+
+@pytest.mark.parametrize(
+    ("endpoint", "name", "content", "error"),
+    [
+        ("import-vcf", "contacts.vcf", b" \r\n", "empty"),
+        ("import-csv", "contacts.csv", b"", "empty"),
+        ("import-vcf", "photo.vcf", b"\x89PNG\r\n\x1a\n\0\0\0\rIHDR", "not a text"),
+        ("import-csv", "sheet.csv", b"PK\x03\x04\x14\0\x06\0", "not a text file"),
+        ("import-csv", "utf16.csv", "Email\na@example.org\n".encode("utf-16"), "text"),
+        ("import-vcf", "contacts.vcf", b"Email\na@example.org\n", "no vCard"),
+        ("import-vcf", "note.vcf", b"NOTE:BEGIN:VCARD\r\n", "no vCard"),
+    ],
+)
+def test_import_endpoint_rejects_a_file_of_another_type(endpoint, name, content, error):
+    user = factories.UserFactory()
+    client = APIClient()
+    client.force_login(user)
+
+    response = client.post(
+        f"/api/v1.0/contacts/{endpoint}/",
+        {"file": ContentFile(content, name=name)},
+        format="multipart",
+    )
+
+    assert response.status_code == 400
+    assert error in response.json()["errors"][0]["detail"]
+    assert not models.Contact.objects.filter(owner=user).exists()
+
+
+@pytest.mark.parametrize(
+    ("name", "content"),
+    [
+        ("CONTACTS.VCF", SAMPLE_VCF.encode()),
+        ("contacts.vcard", SAMPLE_VCF.encode()),
+        ("contacts.txt", SAMPLE_VCF.encode()),
+        ("bom.vcf", b"\xef\xbb\xbf\r\n" + SAMPLE_VCF.encode()),
+        ("latin.vcf", SAMPLE_VCF.replace("Jeanne", "Ren\xe9e").encode("cp1252")),
+        ("lower.vcf", SAMPLE_VCF.replace("BEGIN:VCARD", "begin: vcard").encode()),
+        ("folded.vcf", SAMPLE_VCF.replace("BEGIN:VCARD", "BEGIN:VC\r\n ARD").encode()),
+        # This card has no END. The import reports it as an error.
+        ("truncated.vcf", b"BEGIN:VCARD\r\nVERSION:3.0\r\nFN:Alice\r\n"),
+    ],
+)
+def test_import_endpoint_accepts_vcard_variants(name, content):
+    user = factories.UserFactory()
+    client = APIClient()
+    client.force_login(user)
+
+    response = client.post(
+        "/api/v1.0/contacts/import-vcf/",
+        {"file": ContentFile(content, name=name)},
+        format="multipart",
+    )
+
+    assert response.status_code == 202, response.content
 
 
 def test_round_trip_preserves_fields():
