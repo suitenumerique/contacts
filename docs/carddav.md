@@ -123,8 +123,10 @@ client shares the router's address, and so one failure budget.
 
 | Scope           | Grants                                              |
 | --------------- | --------------------------------------------------- |
-| `carddav:read`  | OPTIONS, PROPFIND, REPORT, GET, HEAD                 |
+| `carddav:read`  | PROPFIND, REPORT, GET, HEAD                          |
 | `carddav:write` | the above plus PUT and DELETE                        |
+
+`OPTIONS` needs no credential.
 
 `carddav:*` scopes are only valid on `type="carddav"` channels, and the REST
 scopes (`contacts:read`, `groups:read`) are only valid on `type="api_key"`
@@ -199,8 +201,9 @@ corbeille). A card cannot change from a contact into a group or back.
 
 ### Writes
 
-A `PUT` is validated like a REST write: a name required (`FN` or any `N`
-component; a card without either falls back to its first email as `FN`,
+A `PUT` is validated like a REST write: a name required (`FN`, or an `N`
+component other than the prefix; a card without either falls back to its
+first email as `FN`,
 as vCard requires one), an email or a phone required, the same field
 lengths. A card with only `FN` keeps it whole, it is never split into
 first and last name. A card that fails, or
@@ -216,7 +219,10 @@ response carries an `ETag` only when the stored card is byte-for-byte the
 body sent (RFC 6352 6.3.2.3); otherwise the client fetches it back.
 
 A `PUT` onto a card of the user's own that is in the corbeille restores it
-with the new content (`201`), keeping its row, labels and history.
+with the new content (`201`). The restore keeps the row, thus the data
+that vCard does not carry (favorite, group memberships) stays. The labels
+follow the `CATEGORIES` of the body. A body without `CATEGORIES` removes
+the labels.
 
 `DELETE` moves the contact to the corbeille (soft delete), matching the REST
 API: it does not erase it. The one exception is an overlay (a local copy of
@@ -235,8 +241,9 @@ Cards are served as vCard 3.0 and accepted as 3.0 or 4.0. Every card
 carries a `UID`: the client's when it sent one, else the contact id.
 What the columns cannot hold is kept in `Contact.vcard_extra` as raw
 content lines, so a card read, edited on a phone and written back keeps
-its property groups (`item1.`), parameters, ADR components, N prefix and
-suffix, `KEY`, `X-` properties, and later instances of one-column
+its property groups (`item1.`), parameters, ADR components, lists of
+values in one `N` component, `KEY`, `X-` properties, and later instances
+of one-column
 properties (a second `ORG`, `NOTE`...). See `core/services/vcf_service.py`
 for the mapping.
 

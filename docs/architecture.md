@@ -12,7 +12,7 @@ recently the user picked them.
 
 ```
    Drive / Docs / Messages backends ──▶ /external_api/v1.0/
-   (user's access token, introspected)   search · interactions · group members
+   (user's access token, introspected)   search · interactions · add contact · group members
                                                    │
                  ┌─────────────────────────────────▼───┐
    Contacts UI ─▶│  contacts app                       │
@@ -26,10 +26,13 @@ recently the user picked them.
 ## Components
 
 - **Backend** (`src/backend/`): Django 5 + DRF, PostgreSQL, Redis,
-  dramatiq worker (async vCard/CSV imports). Three ways in: OIDC login for
+  dramatiq worker (async vCard/CSV imports). Four ways in: OIDC login for
   people (Keycloak in dev, via `django-lasuite` / `mozilla-django-oidc`),
-  [channel](channels.md) API keys for services, and HTTP Basic Auth with a
-  channel password for [CardDAV](carddav.md) clients.
+  the user's access token for other Suite apps on the
+  [external API](resource_server.md), [channel](channels.md) API keys for
+  services, and HTTP Basic Auth with a channel password for
+  [CardDAV](carddav.md) clients. The Django admin has its own password
+  login for staff.
 - **Frontend** (`src/frontend/`): React 19 + Vite + TanStack Router/Query +
   `@gouvfr-lasuite/ui-components`; pnpm via corepack; oxlint/oxfmt. Three
   panes (sidebar, list, detail); the open contact or group, the search and
@@ -71,6 +74,8 @@ so a client's delta cannot silently miss one).
 
 ## Key flows
 
+The REST paths on this page are relative to `/api/v1.0/`.
+
 - **Search**: `GET /contacts/?q=` over the denormalized `search_text`,
   serving the header search. Other Suite apps search through
   `GET /external_api/v1.0/search/` instead: contacts and groups in one
@@ -91,7 +96,8 @@ so a client's delta cannot silently miss one).
   `deleted_at`, `GET /contacts/?trash=true` lists the user's trashed rows
   (plus the organization's, for an administrator),
   `POST /contacts/{id}/restore/` brings one back, a second `DELETE` is
-  permanent. A trashed contact carries its `deleted_at` in the payload.
+  permanent. `GET /contacts/{id}/` gives the `deleted_at` of a trashed
+  contact. The rows of a list do not have this field.
   `PATCH` and `PUT` reject updates to a trashed contact (400) until it is
   restored. `purge_trashed_contacts` hard-deletes rows trashed for longer
   than `TRASHBIN_CUTOFF_DAYS` (default 30), and `purge_carddav_changes`
@@ -100,18 +106,22 @@ so a client's delta cannot silently miss one).
 - **Import/export**: `POST /contacts/import-vcf/` or `import-csv/` queues a
   dramatiq task, polled with `GET /tasks/{id}/`. The view answers
   400 for an empty file and for a file that contains a NUL byte. It also
-  answers 400 for a vCard upload that contains no vCard. A card
-  matching one of the user's own contacts is skipped: the match is on any
-  email address, or for a card without email, on first + last name (or the
-  full name when there is neither) and the digits of the first phone.
-  Trashed contacts count as
+  answers 400 for a vCard upload that contains no vCard. The import
+  skips a card that matches a contact of the target address book. The
+  target is the user's own contacts, or the organization's contacts with
+  `scope=organization`. Overlays are not part of the match. The match is
+  on any email address, or for a card without email, on first + last name
+  (or the full name when there is neither) and the digits of the first
+  phone. Trashed contacts count as
   matches, and a matched trashed contact is restored, so re-importing a
   file creates nothing new. vCard `CATEGORIES` become labels, except the
   system groups of a Google Contacts export (`myContacts` is dropped,
   `starred` makes a favorite; same for the CSV `Labels` column), and group
   cards (Apple's `X-ADDRESSBOOKSERVER-KIND:group`, or vCard 4 `KIND:group`)
-  become groups, merged into a personal group of the same name, with the
-  members their UIDs name in the file or among the user's contacts. Export via
+  become groups, merged into a group of the same name in the target address
+  book, with the members their UIDs name in the file or among that book's
+  contacts. An import into the organization's address book drops the labels
+  and the star. Export via
   `GET /contacts/export-vcf/` or `export-csv/` (`core/services/csv_service.py`
   documents the CSV columns).
 

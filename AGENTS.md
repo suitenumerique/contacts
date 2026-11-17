@@ -11,12 +11,13 @@ external API called with the user's own access token (resource server):
 - **Frontend**: React 19 + Vite + TanStack Router/Query + @gouvfr-lasuite/ui-components (pnpm via corepack, oxlint/oxfmt)
 - **Authentication**: Keycloak OIDC; organizations come from a configurable claim (`siret` in dev/prod)
 
-Core concepts: personal + org-wide contacts, groups and labels; read-only
-rows provisioned from an external source, with per-user **overlays** (fork) so
+Core concepts: personal + org-wide contacts and groups; per-user labels;
+read-only rows provisioned from an external source, with per-user
+**overlays** (fork) so
 local edits don't break the link; trash (corbeille); channel API keys for
 services and CardDAV devices; async vCard/CSV import; `/external_api/`
-search, interactions ("+1" ranking with decay) and group members for other
-Suite apps (docs/resource_server.md).
+search, interactions ("+1" ranking with decay), "Add as contact" and group
+members for other Suite apps (docs/resource_server.md).
 
 ## Common Commands
 
@@ -73,7 +74,7 @@ make test-front         # vitest
 - `src/features/{auth,api,config,layouts,ui,i18n,...}` - app shell shared with other Suite apps
 - `src/routes/` - TanStack Router file routes: `/contacts/{-$contactId}`,
   `/groups/{-$groupId}`, `/trash/{-$contactId}` under the `_app` layout
-  (generated `routes.gen.ts`, gitignored)
+  (generated `src/routes.gen.ts`, gitignored)
 - UI state lives in the URL (open item, `q`, `label`, `favorites`, `sort`);
   search params are plain strings (see `features/app/searchParams.ts`)
 

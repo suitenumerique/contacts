@@ -26,7 +26,7 @@ core/entitlements/
 | Setting | Default | Meaning |
 | ------- | ------- | ------- |
 | `ENTITLEMENTS_BACKEND` | `core.entitlements.backends.local.LocalEntitlementsBackend` | dotted path to the backend class |
-| `ENTITLEMENTS_BACKEND_PARAMETERS` | `{}` | JSON kwargs passed to it |
+| `ENTITLEMENTS_BACKEND_PARAMETERS` | `{}` | kwargs passed to it, as a Python dict literal |
 | `ENTITLEMENTS_CACHE_TIMEOUT` | `300` | seconds a response stays fresh |
 
 The default backend grants `can_access` to everyone and `can_admin` to no
@@ -66,15 +66,15 @@ gets `403`, not just a redirected SPA.
 
 CardDAV is gated at authentication (`carddav/auth.py`). HTTP Basic Auth with
 a channel password is the only way into CardDAV (sessions are refused), and
-the check runs on every request, so a sync password minted before the
-entitlement was withdrawn stops working too.
+the check runs on every request that reads or writes data, so a sync
+password minted before the entitlement was withdrawn stops working too.
 
 Both paths are **fail-closed**: when the entitlements service is
 unreachable and nothing usable is cached, access is denied rather than
 assumed. With the default local backend this is invisible, since it grants
 access to everyone and never fails.
 
-Organization and global service channels are a separate axis. A request
+Organization and global `api_key` channels are a separate axis. A request
 carrying `contacts:read` passes on its scope, so a service keeps reading
 regardless of any individual's entitlement. The [external API](resource_server.md)
 acts as the token's user, who must pass `can_access` like in the web app. A
@@ -89,4 +89,4 @@ reads it. The decisions are `Contact.is_writable` and
 `ContactGroup.is_writable`, fail-closed like the rest: an unreachable
 service makes the organization's rows read-only. With the default local
 backend nobody is an administrator, so they can only come from the Django
-admin or a source.
+admin, a source or the demo seed.
