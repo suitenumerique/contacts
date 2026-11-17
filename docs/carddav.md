@@ -247,6 +247,11 @@ of one-column
 properties (a second `ORG`, `NOTE`...). See `core/services/vcf_service.py`
 for the mapping.
 
+A card is served without the characters that XML 1.0 does not allow: the
+C0 controls other than tab, line feed and carriage return, the surrogates,
+U+FFFE and U+FFFF. A `GET` and a `REPORT` serve the same text, and the
+stored data keeps these characters.
+
 ## Supported methods
 
 `OPTIONS`, `PROPFIND`, `REPORT`, `GET`, `HEAD`, `PUT`, `DELETE`.

@@ -36,6 +36,7 @@ from core.services.vcf_service import (
 )
 
 from carddav.models import CardName, ContactChange, PurgeMark, SyncCounter
+from carddav.xml import strip_non_xml_chars
 
 PERSONAL = "personal"
 DIRECTORY = "directory"
@@ -307,10 +308,16 @@ def resolve_member_refs(user, refs):
 
 
 def render_card(user, book, card):
-    """Serialize one card to a vCard, honouring overlay merging."""
+    """Serialize one card to a vCard, honouring overlay merging.
+
+    Leave out the characters that XML 1.0 does not allow. The card is then
+    the same text in a vCard body and in an XML document.
+    """
     if is_group(card):
-        return serialize_group(card, group_member_uids(user, book, card))
-    return serialize_contact(card)
+        text = serialize_group(card, group_member_uids(user, book, card))
+    else:
+        text = serialize_contact(card)
+    return strip_non_xml_chars(text)
 
 
 # --- sync-collection -------------------------------------------------

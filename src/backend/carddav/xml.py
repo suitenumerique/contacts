@@ -6,6 +6,7 @@ handling (XXE, billion laughs) is not acceptable here. Responses are built
 with the stdlib ``ElementTree``, which only ever serializes data we own.
 """
 
+import re
 from xml.etree import ElementTree as ET
 
 from defusedxml.ElementTree import fromstring as safe_fromstring
@@ -130,6 +131,26 @@ def add_response(parent, href, found=None, not_found=(), status=None):
     return response
 
 
+_DECLARATION = b"<?xml version='1.0' encoding='utf-8'?>\n"
+
+# The C0 controls other than tab, line feed and carriage return, the
+# surrogates, U+FFFE and U+FFFF. XML 1.0 refuses them, also as a character
+# reference.
+_NON_XML_CHARS = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\ud800-\udfff\ufffe\uffff]")
+
+
+def strip_non_xml_chars(text):
+    """Return *text* without the characters that XML 1.0 does not allow."""
+    return _NON_XML_CHARS.sub("", text)
+
+
 def to_bytes(root):
-    """Serialize a document with the XML declaration clients expect."""
-    return ET.tostring(root, encoding="utf-8", xml_declaration=True)
+    """Serialize a document with the XML declaration clients expect.
+
+    Leave out the characters that XML 1.0 does not allow, so the document
+    is well-formed for any text that it holds.
+    """
+    # Filter the text, not the bytes. ElementTree encodes a surrogate as a
+    # character reference, which XML 1.0 also refuses.
+    text = ET.tostring(root, encoding="unicode")
+    return _DECLARATION + strip_non_xml_chars(text).encode("utf-8")
