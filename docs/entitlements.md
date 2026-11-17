@@ -37,13 +37,30 @@ DeployCenter parameters:
 
 ```
 ENTITLEMENTS_BACKEND=core.entitlements.backends.deploycenter.DeployCenterEntitlementsBackend
-ENTITLEMENTS_BACKEND_PARAMETERS='{"base_url":"https://deploycenter.example.com/api/v1.0/entitlements/","service_id":"contacts","api_key":"secret","timeout":10,"oidc_claims":["siret"]}'
+ENTITLEMENTS_BACKEND_PARAMETERS='{"base_url":"https://deploycenter.example.com/api/v1.0/entitlements/","service_id":12,"api_key":"secret","timeout":10,"oidc_claims":["siret"]}'
+OIDC_USERINFO_ORGANIZATION_CLAIM=siret
 ```
+
+`service_id` is the integer identifier of the service in DeployCenter.
+
+DeployCenter finds the organization with its `siret`. It refuses a call
+that has no `siret`. The backend sends the claims that `oidc_claims` lists,
+thus `oidc_claims` must contain `siret`. The value is the organization
+claim of the user, thus `OIDC_USERINFO_ORGANIZATION_CLAIM=siret` is
+necessary (see [organizations.md](organizations.md)). The login sends the
+value from the identity provider. All other checks send the `external_id`
+of the organization of the user. Organizations from the email domain have
+no `siret`: each call fails, and Contacts denies access.
+
+DeployCenter answers `is_admin`. The backend gives it to the rest of
+Contacts as `can_admin`.
 
 The DeployCenter backend caches each answer for
 `ENTITLEMENTS_CACHE_TIMEOUT` and keeps a second copy for `stale_timeout`
 seconds (a backend parameter, one day by default). When the API fails, that
-last known answer is used; past it, the call fails.
+last known answer is used; past it, the call fails. Each cached answer is
+for one user and one `siret`. A user who moves to another organization does
+not get the answer of the previous organization.
 
 ## Where it is consulted
 

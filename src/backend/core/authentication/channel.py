@@ -68,7 +68,7 @@ def _check_entitled(user):
     Fail-closed when the backend is unreachable, like ``IsEntitledToAccess``.
     """
     try:
-        entitlements = get_user_entitlements(user.sub, user.email)
+        entitlements = get_user_entitlements(user)
     except EntitlementsUnavailableError as exc:
         logger.warning("Entitlements unavailable, denying channel user %s", user.pk)
         raise PermissionDenied("Entitlements unavailable.") from exc

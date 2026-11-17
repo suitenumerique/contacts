@@ -1,6 +1,7 @@
 """DeployCenter (Espace Operateur) entitlements backend."""
 
 import logging
+from urllib.parse import urlencode
 
 from django.conf import settings
 from django.core.cache import cache
@@ -19,11 +20,12 @@ class DeployCenterEntitlementsBackend(EntitlementsBackend):
     Args:
         base_url: Full URL of the entitlements endpoint
             (e.g. "https://dc.example.com/api/v1.0/entitlements/").
-        service_id: The service identifier in DeployCenter.
+        service_id: The integer identifier of the service in DeployCenter.
         api_key: API key for X-Service-Auth header.
         timeout: HTTP request timeout in seconds.
         oidc_claims: List of OIDC claim names to extract from user_info
-            and forward as query params (e.g. ["siret"]).
+            and forward as query params (e.g. ["siret"]). DeployCenter
+            refuses a request without "siret".
         stale_timeout: Seconds the last known answer stays usable when
             DeployCenter is unreachable.
     """
@@ -45,13 +47,22 @@ class DeployCenterEntitlementsBackend(EntitlementsBackend):
         self.oidc_claims = oidc_claims or []
         self.stale_timeout = stale_timeout
 
-    def _cache_key(self, user_sub):
-        return f"entitlements:user:{user_sub}"
+    def _claims(self, user_info):
+        """Return the configured claims that *user_info* gives a value to."""
+        user_info = user_info or {}
+        return {
+            claim: user_info[claim]
+            for claim in self.oidc_claims
+            if user_info.get(claim)
+        }
 
-    def _stale_cache_key(self, user_sub):
-        return f"entitlements:user:{user_sub}:stale"
+    def _cache_key(self, user_sub, claims):
+        return f"entitlements:user:{user_sub}:{urlencode(claims)}"
 
-    def _make_request(self, user_email, user_info=None):
+    def _stale_cache_key(self, user_sub, claims):
+        return f"entitlements:user:{user_sub}:{urlencode(claims)}:stale"
+
+    def _make_request(self, user_email, claims):
         """Make a request to the DeployCenter entitlements API.
 
         Returns:
@@ -61,13 +72,8 @@ class DeployCenterEntitlementsBackend(EntitlementsBackend):
             "service_id": self.service_id,
             "account_type": "user",
             "account_email": user_email,
+            **claims,
         }
-
-        # Forward configured OIDC claims as query params
-        if user_info:
-            for claim in self.oidc_claims:
-                if claim in user_info:
-                    params[claim] = user_info[claim]
 
         headers = {
             "X-Service-Auth": f"Bearer {self.api_key}",
@@ -104,17 +110,21 @@ class DeployCenterEntitlementsBackend(EntitlementsBackend):
 
         A user without a ``sub`` is never cached: users without one would
         otherwise share a single cache entry.
+
+        A cache entry is for one user and one set of forwarded claims. An
+        answer for one organization is thus never served for another one.
         """
+        claims = self._claims(user_info)
         cacheable = bool(user_sub)
-        cache_key = self._cache_key(user_sub)
-        stale_key = self._stale_cache_key(user_sub)
+        cache_key = self._cache_key(user_sub, claims)
+        stale_key = self._stale_cache_key(user_sub, claims)
 
         if cacheable and not force_refresh:
             cached = cache.get(cache_key)
             if cached is not None:
                 return cached
 
-        data = self._make_request(user_email, user_info=user_info)
+        data = self._make_request(user_email, claims)
 
         if data is None:
             stale = cache.get(stale_key) if cacheable else None
@@ -127,7 +137,8 @@ class DeployCenterEntitlementsBackend(EntitlementsBackend):
         entitlements = data.get("entitlements", {})
         result = {
             "can_access": entitlements.get("can_access", False),
-            "can_admin": entitlements.get("can_admin", False),
+            # DeployCenter names the administrator entitlement "is_admin".
+            "can_admin": entitlements.get("is_admin", False),
         }
 
         # Organization name from DeployCenter response (if present)
