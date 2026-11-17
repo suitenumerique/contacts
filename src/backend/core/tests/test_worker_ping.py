@@ -2,6 +2,7 @@
 
 import socket
 import sys
+import threading
 from unittest import mock
 
 import dramatiq
@@ -55,6 +56,18 @@ def test_ping_broker_down(caplog):
     with mock.patch.object(broker, "enqueue", side_effect=redis.ConnectionError):
         assert run_ping() == 1
     assert "ConnectionError" in caplog.text
+
+
+def test_ping_call_never_returns(caplog):
+    """--ping exits 1 when a call to Redis never returns."""
+    broker = dramatiq.get_broker()
+    never = threading.Event()
+    with (
+        mock.patch.object(broker, "enqueue", side_effect=lambda *_, **__: never.wait()),
+        mock.patch.object(health, "PROBE_DEADLINE", 100),
+    ):
+        assert run_ping() == 1
+    assert "did not finish" in caplog.text
 
 
 def test_worker_consumes_its_ping_queue():

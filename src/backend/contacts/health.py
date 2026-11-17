@@ -8,6 +8,7 @@ that the broker, the consumer, a worker thread and the result backend work.
 
 import logging
 import socket
+import threading
 
 import dramatiq
 import redis
@@ -20,6 +21,10 @@ PING_QUEUE = f"ping.{socket.gethostname()}"
 
 # How long the prober waits for the answer (milliseconds).
 PING_TIMEOUT = 5_000
+
+# Limit for the full probe (milliseconds). PING_TIMEOUT does not limit a call
+# to Redis or to the database that never returns.
+PROBE_DEADLINE = 6_000
 
 
 @dramatiq.actor(
@@ -39,13 +44,24 @@ def ping():
 
 def is_alive():
     """Send a ping to the worker of this container and wait for its answer."""
-    try:
-        result = ping.send().get_result(block=True, timeout=PING_TIMEOUT)
-    # Any failure means that the worker is not healthy.
-    except Exception as exc:  # noqa: BLE001  # pylint: disable=broad-exception-caught
-        logger.warning("The worker did not answer the ping: %r", exc)
+    answers = []
+
+    def probe():
+        try:
+            answers.append(ping.send().get_result(block=True, timeout=PING_TIMEOUT))
+        # Any failure means that the worker is not healthy.
+        except Exception as exc:  # noqa: BLE001  # pylint: disable=broad-exception-caught
+            logger.warning("The worker did not answer the ping: %r", exc)
+
+    # A daemon thread does not keep the process alive. The caller can exit
+    # while a call of the probe still blocks.
+    thread = threading.Thread(target=probe, daemon=True)
+    thread.start()
+    thread.join(PROBE_DEADLINE / 1000)
+    if thread.is_alive():
+        logger.warning("The ping did not finish in %d ms.", PROBE_DEADLINE)
         return False
-    return result == "pong"
+    return answers == ["pong"]
 
 
 class DropPingQueue(Middleware):

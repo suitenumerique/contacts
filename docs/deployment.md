@@ -75,6 +75,8 @@ The command sends a ping to the worker of its own container and waits 5
 seconds for the answer. It exits with 0 when the worker answers and with 1
 when it does not. It needs the broker, a worker process and the result
 backend, so the container is unhealthy when one of them does not answer.
+The full probe stops after 6 seconds, also when Redis accepts the
+connection and does not answer.
 
 Each worker process runs one task at a time. A ping that goes to a process
 in the middle of a long import waits for the end of the import, and the
