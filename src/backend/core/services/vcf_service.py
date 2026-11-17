@@ -38,6 +38,7 @@ import vobject
 from vobject.base import VObjectError
 
 from core.models import NAME_PARTS, Civility, compose_name
+from core.utils import decode_text
 from core.validators import validate_photo
 
 logger = logging.getLogger(__name__)
@@ -101,18 +102,6 @@ class InvalidVCardError(ValueError):
 
 
 # --- text encoding ----------------------------------------------------
-
-
-def _decode_bytes(data):
-    """Decode a file: UTF-8 when it is, else Windows-1252, else Latin-1."""
-    if isinstance(data, str):
-        return data
-    for encoding in ("utf-8-sig", "cp1252"):
-        try:
-            return data.decode(encoding)
-        except UnicodeDecodeError:
-            continue
-    return data.decode("latin-1")
 
 
 def _unescape(raw):
@@ -375,7 +364,7 @@ def _read_components(data):
     BEGIN/END raises :class:`InvalidVCardError`.
     """
     stack, lines = [], []
-    stream = io.StringIO(_decode_bytes(data))
+    stream = io.StringIO(decode_text(data))
     for text, number in vobject.base.getLogicalLines(stream):
         if not text.strip():
             continue

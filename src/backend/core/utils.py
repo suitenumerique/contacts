@@ -48,3 +48,20 @@ def build_search_text(*parts):
     ]
     unique = dict.fromkeys([*words, *pieces])
     return f" {' '.join(unique)}" if unique else ""
+
+
+def decode_text(data):
+    """Return the bytes of a text file as a string.
+
+    The function reads UTF-8, with or without a byte order mark. It reads
+    bytes that are not UTF-8 as Windows-1252, then as Latin-1. It returns a
+    string unchanged.
+    """
+    if isinstance(data, str):
+        return data
+    for encoding in ("utf-8-sig", "cp1252"):
+        try:
+            return data.decode(encoding)
+        except UnicodeDecodeError:
+            continue
+    return data.decode("latin-1")

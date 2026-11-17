@@ -22,7 +22,8 @@ UTF-8 with optional BOM)::
 Unknown columns are ignored. Common alternative headers are mapped:
 French ones (``prenom``, ``nom``, ``courriel``, ``telephone``,
 ``organisme``, ``service``, ``poste``...), plain ``email`` / ``phone`` /
-``phone2`` columns, and Google Contacts and Outlook exports.
+``phone2`` columns, and Google Contacts and Outlook exports. The import
+also reads a file in Windows-1252 or Latin-1.
 """
 
 import csv
@@ -32,6 +33,7 @@ import re
 import unicodedata
 
 from core.models import NAME_PARTS, compose_name
+from core.utils import decode_text
 
 logger = logging.getLogger(__name__)
 
@@ -322,8 +324,7 @@ def parse_csv(data):
     ``label_names`` as a ``vcf_service.parse_vcf`` card, without ``photo``
     or ``vcard_extra``.
     """
-    if isinstance(data, bytes):
-        data = data.decode("utf-8-sig", errors="replace")
+    data = decode_text(data)
 
     try:
         dialect = csv.Sniffer().sniff(data[:2048], delimiters=",;\t")
