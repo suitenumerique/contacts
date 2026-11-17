@@ -207,7 +207,7 @@ def main():
 
     # contacts.health is not in an application, so the discovery does not find it.
     dramatiq_args.extend([*tasks_modules, "contacts.health"])
-    # The worker consumes its healthcheck queue whatever the queues asked for.
+    # The worker always consumes its healthcheck queue, with the other queues.
     dramatiq_args.extend(["--queues", *queues, PING_QUEUE])
 
     logger.info("Starting worker with queues: %s", ", ".join(queues))
