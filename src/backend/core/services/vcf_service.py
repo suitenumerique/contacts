@@ -11,10 +11,14 @@ property name, so parse -> serialize -> parse is stable:
 - properties without a column (UID, KEY, X-*, ...) verbatim;
 - a modeled property whose line carries more than its column (a group,
   extra TYPE values, ADR components, a list of values in one N component,
-  more ORG units) as a "shadow" line. Serialization writes the shadow back
-  instead of rebuilding the line, as long as it still decodes to the
-  column's current value; once the column is edited it is ignored;
+  more ORG units, a text longer than the column) as a "shadow" line.
+  Serialization writes the shadow back instead of rebuilding the line, as
+  long as it still decodes to the column's current value; once the column
+  is edited it is ignored;
 - later instances of a single-column property (a second ORG, NOTE, ...)
+  verbatim, written back after the modeled lines;
+- an EMAIL, TEL, ADR or URL value that ``set_aside_refused_values`` takes
+  out of its column, because it breaks a value rule of ``core.validators``:
   verbatim, written back after the modeled lines.
 
 Mappings: FN <-> full_name; N <-> family_name, given_name, middle_name,
@@ -38,7 +42,7 @@ import vobject
 from vobject.base import VObjectError
 
 from core.models import NAME_PARTS, Civility, compose_name
-from core.validators import validate_photo
+from core.validators import split_typed_values, validate_photo
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +52,8 @@ _SINGLE = frozenset({"FN", "N", "NICKNAME", "ORG", "TITLE", "NOTE", "PHOTO"})
 # Only the first instance of a _SINGLE property fills its column. Later
 # ones are kept verbatim under this key (not a property name) and written
 # after the modeled lines. A second N is dropped: both vCard 3 and 4 allow
-# one at most.
+# one at most. The key also holds the lines of the _TYPED values that
+# set_aside_refused_values takes out of their columns.
 _MORE = "+"
 _REPEATABLE = _SINGLE - {"N"}
 _TYPED = {"EMAIL": "emails", "TEL": "phones", "ADR": "addresses", "URL": "urls"}
@@ -56,6 +61,9 @@ _DEFAULT_TYPE = {"EMAIL": "other", "TEL": "other", "ADR": "other", "URL": ""}
 _TEXT = {"TITLE": "job_title", "NOTE": "notes", "NICKNAME": "nickname"}
 # Modeled properties whose original line may be kept as a shadow.
 _SHADOWED = frozenset({"FN", "N", "ORG", *_TEXT, *_TYPED})
+
+# The size of the name, NICKNAME, ORG and TITLE columns of a Contact.
+_COLUMN_SIZE = 255
 
 _IGNORED_TYPES = frozenset({"internet", "pref", "voice"})
 _TYPE_RE = re.compile(r"[A-Za-z0-9-]{1,32}")
@@ -288,20 +296,30 @@ def _decode_n(value):
     }
 
 
+def _cut(text):
+    """*text* cut to the size of its column."""
+    return text[:_COLUMN_SIZE].strip()
+
+
 def _decode(name, line):  # pylint: disable=too-many-return-statements
-    """The column value(s) one modeled line stands for."""
+    """The column value(s) one modeled line stands for.
+
+    A text longer than its column is cut. The line is then a shadow.
+    """
     value = line.value
     if name in ("FN", "TITLE", "NOTE"):
-        return _unescape(value).strip()
+        text = _unescape(value).strip()
+        # The notes column has no size limit.
+        return text if name == "NOTE" else _cut(text)
     if name == "NICKNAME":
-        return ", ".join(_values(value))
+        return _cut(", ".join(_values(value)))
     if name == "N":
-        return _decode_n(value)
+        return {field: _cut(text) for field, text in _decode_n(value).items()}
     if name == "ORG":
         units = [_unescape(part).strip() for part in _split(value, ";")]
         return {
-            "company": units[0],
-            "department": ", ".join(unit for unit in units[1:] if unit),
+            "company": _cut(units[0]),
+            "department": _cut(", ".join(unit for unit in units[1:] if unit)),
         }
     if name == "PHOTO":
         return _decode_photo(line)
@@ -455,16 +473,28 @@ def parse_one_card(data):
     Returns ``(is_group, fields)``: group fields (see ``_parse_group``) for
     a group card, Contact kwargs otherwise. Raises
     :class:`InvalidVCardError` for anything else.
+
+    A value is not a reason to refuse the card. NUL characters are
+    dropped, because PostgreSQL cannot store them. The values of a contact
+    card that break a value rule are set aside (see
+    ``set_aside_refused_values``).
     """
+    if isinstance(data, bytes):
+        data = data.replace(b"\0", b"")
+    else:
+        data = data.replace("\0", "")
     components = list(_read_components(data))
     if len(components) != 1 or components[0][0] != "VCARD":
         raise InvalidVCardError("the body must hold exactly one VCARD")
     lines = components[0][1]
     is_group = _is_group(lines)
     try:
-        return is_group, (_parse_group(lines) if is_group else _parse_card(lines))
+        fields = _parse_group(lines) if is_group else _parse_card(lines)
     except Exception as exc:  # pylint: disable=broad-exception-caught
         raise InvalidVCardError(str(exc)) from exc
+    if not is_group:
+        set_aside_refused_values(fields)
+    return is_group, fields
 
 
 # --- group cards ------------------------------------------------------
@@ -640,10 +670,38 @@ def _parse_card(lines):
 
     # An empty FN reads as what serialization would write in its place,
     # so a second round trip gives the same full_name.
-    fields["full_name"] = full_name or _default_full_name(
-        [fields[part] for part in NAME_PARTS], fields["emails"]
+    fields["full_name"] = full_name or _cut(
+        _default_full_name([fields[part] for part in NAME_PARTS], fields["emails"])
     )
     return fields
+
+
+def _take_shadow(extra, name, item):
+    """Remove the shadow line of *item* from *extra*; the line, or None."""
+    for text in extra.get(name, []):
+        line = _line_from_text(name, text)
+        if line is None or _decode(name, line) != item:
+            continue
+        extra[name].remove(text)
+        if not extra[name]:
+            del extra[name]
+        return text
+    return None
+
+
+def set_aside_refused_values(fields):
+    """Take out of a parsed card the values that break a value rule.
+
+    The EMAIL, TEL, ADR and URL values that ``split_typed_values`` refuses
+    leave their columns. Each one stays in ``vcard_extra`` as its content
+    line, so serialization writes it back after the modeled lines.
+    """
+    extra = fields["vcard_extra"]
+    for name, field in _TYPED.items():
+        fields[field], refused = split_typed_values(field, fields[field])
+        for item in refused:
+            text = _take_shadow(extra, name, item) or _encode(name, item)
+            extra.setdefault(_MORE, []).append(text)
 
 
 # --- serialization ----------------------------------------------------
@@ -763,12 +821,12 @@ def _unmodeled_lines(extra, skipped=frozenset()):
 
 
 def _repeated_lines(extra):
-    """The stored later instances of _SINGLE properties, safe to write."""
+    """The stored lines of the _MORE key, safe to write."""
     for text in extra.get(_MORE, []):
         if "\r" in text or "\n" in text:
             continue
         match = re.match(r"(?:[A-Za-z0-9-]+\.)?([A-Za-z0-9-]+)[;:]", text)
-        if match and match.group(1).upper() in _REPEATABLE:
+        if match and match.group(1).upper() in _REPEATABLE | set(_TYPED):
             yield text
 
 

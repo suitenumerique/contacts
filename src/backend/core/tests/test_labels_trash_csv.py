@@ -552,6 +552,50 @@ def test_import_applies_the_api_rules(user):
     ) == {"Luc Phone", "Jeanne"}
 
 
+def test_csv_import_drops_a_value_that_breaks_a_value_rule(user):
+    """The card stays. The REST API refuses these values."""
+    data = (
+        "prenom,nom,email,telephone,phone2,website_1,website_2,address_1\n"
+        f"Jean,Dupont,jean@example.org,{'1' * 100},+33199000405,"
+        f"javascript:alert(1),example.org/jean,{'x' * 1025}\n"
+    )
+    result = import_contacts(user, "csv", data.encode())
+
+    assert (result["imported"], result["errors"]) == (1, 0)
+    contact = models.Contact.objects.get(owner=user)
+    assert contact.emails == [{"type": "work", "value": "jean@example.org"}]
+    assert contact.phones == [{"type": "cell", "value": "+33199000405"}]
+    assert contact.urls == [{"type": "", "value": "example.org/jean"}]
+    assert contact.addresses == []
+    assert contact.vcard_extra == {}
+
+    again = import_contacts(user, "csv", data.encode())
+    assert (again["imported"], again["skipped"]) == (0, 1)
+
+
+def test_csv_import_rejects_a_card_whose_only_phone_is_refused(user):
+    """The email-or-phone rule applies to the values that the import stores."""
+    data = f"prenom,nom,telephone\nJean,Dupont,{'1' * 100}\n"
+
+    result = import_contacts(user, "csv", data.encode())
+
+    assert (result["imported"], result["errors"]) == (0, 1)
+    assert result["error_details"][0]["reason"] == "no_email_or_phone"
+    assert not models.Contact.objects.filter(owner=user).exists()
+
+
+def test_csv_import_keeps_the_first_values_up_to_the_limit(user):
+    header = ",".join(f"phone_{index}" for index in range(1, 53))
+    phones = [f"+3319900{index:04}" for index in range(52)]
+    data = f"nom,{header}\nDupont,{','.join(phones)}\n"
+
+    result = import_contacts(user, "csv", data.encode())
+
+    assert result["imported"] == 1
+    contact = models.Contact.objects.get(owner=user)
+    assert [phone["value"] for phone in contact.phones] == phones[:50]
+
+
 def test_import_restores_a_trashed_duplicate(user):
     trashed = factories.ContactFactory(
         owner=user,

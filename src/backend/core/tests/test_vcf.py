@@ -10,7 +10,11 @@ import pytest
 from rest_framework.test import APIClient
 
 from core import factories, models, tasks
-from core.services.vcf_service import parse_vcf, serialize_contacts
+from core.services.vcf_service import (
+    parse_vcf,
+    serialize_contacts,
+    set_aside_refused_values,
+)
 from core.tasks import import_contacts
 
 pytestmark = pytest.mark.django_db
@@ -170,6 +174,92 @@ def test_import_error_details_are_capped():
 
     assert result["errors"] == 40
     assert len(result["error_details"]) == tasks.MAX_ERROR_DETAILS
+
+
+LONG_PHONE = "1" * 100
+BROKEN_VALUES_VCF = (
+    "BEGIN:VCARD\r\nVERSION:3.0\r\nUID:jean-1\r\nFN:Jean Dupont\r\n"
+    "EMAIL;TYPE=WORK:jean@example.org\r\n"
+    "URL:javascript:alert(1)\r\nitem1.URL;TYPE=WORK,pref:ftp://example.org/x\r\n"
+    "item1.X-ABLabel:Files\r\nURL:https://example.org/jean\r\n"
+    f"TEL;TYPE=CELL:{LONG_PHONE}\r\nTEL;TYPE=WORK:+33199000405\r\nEND:VCARD\r\n"
+)
+BROKEN_LINES = [
+    f"TEL;TYPE=CELL:{LONG_PHONE}",
+    "URL:javascript:alert(1)",
+    "item1.URL;TYPE=WORK,pref:ftp://example.org/x",
+]
+BROKEN_VALUES_EXTRA = {
+    "UID": ["UID:jean-1"],
+    "X-ABLABEL": ["item1.X-ABLABEL:Files"],
+    "+": BROKEN_LINES,
+}
+
+
+def test_import_stores_no_value_that_breaks_a_value_rule():
+    """The REST API refuses these values, so a stored one blocks the next save."""
+    user = factories.UserFactory()
+
+    result = import_contacts(user, "vcf", BROKEN_VALUES_VCF.encode())
+
+    assert counters(result) == {"imported": 1, "skipped": 0, "errors": 0, "total": 1}
+    contact = models.Contact.objects.get(owner=user)
+    assert contact.urls == [{"type": "", "value": "https://example.org/jean"}]
+    assert contact.phones == [{"type": "work", "value": "+33199000405"}]
+
+    client = APIClient()
+    client.force_login(user)
+    url = f"/api/v1.0/contacts/{contact.id}/"
+    card = client.get(url).json()
+    lists = {field: card[field] for field in ("emails", "phones", "addresses", "urls")}
+    response = client.patch(url, {**lists, "notes": "saved"}, format="json")
+    assert response.status_code == 200, response.content
+
+
+def test_import_keeps_a_refused_value_as_a_vcard_line():
+    """An export, or a CardDAV client, reads the line back."""
+    user = factories.UserFactory()
+    import_contacts(user, "vcf", BROKEN_VALUES_VCF.encode())
+
+    contact = models.Contact.objects.get(owner=user)
+    assert contact.vcard_extra == BROKEN_VALUES_EXTRA
+    output = serialize_contacts([contact]).replace("\r\n ", "")
+    for line in BROKEN_LINES:
+        assert f"\r\n{line}\r\n" in output, line
+
+    # The same file again matches the stored card.
+    again = import_contacts(user, "vcf", BROKEN_VALUES_VCF.encode())
+    assert counters(again) == {"imported": 0, "skipped": 1, "errors": 0, "total": 1}
+
+
+def test_import_matches_a_card_on_its_first_stored_phone():
+    """A refused phone is not stored, so it is not a part of the match."""
+    user = factories.UserFactory()
+    data = (
+        "BEGIN:VCARD\r\nVERSION:3.0\r\nFN:Luc Phone\r\n"
+        f"TEL:{LONG_PHONE}\r\nTEL:+33199000405\r\nEND:VCARD\r\n"
+    ).encode()
+
+    first = import_contacts(user, "vcf", data)
+    again = import_contacts(user, "vcf", data)
+
+    assert (first["imported"], again["skipped"]) == (1, 1)
+    assert models.Contact.objects.filter(owner=user).count() == 1
+
+
+def test_import_rejects_a_card_whose_only_phone_is_refused():
+    """The email-or-phone rule applies to the values that the import stores."""
+    user = factories.UserFactory()
+    data = (
+        "BEGIN:VCARD\r\nVERSION:3.0\r\nFN:Luc Phone\r\n"
+        f"TEL:{LONG_PHONE}\r\nEND:VCARD\r\n"
+    ).encode()
+
+    result = import_contacts(user, "vcf", data)
+
+    assert counters(result) == {"imported": 0, "skipped": 0, "errors": 1, "total": 1}
+    assert result["error_details"][0]["reason"] == "no_email_or_phone"
+    assert not models.Contact.objects.filter(owner=user).exists()
 
 
 def test_import_turns_categories_into_labels():
@@ -534,6 +624,32 @@ def test_repeated_single_properties_are_kept():
         assert f"\r\n{line}\r\n" in output
     # vCard allows one N: the second is not written back.
     assert "N:Other" not in output
+
+
+def test_refused_values_round_trip_is_stable():
+    """A refused value is written back, and read as refused again."""
+    (card,), _errors = parse_vcf(BROKEN_VALUES_VCF)
+    set_aside_refused_values(card)
+    assert card["urls"] == [{"type": "", "value": "https://example.org/jean"}]
+    assert card["phones"] == [{"type": "work", "value": "+33199000405"}]
+    assert card["vcard_extra"] == BROKEN_VALUES_EXTRA
+
+    again, output = round_trip(card)
+    set_aside_refused_values(again)
+    assert again == card
+    assert round_trip(again)[1] == output
+
+
+def test_a_text_longer_than_its_column_is_cut_and_written_back_whole():
+    title = " ".join(["Cheffe de projet"] * 20)
+    data = SAMPLE_VCF.replace("TITLE:Cheffe de projet", f"TITLE:{title}")
+    (card, _paul), _errors = parse_vcf(data)
+    assert card["job_title"] == title[:254]  # the next character is a space
+    assert card["vcard_extra"]["TITLE"] == [f"TITLE:{title}"]
+
+    again, output = round_trip(card)
+    assert f"\r\nTITLE:{title}\r\n" in output.replace("\r\n ", "")
+    assert again["job_title"] == card["job_title"]
 
 
 @pytest.mark.parametrize("prefix", ["Mlle", "Melle", "Mademoiselle", "Miss", "Ms."])

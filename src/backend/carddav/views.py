@@ -13,7 +13,9 @@ MKCOL (address books are derived from the data model, not user-created),
 COPY/MOVE.
 
 Writes are checked with ``Contact.is_writable`` and validated by the REST
-``ContactSerializer``, so a card accepted here is one the API accepts.
+``ContactSerializer``, without the email-or-phone rule of the web form.
+The name rule is the only rule that refuses a readable card: the parser
+(``parse_one_card``) sets aside each value that breaks a value rule.
 Group cards (for devices set up with groups) are written as the user's
 own groups, with the members their UIDs name.
 """
@@ -767,7 +769,12 @@ class CardDAVView(View):  # pylint: disable=too-many-public-methods
             instance=instance,
             data=data,
             partial=instance is not None,
-            context={"request": request, "acting_user": self.user},
+            context={
+                "request": request,
+                "acting_user": self.user,
+                # A client can hold a card without an email and a phone.
+                "email_or_phone_required": False,
+            },
         )
         if serializer.is_valid():
             return dict(serializer.validated_data)

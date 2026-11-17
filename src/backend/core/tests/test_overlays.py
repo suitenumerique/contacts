@@ -163,6 +163,26 @@ def test_setting_field_back_to_source_unoverrides_it(client, user):
     assert body["full_name"] == "Jean Dupont"
 
 
+def test_email_or_phone_rule_reads_the_merged_card(client, user):
+    """An overlay cannot empty what its source has. It can keep a bare source."""
+    contact = synced_contact(user)
+    overlay_id = client.post(f"{CONTACTS_URL}{contact.id}/fork/").json()["id"]
+    response = client.patch(
+        f"{CONTACTS_URL}{overlay_id}/", {"emails": [], "phones": []}, format="json"
+    )
+    assert response.status_code == 400
+
+    bare = synced_contact(user, external_id="uid=bare", emails=[])
+    overlay_id = client.post(f"{CONTACTS_URL}{bare.id}/fork/").json()["id"]
+    response = client.patch(
+        f"{CONTACTS_URL}{overlay_id}/",
+        {"company": "Mairie de Brigny", "emails": [], "phones": []},
+        format="json",
+    )
+    assert response.status_code == 200, response.content
+    assert response.json()["overridden_fields"] == ["company"]
+
+
 def test_deleting_overlay_reverts_to_source(client, user):
     contact = synced_contact(user)
     overlay_id = client.post(f"{CONTACTS_URL}{contact.id}/fork/").json()["id"]

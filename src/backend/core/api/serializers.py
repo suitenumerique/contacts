@@ -1,22 +1,13 @@
 """Client serializers for the contacts core app."""
 
-import re
-
 from django.core.exceptions import ValidationError as DjangoValidationError
-from django.core.validators import URLValidator, validate_email
 
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
-from core import models
+from core import models, validators
 from core.entitlements import EntitlementsUnavailableError, get_user_entitlements
 from core.enums import ChannelScope, ChannelScopeLevel, ChannelType, Scope
-
-# Upper bound of entries in each multi-valued contact field.
-MAX_TYPED_VALUES = 50
-
-_URL_SCHEME = re.compile(r"^[a-z][a-z0-9+.-]*:", re.IGNORECASE)
-_http_url = URLValidator(schemes=["http", "https"])
 
 
 def _acting_user(context):
@@ -126,17 +117,19 @@ class TypedValueSerializer(serializers.Serializer):  # pylint: disable=abstract-
     """A {"type": ..., "value": ...} entry (emails, phones, addresses, urls)."""
 
     type = serializers.RegexField(
-        r"^[A-Za-z0-9-]{0,32}$",
-        max_length=32,
+        validators.TYPE_PATTERN,
+        max_length=validators.TYPE_MAX_LENGTH,
         required=False,
         allow_blank=True,
         default="",
     )
-    value = serializers.CharField(max_length=1024)
+    value = serializers.CharField(max_length=validators.VALUE_MAX_LENGTH)
 
 
 def _typed_values():
-    return TypedValueSerializer(many=True, required=False, max_length=MAX_TYPED_VALUES)
+    return TypedValueSerializer(
+        many=True, required=False, max_length=validators.MAX_TYPED_VALUES
+    )
 
 
 class ContactLabelSerializer(serializers.ModelSerializer):
@@ -323,38 +316,19 @@ class ContactSerializer(serializers.ModelSerializer):
     def validate_emails(self, value):
         """Every address must be a valid email."""
         for item in value:
-            try:
-                validate_email(item["value"])
-            except DjangoValidationError as exc:
-                raise serializers.ValidationError(
-                    f"Enter a valid email address: {item['value']}"
-                ) from exc
+            validators.validate_email_value(item["value"])
         return value
 
     def validate_phones(self, value):
         """Phone numbers are short; anything longer is not a phone number."""
         for item in value:
-            if len(item["value"]) > 64:
-                raise serializers.ValidationError(
-                    "Phone numbers are 64 characters max."
-                )
+            validators.validate_phone_value(item["value"])
         return value
 
     def validate_urls(self, value):
-        """Accept http(s) URLs and scheme-less ones ("example.com").
-
-        The frontend prefixes scheme-less values with https://, so those are
-        validated as such; every other scheme (javascript:, data:, ...) is
-        refused.
-        """
+        """Accept http(s) URLs and scheme-less ones ("example.com")."""
         for item in value:
-            url = item["value"].strip()
-            candidate = url if _URL_SCHEME.match(url) else f"https://{url}"
-            try:
-                _http_url(candidate)
-            except DjangoValidationError as exc:
-                raise serializers.ValidationError(f"Enter a valid URL: {url}") from exc
-            item["value"] = url
+            validators.validate_url_value(item["value"])
         return value
 
     def validate(self, attrs):
@@ -362,22 +336,26 @@ class ContactSerializer(serializers.ModelSerializer):
 
         - a name is required: ``full_name`` or any structured part. A blank
           ``full_name`` is filled from the parts, like a vCard FN;
-        - at least one of email / phone must be filled.
+        - at least one of email / phone must be filled. This is a rule of
+          the web form. A card from a CardDAV client can have neither, and
+          an update keeps such a card. ``email_or_phone_required`` set to
+          False in the context turns the rule off.
 
         On partial updates the rules apply to the merged result of the
         fields being modified, so updating one field never demands the
         whole card again, but a field cannot be blanked below the rules.
         """
 
-        def effective(field):
-            if field in attrs:
-                return attrs[field]
+        def stored(field):
             if self.instance is None:
                 return ""
             if self.instance.overlay_of_id:
                 # Unspecified fields of an overlay come from its parent.
                 return self.instance.merged_value(field)
             return getattr(self.instance, field, "")
+
+        def effective(field):
+            return attrs[field] if field in attrs else stored(field)
 
         creating = self.instance is None
         name_fields = ("full_name", *models.NAME_PARTS)
@@ -391,11 +369,13 @@ class ContactSerializer(serializers.ModelSerializer):
                         {"full_name": "A name is required."}
                     )
                 attrs["full_name"] = composed[:255]  # the column's max_length
-        if creating or "emails" in attrs or "phones" in attrs:
-            if not (effective("emails") or effective("phones")):
-                raise serializers.ValidationError(
-                    "At least an email address or a phone number is required."
-                )
+        required = self.context.get("email_or_phone_required", True) and (
+            creating or stored("emails") or stored("phones")
+        )
+        if required and not (effective("emails") or effective("phones")):
+            raise serializers.ValidationError(
+                "At least an email address or a phone number is required."
+            )
         return self._validate_scope(attrs)
 
     def _validate_scope(self, attrs):

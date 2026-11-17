@@ -5,7 +5,7 @@ import binascii
 import re
 
 from django.core.exceptions import ValidationError
-from django.core.validators import URLValidator
+from django.core.validators import URLValidator, validate_email
 
 PHOTO_MAX_BYTES = 200 * 1024
 PHOTO_URL_MAX_LENGTH = 2048
@@ -52,3 +52,81 @@ def validate_photo(value):
         raise ValidationError(
             "Photo must be an https URL or an image data URI.", code="invalid_photo"
         ) from exc
+
+
+# The value rules of the multi-valued contact fields (emails, phones,
+# addresses, urls). An entry is {"type": ..., "value": ...}. Every writer
+# of a contact applies these rules.
+MAX_TYPED_VALUES = 50
+TYPE_MAX_LENGTH = 32
+TYPE_PATTERN = rf"^[A-Za-z0-9-]{{0,{TYPE_MAX_LENGTH}}}$"
+VALUE_MAX_LENGTH = 1024
+PHONE_MAX_LENGTH = 64
+
+_URL_SCHEME = re.compile(r"^[a-z][a-z0-9+.-]*:", re.IGNORECASE)
+_http_url = URLValidator(schemes=["http", "https"])
+
+
+def validate_email_value(value):
+    """Refuse a value that is not an email address."""
+    try:
+        validate_email(value)
+    except ValidationError as exc:
+        raise ValidationError(f"Enter a valid email address: {value}") from exc
+
+
+def validate_phone_value(value):
+    """Refuse a value that is too long for a phone number."""
+    if len(value) > PHONE_MAX_LENGTH:
+        raise ValidationError(f"Phone numbers are {PHONE_MAX_LENGTH} characters max.")
+
+
+def validate_url_value(value):
+    """Accept an http(s) URL, or a URL without a scheme ("example.com").
+
+    The frontend shows the value as a link, and adds https:// to a value
+    without a scheme. Thus a value without a scheme is checked as an https
+    URL, and every other scheme (javascript:, data:, ...) is refused.
+    """
+    candidate = value if _URL_SCHEME.match(value) else f"https://{value}"
+    try:
+        _http_url(candidate)
+    except ValidationError as exc:
+        raise ValidationError(f"Enter a valid URL: {value}") from exc
+
+
+_VALUE_VALIDATORS = {
+    "emails": validate_email_value,
+    "phones": validate_phone_value,
+    "urls": validate_url_value,
+}
+
+
+def _breaks_a_value_rule(field, entry):
+    value = entry["value"]
+    if not re.fullmatch(TYPE_PATTERN, entry.get("type") or ""):
+        return True
+    if not value.strip() or len(value) > VALUE_MAX_LENGTH:
+        return True
+    if field not in _VALUE_VALIDATORS:
+        return False
+    try:
+        _VALUE_VALIDATORS[field](value)
+    except ValidationError:
+        return True
+    return False
+
+
+def split_typed_values(field, entries):
+    """Split the entries of a multi-valued contact field into ``(kept, refused)``.
+
+    An entry is refused when it breaks a value rule of *field*. It is also
+    refused when *kept* already holds ``MAX_TYPED_VALUES`` entries.
+    """
+    kept, refused = [], []
+    for entry in entries:
+        if len(kept) >= MAX_TYPED_VALUES or _breaks_a_value_rule(field, entry):
+            refused.append(entry)
+        else:
+            kept.append(entry)
+    return kept, refused

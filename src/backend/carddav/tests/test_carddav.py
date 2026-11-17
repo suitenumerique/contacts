@@ -922,24 +922,175 @@ def test_cannot_write_org_contact(auth, user):
 @pytest.mark.parametrize(
     "body",
     [
-        pytest.param(
-            VCARD.replace("FN:Ada", f"TITLE:{'x' * 300}\r\nFN:Ada"), id="long"
-        ),
         pytest.param(VCARD.replace("END:VCARD\r\n", ""), id="unterminated"),
         pytest.param(VCARD + VCARD, id="two-cards"),
         pytest.param(NAMELESS_VCARD, id="no-names"),
-        pytest.param(
-            VCARD.replace("EMAIL;TYPE=WORK:ada@example.org\r\n", ""), id="no-contact"
-        ),
         pytest.param("not a vcard at all", id="garbage"),
     ],
 )
 def test_put_refuses_an_invalid_card(auth, user, body):
-    """Refused like the REST API would, with the RFC 6352 precondition."""
+    """Refused with the RFC 6352 precondition."""
     response = put(auth, f"{PERSONAL}{uuid.uuid4()}.vcf", body)
     assert response.status_code == 403
     assert conditions(response) == [CARD("valid-address-data")]
     assert not models.Contact.objects.filter(owner=user).exists()
+
+
+# The email-or-phone rule is a rule of the web form. A phone holds such cards.
+BARE_VCARD = (
+    "BEGIN:VCARD\r\nVERSION:3.0\r\nFN:Jean Dupont\r\nN:Dupont;Jean;;;\r\n"
+    "ADR;TYPE=HOME:;;1 rue de la Mairie;Brigny;;01000;France\r\nEND:VCARD\r\n"
+)
+
+
+def with_lines(card, *lines):
+    """*card* with *lines* added before its END."""
+    return card.replace("END:VCARD", "\r\n".join([*lines, "END:VCARD"]))
+
+
+def served_lines(auth, url):
+    """The unfolded content lines of the card served at *url*."""
+    return get(auth, url).content.decode().replace("\r\n ", "").split("\r\n")
+
+
+def test_put_creates_a_card_without_email_and_phone(auth, user):
+    response = put(auth, f"{PERSONAL}{uuid.uuid4()}.vcf", BARE_VCARD)
+    assert response.status_code == 201, response.content
+    contact = models.Contact.objects.get(owner=user)
+    assert (contact.full_name, contact.emails, contact.phones) == (
+        "Jean Dupont",
+        [],
+        [],
+    )
+    assert contact.addresses == [
+        {"type": "home", "value": "1 rue de la Mairie\n01000 Brigny\nFrance"}
+    ]
+
+
+def test_put_can_remove_the_last_email_and_phone(auth, user):
+    url = f"{PERSONAL}{uuid.uuid4()}.vcf"
+    assert put(auth, url, VCARD).status_code == 201
+    body = VCARD.replace("EMAIL;TYPE=WORK:ada@example.org\r\n", "")
+    assert put(auth, url, body).status_code == 204
+    contact = models.Contact.objects.get(owner=user)
+    assert (contact.emails, contact.phones) == ([], [])
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        pytest.param("EMAIL:not-an-email", id="email"),
+        pytest.param(f"TEL;TYPE=CELL:{'1' * 65}", id="phone"),
+        pytest.param("URL:javascript:alert(1)", id="url-script"),
+        pytest.param("item1.URL;TYPE=WORK,pref:ftp://example.org/x", id="url-ftp"),
+        pytest.param(f"ADR;TYPE=HOME:;;{'x' * 1025};;;;", id="length"),
+    ],
+)
+def test_put_keeps_a_card_with_a_value_that_breaks_a_value_rule(auth, user, line):
+    """The value stays out of the contact. The client reads its line back."""
+    url = f"{PERSONAL}{uuid.uuid4()}.vcf"
+    response = put(auth, url, with_lines(VCARD, line))
+    assert response.status_code == 201, response.content
+
+    contact = models.Contact.objects.get(owner=user)
+    assert contact.emails == [{"type": "work", "value": "ada@example.org"}]
+    assert (contact.phones, contact.addresses, contact.urls) == ([], [], [])
+    assert contact.vcard_extra == {"+": [line]}
+    assert line in served_lines(auth, url)
+
+
+def test_put_keeps_a_card_with_too_many_values(auth, user):
+    phones = [f"TEL;TYPE=CELL:+3319900{index:04}" for index in range(52)]
+    url = f"{PERSONAL}{uuid.uuid4()}.vcf"
+    assert put(auth, url, with_lines(VCARD, *phones)).status_code == 201
+
+    contact = models.Contact.objects.get(owner=user)
+    assert [phone["value"] for phone in contact.phones] == [
+        line.rpartition(":")[2] for line in phones[:50]
+    ]
+    assert contact.vcard_extra == {"+": phones[50:]}
+    assert set(phones) <= set(served_lines(auth, url))
+
+
+def test_put_update_keeps_a_card_with_a_value_that_breaks_a_value_rule(auth, user):
+    contact = factories.ContactFactory(
+        owner=user,
+        full_name="Ada Lovelace",
+        emails=[{"type": "work", "value": "ada@example.org"}],
+    )
+    url = f"{PERSONAL}{contact.id}.vcf"
+    body = with_lines(
+        get(auth, url).content.decode(),
+        "URL:javascript:alert(1)",
+        "URL:https://ada.example.org",
+    )
+    assert put(auth, url, body).status_code == 204
+
+    contact.refresh_from_db()
+    assert contact.urls == [{"type": "", "value": "https://ada.example.org"}]
+    assert contact.vcard_extra["+"] == ["URL:javascript:alert(1)"]
+
+    # The client reads the line back. To send the card again changes nothing.
+    assert "URL:javascript:alert(1)" in served_lines(auth, url)
+    before = row(contact)
+    seq = ContactChange.objects.get(contact_id=contact.pk).seq
+    assert put(auth, url, get(auth, url).content).status_code == 204
+    assert row(contact) == before
+    assert ContactChange.objects.get(contact_id=contact.pk).seq == seq
+
+
+LONG = "x" * 300
+LONG_VCARD = (
+    f"BEGIN:VCARD\r\nVERSION:3.0\r\nFN:{LONG}\r\n"
+    f"N:{LONG};{LONG};{LONG};{LONG};{LONG}\r\nNICKNAME:{LONG}\r\n"
+    f"ORG:{LONG};{LONG}\r\nTITLE:{LONG}\r\nEND:VCARD\r\n"
+)
+
+
+def test_put_cuts_a_text_longer_than_its_column(auth, user):
+    """The client reads back the lines it sent."""
+    url = f"{PERSONAL}{uuid.uuid4()}.vcf"
+    assert put(auth, url, LONG_VCARD).status_code == 201
+
+    contact = models.Contact.objects.get(owner=user)
+    for field in (
+        "full_name",
+        "name_prefix",
+        "given_name",
+        "middle_name",
+        "family_name",
+        "name_suffix",
+        "nickname",
+        "company",
+        "department",
+        "job_title",
+    ):
+        assert getattr(contact, field) == "x" * 255, field
+    assert set(LONG_VCARD.split("\r\n")[2:-2]) <= set(served_lines(auth, url))
+
+    before = row(contact)
+    assert put(auth, url, get(auth, url).content).status_code == 204
+    assert row(contact) == before
+
+
+def test_put_cuts_a_name_composed_from_long_parts(auth, user):
+    body = (
+        "BEGIN:VCARD\r\nVERSION:3.0\r\nFN:\r\n"
+        f"N:{'f' * 200};{'g' * 200};;;\r\nEND:VCARD\r\n"
+    )
+    response = put(auth, f"{PERSONAL}{uuid.uuid4()}.vcf", body)
+    assert response.status_code == 201, response.content
+    contact = models.Contact.objects.get(owner=user)
+    assert contact.full_name == f"{'g' * 200} {'f' * 54}"
+
+
+@pytest.mark.parametrize("line", ["NOTE:a\x00b", "X-FOO:a\x00b"])
+def test_put_drops_nul_characters(auth, user, line):
+    """PostgreSQL cannot store them."""
+    url = f"{PERSONAL}{uuid.uuid4()}.vcf"
+    response = put(auth, url, with_lines(VCARD, line))
+    assert response.status_code == 201, response.content
+    assert line.replace("\x00", "") in served_lines(auth, url)
 
 
 def test_put_cannot_blank_the_required_names(auth, user):
@@ -1250,6 +1401,21 @@ def test_put_on_overlay_records_overrides_and_keeps_inheritance(auth, user):
     parent.company = "ANCT"
     parent.save()
     assert "ANCT" in get(auth, url).content.decode()  # still tracking the source
+
+
+def test_put_on_overlay_drops_a_value_that_breaks_a_value_rule(auth, user):
+    """An overlay shows the unmodeled lines of its parent, not its own."""
+    _parent, overlay = _overlay_of(
+        user,
+        full_name="Directory Name",
+        emails=[{"type": "work", "value": "inherited@example.org"}],
+    )
+    before = row(overlay)
+    url = f"{PERSONAL}{overlay.id}.vcf"
+    body = with_lines(get(auth, url).content.decode(), "URL:javascript:alert(1)")
+    assert put(auth, url, body).status_code == 204
+    assert row(overlay) == before
+    assert "javascript" not in get(auth, url).content.decode()
 
 
 def test_delete_overlay_reverts_to_source(auth, user):
