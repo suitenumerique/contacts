@@ -8,10 +8,15 @@ Usage:
     python worker.py --queues=import,default  # Process only specific queues
     python worker.py --concurrency=4          # Set worker concurrency
     python worker.py -v 2                     # Verbose logging
+    python worker.py --ping                   # Healthcheck: exit 0 if the worker
+                                              # of this container answers, else 1
 
 Queue priority order (highest to lowest):
     1. default  - General / high-priority tasks
     2. import   - File import processing
+
+The worker also consumes ``ping.<hostname>``, the healthcheck queue of its
+container (see contacts/health.py). ``--ping`` does not start a worker.
 """
 
 import argparse
@@ -40,6 +45,11 @@ install(check_options=True)
 import django  # pylint: disable=wrong-import-position
 
 django.setup()
+
+from contacts.health import (  # pylint: disable=wrong-import-position
+    PING_QUEUE,
+    is_alive,
+)
 
 # Queue definitions in priority order
 ALL_QUEUES = ["default", "import"]
@@ -131,6 +141,11 @@ def parse_args():
         default=1,
         help="Verbosity level (0=minimal, 1=normal, 2=verbose). Default: 1",
     )
+    parser.add_argument(
+        "--ping",
+        action="store_true",
+        help="Ping the worker of this container. Exit 0 if it answers, else 1.",
+    )
     return parser.parse_args()
 
 
@@ -138,6 +153,9 @@ def main():
     """Start the background task worker."""
     logger = logging.getLogger(__name__)
     args = parse_args()
+
+    if args.ping:
+        sys.exit(0 if is_alive() else 1)
 
     # Determine which queues to process
     if args.queues:
@@ -187,8 +205,10 @@ def main():
     if args.verbosity > 1:
         dramatiq_args.append("-v")
 
-    dramatiq_args.extend(tasks_modules)
-    dramatiq_args.extend(["--queues", *queues])
+    # contacts.health is not in an application, so the discovery does not find it.
+    dramatiq_args.extend([*tasks_modules, "contacts.health"])
+    # The worker consumes its healthcheck queue whatever the queues asked for.
+    dramatiq_args.extend(["--queues", *queues, PING_QUEUE])
 
     logger.info("Starting worker with queues: %s", ", ".join(queues))
 

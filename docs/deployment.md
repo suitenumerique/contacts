@@ -58,6 +58,29 @@ unhealthy when Django does not answer or when the database is unreachable.
 The probe sends the container IP as the `Host` header:
 `Production.ALLOWED_HOSTS` always holds it.
 
+### Worker healthcheck
+
+A worker container runs the same image with `python worker.py`. It has no
+gunicorn, so the `HEALTHCHECK` of the image fails there. Replace it with
+`python worker.py --ping`:
+
+```yaml
+healthcheck:
+  test: ["CMD", "python", "worker.py", "--ping"]
+  interval: 1m
+  timeout: 10s
+```
+
+The command sends a ping to the worker of its own container and waits 5
+seconds for the answer. It exits with 0 when the worker answers and with 1
+when it does not. It needs the broker, a worker process and the result
+backend, so the container is unhealthy when one of them does not answer.
+
+Each worker process runs one task at a time. A ping that goes to a process
+in the middle of a long import waits for the end of the import, and the
+probe fails. Keep some `retries` so that one failed probe does not make the
+container unhealthy.
+
 ## Legal pages
 
 Contacts does not host the legal pages. A deployment sets their URLs.
