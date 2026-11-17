@@ -168,6 +168,11 @@ takes the label off the contact, and the label itself stays. A row without
 an owner has no labels, so its own stored `CATEGORIES` lines are served
 as they are.
 
+A `PUT` whose body has no `CATEGORIES` property keeps the labels of the
+contact. Some clients do not store `CATEGORIES` and send none: DAVx⁵ does
+this with its "groups are separate vCards" method. A `CATEGORIES` property
+with an empty value removes all the labels.
+
 ### Groups
 
 For a credential created with `groups`, each book also holds its groups as
@@ -221,7 +226,7 @@ body sent (RFC 6352 6.3.2.3); otherwise the client fetches it back.
 A `PUT` onto a card of the user's own that is in the corbeille restores it
 with the new content (`201`). The restore keeps the row, thus the data
 that vCard does not carry (favorite, group memberships) stays. The labels
-follow the `CATEGORIES` of the body. A body without `CATEGORIES` removes
+follow the `CATEGORIES` of the body. A body without `CATEGORIES` keeps
 the labels.
 
 `DELETE` moves the contact to the corbeille (soft delete), matching the REST
@@ -358,3 +363,7 @@ colleague's book does not invalidate this one's tokens. Schedule
   there is no model for "a book".
 - **No `CARDDAV:no-uid-conflict` check**: two cards of one book may carry
   the same UID if a client sends them.
+- **The last label of a card stays when a client removes it.** The client
+  then sends no `CATEGORIES`, and a `PUT` without `CATEGORIES` keeps the
+  labels (see [Labels](#labels)). The response has no `ETag`, so the
+  client reads the card back with its label.

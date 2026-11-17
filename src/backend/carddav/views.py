@@ -804,7 +804,7 @@ class CardDAVView(View):  # pylint: disable=too-many-public-methods
         contact.save()
         if conflict := self._name_card(name, contact):
             return conflict
-        if fields["label_names"]:
+        if fields.get("label_names"):
             contact.labels.set(ContactLabel.for_names(self.user, fields["label_names"]))
         groups.claim_pending_members(self.user, contact)
         return contact
@@ -820,7 +820,11 @@ class CardDAVView(View):  # pylint: disable=too-many-public-methods
         _is_group, served = parse_one_card(
             storage.render_card(self.user, storage.PERSONAL, existing)
         )
-        changed = {key: value for key, value in fields.items() if served[key] != value}
+        # A body without CATEGORIES has no label_names, so the labels stay.
+        # The served card of a contact without labels has none either.
+        changed = {
+            key: value for key, value in fields.items() if served.get(key) != value
+        }
         if existing.overlay_of_id:
             # An overlay renders its parent's vcard_extra; its own would
             # never be shown.

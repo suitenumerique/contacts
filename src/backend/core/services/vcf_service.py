@@ -572,9 +572,10 @@ def _set_aside(name, line, fields, seen):
     if name in _SKIPPED:
         return True
     if name == "CATEGORIES":
+        label_names = fields.setdefault("label_names", [])
         for label_name in _values(line.value):
-            if label_name not in fields["label_names"]:
-                fields["label_names"].append(label_name)
+            if label_name not in label_names:
+                label_names.append(label_name)
         return True
     if name in _SINGLE and name in seen:
         if name in _REPEATABLE:
@@ -589,7 +590,11 @@ def _set_aside(name, line, fields, seen):
 
 
 def _parse_card(lines):
-    """Convert the content lines of one VCARD into Contact kwargs."""
+    """Convert the content lines of one VCARD into Contact kwargs.
+
+    ``label_names`` holds the CATEGORIES values. A card without a
+    CATEGORIES property has no ``label_names`` key.
+    """
     fields = {
         "full_name": "",
         "civility": "",
@@ -608,7 +613,6 @@ def _parse_card(lines):
         "job_title": "",
         "notes": "",
         "photo": "",
-        "label_names": [],
         "vcard_extra": {},
     }
     extra = fields["vcard_extra"]

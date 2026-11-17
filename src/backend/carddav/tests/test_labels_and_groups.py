@@ -127,6 +127,60 @@ def test_unchanged_put_keeps_labels_and_version(auth, user):
     assert [label.name for label in contact.labels.all()] == ["Amis"]
 
 
+def test_put_without_categories_keeps_labels(auth, user):
+    """DAVx5 does not keep CATEGORIES when groups are separate vCards."""
+    url = f"{PERSONAL}ada.vcf"
+    put(auth, url, contact_card("ada", "Ada", "CATEGORIES:Amis"))
+    served = get(auth, url).content.decode()
+
+    body = served.replace("CATEGORIES:Amis\r\n", "TEL:+33123456789\r\n")
+    response = put(auth, url, body)
+    assert response.status_code == 204
+    contact = models.Contact.objects.get(owner=user)
+    assert [phone["value"] for phone in contact.phones] == ["+33123456789"]
+    assert [label.name for label in contact.labels.all()] == ["Amis"]
+    # The stored card differs from the body: the client reads it back.
+    assert not response.has_header("ETag")
+    assert "\r\nCATEGORIES:Amis\r\n" in get(auth, url).content.decode()
+
+
+def test_put_empty_categories_removes_labels(auth, user):
+    url = f"{PERSONAL}ada.vcf"
+    put(auth, url, contact_card("ada", "Ada", "CATEGORIES:Amis,Travail"))
+    served = get(auth, url).content.decode()
+
+    body = served.replace("CATEGORIES:Amis,Travail", "CATEGORIES:")
+    assert put(auth, url, body).status_code == 204
+    contact = models.Contact.objects.get(owner=user)
+    assert not contact.labels.exists()
+
+
+def test_put_first_categories_add_labels(auth, user):
+    url = f"{PERSONAL}ada.vcf"
+    put(auth, url, contact_card("ada", "Ada"))
+    served = get(auth, url).content.decode()
+
+    body = served.replace("END:VCARD", "CATEGORIES:Amis\r\nEND:VCARD")
+    assert put(auth, url, body).status_code == 204
+    contact = models.Contact.objects.get(owner=user)
+    assert [label.name for label in contact.labels.all()] == ["Amis"]
+
+
+@pytest.mark.parametrize(
+    "categories,expected",
+    [([], ["Amis"]), (["CATEGORIES:Travail"], ["Travail"]), (["CATEGORIES:"], [])],
+)
+def test_restore_follows_the_categories_of_the_body(auth, user, categories, expected):
+    url = f"{PERSONAL}ada.vcf"
+    put(auth, url, contact_card("ada", "Ada", "CATEGORIES:Amis"))
+    assert dav(Client(), "DELETE", url, headers=auth).status_code == 204
+
+    assert put(auth, url, contact_card("ada", "Ada", *categories)).status_code == 201
+    contact = models.Contact.objects.get(owner=user)
+    assert contact.deleted_at is None
+    assert [label.name for label in contact.labels.all()] == expected
+
+
 @pytest.mark.parametrize("change", ["add", "remove", "rename", "delete"])
 def test_a_label_change_is_synced_with_a_new_etag(auth, user, change):
     contact = factories.ContactFactory(owner=user, full_name="Ada")
