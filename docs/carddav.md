@@ -68,8 +68,7 @@ POST /api/v1.0/channels/
 as group cards, see [Groups](#groups). DAVx⁵'s default contact group method
 ("groups are separate vCards") reads them; leave it off for a DAVx⁵ account
 set to "groups are per-contact categories", which would save each group
-card as a contact. The option also decides what a `PUT` without
-`CATEGORIES` does to the labels of a contact, see [Labels](#labels).
+card as a contact.
 
 ```json
 {"id": "…", "type": "carddav", "api_key": "…", "carddav_password": "…"}
@@ -170,9 +169,10 @@ an owner has no labels, so its own stored `CATEGORIES` lines are served
 as they are.
 
 A `CATEGORIES` property with an empty value removes all the labels of the
-contact. A `PUT` without a `CATEGORIES` property keeps the labels for a
-device with `groups`, and removes them for a device without `groups`. Thus
-a client that does not store `CATEGORIES` needs a device with `groups`.
+contact. A `PUT` without a `CATEGORIES` property keeps the labels, until
+the device sends a `CATEGORIES` property for the first time. After that, a
+`PUT` without `CATEGORIES` removes them. The server records this as
+`sends_categories` in the settings of the device.
 
 ### Groups
 
@@ -364,6 +364,3 @@ colleague's book does not invalidate this one's tokens. Schedule
   there is no model for "a book".
 - **No `CARDDAV:no-uid-conflict` check**: two cards of one book may carry
   the same UID if a client sends them.
-- **With `groups`, a `PUT` without `CATEGORIES` cannot remove the last
-  label of a card.** The server keeps the labels. A `CATEGORIES` property
-  with an empty value removes them.
