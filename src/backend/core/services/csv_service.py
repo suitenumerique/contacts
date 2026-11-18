@@ -23,7 +23,7 @@ Unknown columns are ignored. Common alternative headers are mapped:
 French ones (``prenom``, ``nom``, ``courriel``, ``telephone``,
 ``organisme``, ``service``, ``poste``...), plain ``email`` / ``phone`` /
 ``phone2`` columns, and Google Contacts and Outlook exports. The import
-also reads a file in Windows-1252 or Latin-1.
+decodes a file as UTF-8, then as Windows-1252, then as Latin-1.
 """
 
 import csv

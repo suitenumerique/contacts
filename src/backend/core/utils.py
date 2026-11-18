@@ -51,11 +51,11 @@ def build_search_text(*parts):
 
 
 def decode_text(data):
-    """Return the bytes of a text file as a string.
+    """Decode *data* as UTF-8, then as Windows-1252, then as Latin-1.
 
-    The function reads UTF-8, with or without a byte order mark. It reads
-    bytes that are not UTF-8 as Windows-1252, then as Latin-1. It returns a
-    string unchanged.
+    The function does not detect the encoding. It keeps the first one that
+    decodes all the bytes. UTF-8 can start with a byte order mark. The
+    function returns a string unchanged.
     """
     if isinstance(data, str):
         return data
