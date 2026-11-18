@@ -14,9 +14,6 @@ COPY/MOVE.
 
 Writes are checked with ``Contact.is_writable`` and validated by the REST
 ``ContactSerializer``, so a card accepted here is one the API accepts.
-The parser (``parse_one_card``) cuts a text that is longer than its column,
-and sets aside a value that breaks a value rule. Thus the serializer does
-not refuse a card for these.
 Group cards (for devices set up with groups) are written as the user's
 own groups, with the members their UIDs name.
 """
@@ -36,7 +33,7 @@ from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 
 from core.api.serializers import ContactSerializer
-from core.models import Contact, ContactGroup, ContactLabel
+from core.models import Channel, Contact, ContactGroup, ContactLabel
 from core.services.vcf_service import (
     PENDING_MEMBERS,
     InvalidVCardError,
@@ -240,6 +237,23 @@ class CardDAVView(View):  # pylint: disable=too-many-public-methods
         its groups midway would not be reported by sync-collection.
         """
         return bool((self.channel.settings or {}).get("groups"))
+
+    def _sends_categories(self):
+        """Whether this device sent CATEGORIES in an accepted PUT of a contact card."""
+        return bool((self.channel.settings or {}).get("sends_categories"))
+
+    def _record_categories(self):
+        """Record on the device that it sent a CATEGORIES property."""
+        if self._sends_categories():
+            return
+        with transaction.atomic():
+            # The settings also hold the scopes. Read the row again under a
+            # lock, so that a stale copy does not replace them.
+            channel = Channel.objects.select_for_update().get(pk=self.channel.pk)
+            recorded = {**(channel.settings or {}), "sends_categories": True}
+            # A queryset update skips full_clean and keeps updated_at.
+            Channel.objects.filter(pk=channel.pk).update(settings=recorded)
+        self.channel.settings = recorded
 
     def _groups(self, book):
         """The group cards of *book* for this device, or None."""
@@ -726,9 +740,13 @@ class CardDAVView(View):  # pylint: disable=too-many-public-methods
         parsed = self._parse_body(body, existing)
         if isinstance(parsed, HttpResponse):
             return parsed
-        card = self._write(request, name, existing, *parsed)
+        is_group, fields = parsed
+        has_categories = not is_group and "label_names" in fields
+        card = self._write(request, name, existing, is_group, fields)
         if isinstance(card, HttpResponse):
             return card
+        if has_categories:
+            self._record_categories()
 
         response = HttpResponse(status=204 if live is not None else 201)
         card.refresh_from_db()
@@ -807,7 +825,7 @@ class CardDAVView(View):  # pylint: disable=too-many-public-methods
         contact.save()
         if conflict := self._name_card(name, contact):
             return conflict
-        if fields["label_names"]:
+        if fields.get("label_names"):
             contact.labels.set(ContactLabel.for_names(self.user, fields["label_names"]))
         groups.claim_pending_members(self.user, contact)
         return contact
@@ -823,6 +841,13 @@ class CardDAVView(View):  # pylint: disable=too-many-public-methods
         _is_group, served = parse_one_card(
             storage.render_card(self.user, storage.PERSONAL, existing)
         )
+        # A card without CATEGORIES has no label_names.
+        served.setdefault("label_names", [])
+        if self._sends_categories():
+            # This device sent CATEGORIES before, so a body without
+            # CATEGORIES removes the labels. For a device that never sent
+            # them, the labels stay.
+            fields.setdefault("label_names", [])
         changed = {key: value for key, value in fields.items() if served[key] != value}
         if existing.overlay_of_id:
             # An overlay renders its parent's vcard_extra; its own would

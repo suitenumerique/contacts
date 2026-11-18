@@ -168,6 +168,17 @@ takes the label off the contact, and the label itself stays. A row without
 an owner has no labels, so its own stored `CATEGORIES` lines are served
 as they are.
 
+Until a device sends a `CATEGORIES` property in an accepted `PUT` of a
+contact card, a `PUT` without `CATEGORIES` keeps the labels of the contact.
+Thus a client that discards categories does not remove the labels when it
+changes another field. After that first property (`sends_categories` in
+the settings of the device), a `PUT` without `CATEGORIES` removes the
+labels.
+
+As a result, the removal of the last label of a contact on a device can
+have no effect at first. The web app can still remove the label. An empty
+`CATEGORIES` property always removes the labels.
+
 ### Groups
 
 For a credential created with `groups`, each book also holds its groups as
@@ -242,8 +253,7 @@ body sent (RFC 6352 6.3.2.3); otherwise the client fetches it back.
 A `PUT` onto a card of the user's own that is in the corbeille restores it
 with the new content (`201`). The restore keeps the row, thus the data
 that vCard does not carry (favorite, group memberships) stays. The labels
-follow the `CATEGORIES` of the body. A body without `CATEGORIES` removes
-the labels.
+follow the `CATEGORIES` of the body, as for an update.
 
 `DELETE` moves the contact to the corbeille (soft delete), matching the REST
 API: it does not erase it. The one exception is an overlay (a local copy of

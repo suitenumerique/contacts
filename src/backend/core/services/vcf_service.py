@@ -388,12 +388,27 @@ def _default_full_name(name_parts, emails):
 # --- parsing ----------------------------------------------------------
 
 
+def _remove_nul(line):
+    """Remove the NUL characters from the value and the parameters of *line*.
+
+    PostgreSQL cannot store a NUL character in a text or JSON column. The
+    names in a line hold none: vobject does not parse a line with such a name.
+    """
+    line.value = line.value.replace("\0", "")
+    line.params = {
+        key: [value.replace("\0", "") for value in values]
+        for key, values in line.params.items()
+    }
+
+
 def _read_components(data):
     """Yield ``(name, lines)`` for each top-level component in *data*.
 
     Lines keep their encoded values (only quoted-printable is decoded, by
     ``ContentLine``). Unparseable lines are skipped; an unbalanced
     BEGIN/END raises :class:`InvalidVCardError`.
+
+    The value and the parameters of a line hold no NUL character.
     """
     stack, lines = [], []
     stream = io.StringIO(decode_text(data))
@@ -404,6 +419,9 @@ def _read_components(data):
             line = vobject.base.textLineToContentLine(text, number)
         except VObjectError, LookupError, ValueError:
             continue
+        # The quoted-printable decoding can make a NUL character from "=00".
+        # Thus the removal comes after the decoding, not before.
+        _remove_nul(line)
         name, value = line.name.upper(), str(line.value).strip().upper()
         if name == "BEGIN":
             stack.append(value)
@@ -600,9 +618,10 @@ def _set_aside(name, line, fields, seen):
     if name in _SKIPPED:
         return True
     if name == "CATEGORIES":
+        label_names = fields.setdefault("label_names", [])
         for label_name in _values(line.value):
-            if label_name not in fields["label_names"]:
-                fields["label_names"].append(label_name)
+            if label_name not in label_names:
+                label_names.append(label_name)
         return True
     if name in _SINGLE and name in seen:
         if name in _REPEATABLE:
@@ -617,9 +636,11 @@ def _set_aside(name, line, fields, seen):
 
 
 def _parse_card(lines, fit=False):
-    """Convert the content lines of one VCARD into Contact kwargs.
+    """Convert the content lines of one VCARD into contact fields and label names.
 
-    With *fit*, a text longer than its column is cut (see ``_fit``).
+    ``label_names`` holds the CATEGORIES values. A card without a
+    CATEGORIES property has no ``label_names`` key. With *fit*, a text
+    longer than its column is cut (see ``_fit``).
     """
     fields = {
         "full_name": "",
@@ -639,7 +660,6 @@ def _parse_card(lines, fit=False):
         "job_title": "",
         "notes": "",
         "photo": "",
-        "label_names": [],
         "vcard_extra": {},
     }
     extra = fields["vcard_extra"]

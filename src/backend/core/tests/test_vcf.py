@@ -10,7 +10,7 @@ import pytest
 from rest_framework.test import APIClient
 
 from core import factories, models, tasks
-from core.services.vcf_service import parse_vcf, serialize_contacts
+from core.services.vcf_service import parse_vcf, parse_vcf_file, serialize_contacts
 from core.tasks import import_contacts
 
 pytestmark = pytest.mark.django_db
@@ -797,3 +797,53 @@ def test_truncated_file_keeps_the_cards_before_it():
     cards, errors = parse_vcf(data)
     assert len(cards) == 2
     assert errors == 1
+
+
+def test_parsed_fields_hold_no_nul_character():
+    """A NUL is the literal character or a quoted-printable ``=00``."""
+    data = (
+        "BEGIN:VCARD\r\nVERSION:3.0\r\nFN:A\0da\r\nN:Love\0lace;Ada;;;\r\n"
+        "EMAIL;TYPE=WORK;X-BAR=a\0b:ada@exam\0ple.org\r\n"
+        "ADR;ENCODING=QUOTED-PRINTABLE:;;1 rue X=00;Paris;;75001;France\r\n"
+        "NOTE;ENCODING=QUOTED-PRINTABLE:first=00\r\nNOTE:second\0\r\n"
+        "CATEGORIES:fri\0ends\r\nX-FOO;X-BAR=a\0b:c\0d\r\nEND:VCARD\r\n"
+        "BEGIN:VCARD\r\nVERSION:3.0\r\nFN;ENCODING=QUOTED-PRINTABLE:Te=00am\r\n"
+        "X-ADDRESSBOOKSERVER-KIND:group\r\n"
+        "X-ADDRESSBOOKSERVER-MEMBER:urn:uuid:a\0da-uid\r\n"
+        "X-FOO:a\0b\r\nEND:VCARD\r\n"
+    )
+    without_nul = data.replace("\0", "").replace("=00", "")
+
+    cards, groups, errors = parse_vcf_file(data)
+
+    assert (len(cards), len(groups), errors) == (1, 1, 0)
+    assert (cards, groups, errors) == parse_vcf_file(without_nul)
+
+
+NUL_VCF = (
+    "BEGIN:VCARD\r\nVERSION:3.0\r\nFN:Ada\r\nEMAIL;TYPE=WORK:ada@example.org\r\n"
+    "NOTE;ENCODING=QUOTED-PRINTABLE:a=00b\r\n"
+    "X-FOO;ENCODING=QUOTED-PRINTABLE:a=00b\r\nEND:VCARD\r\n"
+    "BEGIN:VCARD\r\nVERSION:3.0\r\nFN;ENCODING=QUOTED-PRINTABLE:Te=00am\r\n"
+    "X-ADDRESSBOOKSERVER-KIND:group\r\n"
+    "X-FOO;ENCODING=QUOTED-PRINTABLE:a=00b\r\nEND:VCARD\r\n"
+)
+
+
+def test_import_stores_the_cards_without_their_nul_characters():
+    """PostgreSQL cannot store a NUL character in a text or JSON column."""
+    user = factories.UserFactory()
+    client = APIClient()
+    client.force_login(user)
+
+    response = client.post(
+        "/api/v1.0/contacts/import-vcf/",
+        {"file": ContentFile(NUL_VCF.encode(), name="contacts.vcf")},
+        format="multipart",
+    )
+
+    assert response.status_code == 202, response.content
+    contact = models.Contact.objects.get(owner=user)
+    assert (contact.notes, contact.vcard_extra) == ("ab", {"X-FOO": ["X-FOO:ab"]})
+    group = models.ContactGroup.objects.get(owner=user)
+    assert (group.name, group.vcard_extra) == ("Team", {"X-FOO": ["X-FOO:ab"]})
