@@ -154,7 +154,6 @@ def test_unchanged_put_keeps_labels_and_version(any_auth, user, names):
 def test_put_without_categories_keeps_labels_only_with_groups(
     any_auth, with_groups, user
 ):
-    """Only a device without groups manages categories."""
     url = f"{PERSONAL}ada.vcf"
     put(any_auth, url, contact_card("ada", "Ada", "CATEGORIES:Amis"))
     served = get(any_auth, url).content.decode()

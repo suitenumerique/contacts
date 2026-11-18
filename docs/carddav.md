@@ -170,14 +170,9 @@ an owner has no labels, so its own stored `CATEGORIES` lines are served
 as they are.
 
 A `CATEGORIES` property with an empty value removes all the labels of the
-contact. For a `PUT` whose body has no `CATEGORIES` property, the `groups`
-option of the device decides:
-
-- A device with `groups` (iPhone, Mac, DAVx⁵ set to "groups are separate
-  vCards") does not manage categories. The server keeps the labels.
-- A device without `groups` (for example DAVx⁵ set to "groups are
-  per-contact categories") can manage categories. The server removes the
-  labels.
+contact. A `PUT` without a `CATEGORIES` property keeps the labels for a
+device with `groups`, and removes them for a device without `groups`. Thus
+a client that does not store `CATEGORIES` needs a device with `groups`.
 
 ### Groups
 
@@ -232,9 +227,8 @@ body sent (RFC 6352 6.3.2.3); otherwise the client fetches it back.
 A `PUT` onto a card of the user's own that is in the corbeille restores it
 with the new content (`201`). The restore keeps the row, thus the data
 that vCard does not carry (favorite, group memberships) stays. The labels
-follow the `CATEGORIES` of the body. A body without `CATEGORIES` keeps
-the labels for a device with `groups`, and removes them for a device
-without `groups`.
+follow the `CATEGORIES` of the body, as for an update (see
+[Labels](#labels)).
 
 `DELETE` moves the contact to the corbeille (soft delete), matching the REST
 API: it does not erase it. The one exception is an overlay (a local copy of
@@ -370,11 +364,6 @@ colleague's book does not invalidate this one's tokens. Schedule
   there is no model for "a book".
 - **No `CARDDAV:no-uid-conflict` check**: two cards of one book may carry
   the same UID if a client sends them.
-- **A device without `groups` must store `CATEGORIES`.** If the client does
-  not store them, it sends a card without `CATEGORIES` when it edits a
-  contact, and the server removes the labels of this contact (see
-  [Labels](#labels)). DAVx⁵ with its default group method ("groups are
-  separate vCards") thus needs a device with `groups`.
-- **A device with `groups` cannot remove the last label of a card.** The
-  client then sends no `CATEGORIES`, and the server keeps the labels. The
-  response has no `ETag`, so the client reads the card back with its label.
+- **With `groups`, a `PUT` without `CATEGORIES` cannot remove the last
+  label of a card.** The server keeps the labels. A `CATEGORIES` property
+  with an empty value removes them.
