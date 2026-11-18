@@ -228,6 +228,18 @@ def test_import_error_detail_quotes_the_start_of_a_long_value():
     assert detail["value"] == "x" * tasks.MAX_QUOTED_VALUE_LENGTH + "…"
 
 
+def test_import_rejects_a_card_with_a_text_longer_than_its_column():
+    """CardDAV cuts such a text. The import does not change a card."""
+    user = factories.UserFactory()
+    line = f"TITLE:{'x' * 300}"
+
+    result = import_contacts(user, "vcf", REFUSED_VALUE_VCF.format(line=line).encode())
+
+    assert counters(result) == {"imported": 0, "skipped": 0, "errors": 1, "total": 1}
+    assert result["error_details"][0]["reason"] == "failed"
+    assert not models.Contact.objects.filter(owner=user).exists()
+
+
 def test_import_turns_categories_into_labels():
     user = factories.UserFactory()
     models.ContactLabel.objects.create(owner=user, name="Amis")

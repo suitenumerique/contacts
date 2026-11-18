@@ -131,3 +131,19 @@ def broken_value_rule(field, entries):
         if rule := _broken_rule(field, entry["value"]):
             return rule, entry["value"]
     return "", ""
+
+
+def split_typed_values(field, entries):
+    """Split the entries of a multi-valued contact field into ``(kept, refused)``.
+
+    An entry is refused when its value breaks a value rule of *field*. It
+    is also refused when *kept* already holds ``MAX_TYPED_VALUES`` entries.
+    The type of an entry and a blank value are not checked.
+    """
+    kept, refused = [], []
+    for entry in entries:
+        if len(kept) >= MAX_TYPED_VALUES or _broken_rule(field, entry["value"]):
+            refused.append(entry)
+        else:
+            kept.append(entry)
+    return kept, refused
