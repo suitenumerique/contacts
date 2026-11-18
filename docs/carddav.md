@@ -168,11 +168,12 @@ takes the label off the contact, and the label itself stays. A row without
 an owner has no labels, so its own stored `CATEGORIES` lines are served
 as they are.
 
-Until a device sends a `CATEGORIES` property for the first time, a `PUT`
-without `CATEGORIES` keeps the labels of the contact. Thus a client that
-discards categories does not remove the labels when it changes another
-field. After that first property (`sends_categories` in the settings of
-the device), a `PUT` without `CATEGORIES` removes the labels.
+Until a device sends a `CATEGORIES` property in an accepted `PUT` of a
+contact card, a `PUT` without `CATEGORIES` keeps the labels of the contact.
+Thus a client that discards categories does not remove the labels when it
+changes another field. After that first property (`sends_categories` in
+the settings of the device), a `PUT` without `CATEGORIES` removes the
+labels.
 
 As a result, the removal of the last label of a contact on a device can
 have no effect at first. The web app can still remove the label. An empty

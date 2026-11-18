@@ -590,7 +590,7 @@ def _set_aside(name, line, fields, seen):
 
 
 def _parse_card(lines):
-    """Convert the content lines of one VCARD into Contact kwargs.
+    """Convert the content lines of one VCARD into contact fields and label names.
 
     ``label_names`` holds the CATEGORIES values. A card without a
     CATEGORIES property has no ``label_names`` key.

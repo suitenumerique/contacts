@@ -239,7 +239,7 @@ class CardDAVView(View):  # pylint: disable=too-many-public-methods
         return bool((self.channel.settings or {}).get("groups"))
 
     def _sends_categories(self):
-        """Whether this device sent a CATEGORIES property in an earlier PUT."""
+        """Whether this device sent CATEGORIES in an accepted PUT of a contact card."""
         return bool((self.channel.settings or {}).get("sends_categories"))
 
     def _record_categories(self):
