@@ -229,8 +229,9 @@ correct a refused card, and the change on the device is lost. The contact
 holds the first 255 characters. The server keeps the full line and serves
 it back until the text changes. A vCard export holds the full line, and
 the import of a vCard file applies the same rule. An overlay keeps no line
-of its own (see below), so a `PUT` with such a text on an overlay is
-refused.
+of its own (see below). Thus a `PUT` that gives an overlay a new text of
+this length is refused. A `PUT` that sends such a text of the parent back
+unchanged is accepted.
 
 A `PUT` over an existing card applies only what the client changed against
 the card it was served: an unchanged `PUT` is a no-op, and what vCard does
@@ -381,3 +382,6 @@ colleague's book does not invalidate this one's tokens. Schedule
   there is no model for "a book".
 - **No `CARDDAV:no-uid-conflict` check**: two cards of one book may carry
   the same UID if a client sends them.
+- **An overlay cannot cut a long text of its parent to exactly its first
+  255 characters** (see [Writes](#writes)): the `PUT` succeeds, but the
+  server serves the full text again. A different shorter text works.
