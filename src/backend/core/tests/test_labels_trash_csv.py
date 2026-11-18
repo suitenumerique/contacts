@@ -255,6 +255,30 @@ def test_csv_import_endpoint(client, user):
     assert models.Contact.objects.filter(owner=user).count() == 2
 
 
+EXCEL_CSV = (
+    "Prénom;Nom;E-mail;Téléphone\r\nHélène;Lefèvre;helene@example.org;0102030405\r\n"
+)
+
+
+@pytest.mark.parametrize("encoding", ["utf-8", "utf-8-sig", "cp1252"])
+def test_csv_import_reads_utf_8_and_windows_1252(user, encoding):
+    result = import_contacts(user, "csv", EXCEL_CSV.encode(encoding))
+
+    assert (result["imported"], result["errors"]) == (1, 0)
+    contact = models.Contact.objects.get(owner=user)
+    assert (contact.given_name, contact.family_name) == ("Hélène", "Lefèvre")
+    assert contact.emails == [{"type": "work", "value": "helene@example.org"}]
+    assert contact.phones == [{"type": "work", "value": "0102030405"}]
+
+
+def test_parse_csv_reads_latin_1_when_windows_1252_fails():
+    # Windows-1252 has no character for the byte 0x81.
+    (card,), errors = parse_csv(b"nom\nLef\xe8vre\x81\n")
+
+    assert errors == 0
+    assert card["family_name"] == "Lefèvre\x81"
+
+
 def test_csv_export_round_trip(client, user):
     label = models.ContactLabel.objects.create(owner=user, name="Agent")
     contact = factories.ContactFactory(

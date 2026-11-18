@@ -24,6 +24,9 @@
 		Content-Security-Policy "frame-ancestors 'none'; base-uri 'self'; object-src 'none'"
 		X-Content-Type-Options "nosniff"
 		Referrer-Policy "same-origin"
+		# The whole app is behind login. robots.txt allows crawling, so
+		# that crawlers can read this directive.
+		X-Robots-Tag "noindex"
 	}
 
 	route {
