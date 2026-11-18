@@ -310,8 +310,8 @@ def resolve_member_refs(user, refs):
 def render_card(user, book, card):
     """Serialize one card to a vCard, honouring overlay merging.
 
-    Leave out the characters that XML 1.0 does not allow. The card is then
-    the same text in a vCard body and in an XML document.
+    Leave out the characters that XML 1.0 does not allow. The removal is
+    thus the same for a vCard body and for a card in an XML document.
     """
     if is_group(card):
         text = serialize_group(card, group_member_uids(user, book, card))

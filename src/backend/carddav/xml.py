@@ -150,7 +150,8 @@ def to_bytes(root):
     Leave out the characters that XML 1.0 does not allow, so the document
     is well-formed for any text that it holds.
     """
-    # Filter the text, not the bytes. ElementTree encodes a surrogate as a
-    # character reference, which XML 1.0 also refuses.
+    # Serialize to text first. The UTF-8 serialization of ElementTree writes
+    # a surrogate as a numeric character reference, and XML 1.0 refuses that
+    # reference too.
     text = ET.tostring(root, encoding="unicode")
     return _DECLARATION + strip_non_xml_chars(text).encode("utf-8")
