@@ -73,18 +73,14 @@ healthcheck:
 
 The command sends a ping to the worker of its own container and waits up to
 5 seconds for the answer. It exits with 0 when the worker answers and with 1
-when it does not. The answer needs the broker, a worker process and the
-result backend, so the probe fails when one of them does not answer. After
-Django starts, the command waits no more than 6 seconds, also when Redis
-accepts the connection and does not answer.
+when it does not. The answer goes through Redis, so the probe also fails
+when Redis is unreachable.
 
-Each worker process runs one task at a time. A ping that goes to a process
-in the middle of an import waits for the end of the import. The probe fails
-when the import needs more than 5 seconds to end.
-
-Docker marks the container unhealthy only after `retries` failed probes in
-a row (3 by default). With the default retry count, one isolated failed
-probe does not mark the container unhealthy.
+A probe can fail on a healthy worker: a ping that goes to a worker process
+in the middle of an import fails when the import needs more than 5 seconds
+to end. Docker marks the container unhealthy only after `retries` failed
+probes in a row (3 by default). With the default retry count, one isolated
+failed probe does not mark the container unhealthy.
 
 ## Legal pages
 
