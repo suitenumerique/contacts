@@ -95,6 +95,6 @@ imports a file into it, or copies one of their own contacts into it (see
 [architecture.md](architecture.md)); everyone else in the organization
 reads it. The decisions are `Contact.is_writable` and
 `ContactGroup.is_writable`, fail-closed like the rest: an unreachable
-service makes the organization's rows read-only. With the default local
-backend nobody is an administrator, so they can only come from the Django
-admin, a source or the demo seed.
+service makes the organization's rows read-only when no usable cached
+answer exists. With the default local backend nobody is an administrator,
+so they can only come from the Django admin, a source or the demo seed.
