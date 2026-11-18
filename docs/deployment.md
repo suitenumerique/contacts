@@ -8,12 +8,8 @@ It serves the built SPA and proxies the backend paths to Django: `/api/`,
 `/carddav/`, `/.well-known/carddav`, the admin URL, `/static/` and
 `/__heartbeat__/`. The Scalingo deployment runs the same Caddyfile in
 front of gunicorn (`bin/scalingo_postfrontend`, `bin/scalingo_run_web`).
-
-The whole app is behind login, so Caddy adds `X-Robots-Tag: noindex` to
-every response, the proxied Django responses included. The SPA ships a
-`/robots.txt` (`src/frontend/public/robots.txt`) that allows crawling: a
-crawler obeys `noindex` only on a page that it can fetch, and a
-`Disallow: /` can leave a known URL in its index.
+Caddy adds `X-Robots-Tag: noindex` to every response, because the whole
+app is behind login.
 
 | Variable | Default | Description |
 | -------- | ------- | ----------- |
@@ -52,9 +48,8 @@ untrusted machines share the private network with Caddy.
 ### Smoke test
 
 `make test-front-production` builds the image and checks the heartbeat,
-the healthcheck, the backend proxying, the SPA fallback, `robots.txt`,
-the `noindex` header, and the admin allowlist with spoofed and trusted
-`X-Forwarded-For`. CI runs it.
+the healthcheck, the backend proxying, the SPA fallback, and the admin
+allowlist with spoofed and trusted `X-Forwarded-For`. CI runs it.
 
 ## Backend image
 
