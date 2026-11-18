@@ -13,7 +13,6 @@ from core.validators import (
     MAX_TYPED_VALUES,
     PHOTO_MAX_BYTES,
     broken_value_rule,
-    split_typed_values,
     validate_photo,
 )
 
@@ -107,20 +106,3 @@ def test_valid_values_break_no_value_rule(field):
 def test_too_many_values_break_a_value_rule():
     phones = [{"type": "", "value": "+33199000405"}] * (MAX_TYPED_VALUES + 1)
     assert broken_value_rule("phones", phones) == ("too_many_values", "")
-
-
-def test_split_refuses_a_value_that_breaks_a_value_rule():
-    valid = {"type": "work", "value": "+33199000405"}
-    broken = {"type": "work", "value": "1" * 65}
-    assert split_typed_values("phones", [broken, valid]) == ([valid], [broken])
-
-
-def test_split_keeps_the_first_values_up_to_the_limit():
-    phones = [
-        {"type": "", "value": f"+3319900{index:04}"}
-        for index in range(MAX_TYPED_VALUES + 2)
-    ]
-    assert split_typed_values("phones", phones) == (
-        phones[:MAX_TYPED_VALUES],
-        phones[MAX_TYPED_VALUES:],
-    )

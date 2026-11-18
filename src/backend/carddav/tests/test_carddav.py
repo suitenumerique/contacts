@@ -928,6 +928,9 @@ def test_cannot_write_org_contact(auth, user):
         pytest.param(
             VCARD.replace("EMAIL;TYPE=WORK:ada@example.org\r\n", ""), id="no-contact"
         ),
+        pytest.param(
+            VCARD.replace("FN:Ada", f"TEL:{'1' * 65}\r\nFN:Ada"), id="long-phone"
+        ),
         pytest.param("not a vcard at all", id="garbage"),
     ],
 )
@@ -947,70 +950,6 @@ def with_lines(card, *lines):
 def served_lines(auth, url):
     """The unfolded content lines of the card served at *url*."""
     return get(auth, url).content.decode().replace("\r\n ", "").split("\r\n")
-
-
-@pytest.mark.parametrize(
-    "line",
-    [
-        pytest.param("EMAIL:not-an-email", id="email"),
-        pytest.param(f"TEL;TYPE=CELL:{'1' * 65}", id="phone"),
-        pytest.param("URL:javascript:alert(1)", id="url-script"),
-        pytest.param("item1.URL;TYPE=WORK,pref:ftp://example.org/x", id="url-ftp"),
-        pytest.param(f"ADR;TYPE=HOME:;;{'x' * 1025};;;;", id="length"),
-    ],
-)
-def test_put_keeps_a_card_with_a_value_that_breaks_a_value_rule(auth, user, line):
-    """The value stays out of the contact. The server serves its line back."""
-    url = f"{PERSONAL}{uuid.uuid4()}.vcf"
-    response = put(auth, url, with_lines(VCARD, line))
-    assert response.status_code == 201, response.content
-
-    contact = models.Contact.objects.get(owner=user)
-    assert contact.emails == [{"type": "work", "value": "ada@example.org"}]
-    assert (contact.phones, contact.addresses, contact.urls) == ([], [], [])
-    assert contact.vcard_extra == {"+": [line]}
-    assert line in served_lines(auth, url)
-
-
-def test_put_keeps_a_card_with_too_many_values(auth, user):
-    """The first 50 values go into the contact. The other lines are kept."""
-    phones = [f"TEL;TYPE=CELL:+3319900{index:04}" for index in range(52)]
-    url = f"{PERSONAL}{uuid.uuid4()}.vcf"
-    assert put(auth, url, with_lines(VCARD, *phones)).status_code == 201
-
-    contact = models.Contact.objects.get(owner=user)
-    assert [phone["value"] for phone in contact.phones] == [
-        line.rpartition(":")[2] for line in phones[:50]
-    ]
-    assert contact.vcard_extra == {"+": phones[50:]}
-    assert set(phones) <= set(served_lines(auth, url))
-
-
-def test_put_update_keeps_a_card_with_a_value_that_breaks_a_value_rule(auth, user):
-    contact = factories.ContactFactory(
-        owner=user,
-        full_name="Ada Lovelace",
-        emails=[{"type": "work", "value": "ada@example.org"}],
-    )
-    url = f"{PERSONAL}{contact.id}.vcf"
-    body = with_lines(
-        get(auth, url).content.decode(),
-        "URL:javascript:alert(1)",
-        "URL:https://ada.example.org",
-    )
-    assert put(auth, url, body).status_code == 204
-
-    contact.refresh_from_db()
-    assert contact.urls == [{"type": "", "value": "https://ada.example.org"}]
-    assert contact.vcard_extra["+"] == ["URL:javascript:alert(1)"]
-
-    # To send the served card again changes nothing.
-    assert "URL:javascript:alert(1)" in served_lines(auth, url)
-    before = row(contact)
-    seq = ContactChange.objects.get(contact_id=contact.pk).seq
-    assert put(auth, url, get(auth, url).content).status_code == 204
-    assert row(contact) == before
-    assert ContactChange.objects.get(contact_id=contact.pk).seq == seq
 
 
 LONG = "x" * 300
@@ -1070,6 +1009,20 @@ def test_a_cut_text_is_served_whole_until_it_changes(auth, user):
 
     lines = served_lines(auth, url)
     assert "TITLE:Mathematician" in lines
+    assert line not in lines
+
+
+def test_put_can_shorten_a_cut_text_to_its_stored_start(auth, user):
+    """The full line goes away, and the server serves the short text."""
+    url = f"{PERSONAL}{uuid.uuid4()}.vcf"
+    line = f"TITLE:{LONG}"
+    assert put(auth, url, with_lines(VCARD, line)).status_code == 201
+
+    short = f"TITLE:{'x' * 255}"
+    body = "\r\n".join(served_lines(auth, url)).replace(line, short)
+    assert put(auth, url, body).status_code == 204
+    lines = served_lines(auth, url)
+    assert short in lines
     assert line not in lines
 
 
@@ -1428,8 +1381,8 @@ def test_put_on_overlay_records_overrides_and_keeps_inheritance(auth, user):
     assert "ANCT" in get(auth, url).content.decode()  # still tracking the source
 
 
-def test_put_on_overlay_loses_a_value_that_breaks_a_value_rule(auth, user):
-    """An overlay shows the unmodeled lines of its parent, not its own."""
+def test_put_on_overlay_refuses_a_text_longer_than_its_column(auth, user):
+    """An overlay keeps no line of its own, so it cannot keep the full text."""
     _parent, overlay = _overlay_of(
         user,
         full_name="Directory Name",
@@ -1437,27 +1390,34 @@ def test_put_on_overlay_loses_a_value_that_breaks_a_value_rule(auth, user):
     )
     before = row(overlay)
     url = f"{PERSONAL}{overlay.id}.vcf"
-    body = with_lines(get(auth, url).content.decode(), "URL:javascript:alert(1)")
-    assert put(auth, url, body).status_code == 204
+    body = with_lines(get(auth, url).content.decode(), f"TITLE:{LONG}")
+    assert put(auth, url, body).status_code == 403
     assert row(overlay) == before
-    assert "javascript" not in get(auth, url).content.decode()
 
 
-def test_put_on_overlay_serves_a_long_text_cut(auth, user):
-    """An overlay keeps the start of the text, and no line for the full text."""
+def test_put_on_overlay_accepts_the_long_text_of_its_parent(auth, user):
+    """The parent holds the full line, and the PUT does not change the text."""
+    line = f"TITLE:{LONG}"
     _parent, overlay = _overlay_of(
         user,
         full_name="Directory Name",
         emails=[{"type": "work", "value": "inherited@example.org"}],
+        job_title="x" * 255,
+        vcard_extra={"TITLE": [line]},
     )
     url = f"{PERSONAL}{overlay.id}.vcf"
-    body = with_lines(get(auth, url).content.decode(), f"TITLE:{LONG}")
-    assert put(auth, url, body).status_code == 204
+    served = get(auth, url).content.decode()
+    assert line in served_lines(auth, url)
 
+    before = row(overlay)
+    assert put(auth, url, served).status_code == 204
+    assert row(overlay) == before
+
+    assert put(auth, url, with_lines(served, "TEL:+33199000405")).status_code == 204
     overlay.refresh_from_db()
-    assert overlay.job_title == "x" * 255
-    assert overlay.vcard_extra == {}
-    assert f"TITLE:{'x' * 255}" in served_lines(auth, url)
+    assert [phone["value"] for phone in overlay.phones] == ["+33199000405"]
+    assert overlay.job_title == ""
+    assert line in served_lines(auth, url)
 
 
 def test_delete_overlay_reverts_to_source(auth, user):

@@ -17,14 +17,9 @@ property name, so parse -> serialize -> parse is stable:
 - later instances of a single-column property (a second ORG, NOTE, ...)
   verbatim, written back after the modeled lines.
 
-``parse_one_card`` does not refuse a card for a value that a column cannot
-hold. It keeps two more kinds of lines:
-
-- an EMAIL, TEL, ADR or URL value that breaks a value rule of
-  ``core.validators`` (see ``set_aside_refused_values``) verbatim, written
-  back after the modeled lines;
-- a text longer than its column (see ``_fit``) as a shadow line. The
-  column holds the start of the text.
+The parsers cut a text that is longer than its column (see ``_fit``). The
+column holds the start of the text. The full line is kept as a shadow
+line.
 
 Mappings: FN <-> full_name; N <-> family_name, given_name, middle_name,
 civility (``M.``/``Mme``) plus name_prefix, name_suffix; NICKNAME <->
@@ -48,7 +43,7 @@ from vobject.base import VObjectError
 
 from core.models import NAME_PARTS, Civility, compose_name
 from core.utils import decode_text
-from core.validators import split_typed_values, validate_photo
+from core.validators import validate_photo
 
 logger = logging.getLogger(__name__)
 
@@ -58,8 +53,7 @@ _SINGLE = frozenset({"FN", "N", "NICKNAME", "ORG", "TITLE", "NOTE", "PHOTO"})
 # Only the first instance of a _SINGLE property fills its column. Later
 # ones are kept verbatim under this key (not a property name) and written
 # after the modeled lines. A second N is dropped: both vCard 3 and 4 allow
-# one at most. The key also holds the lines of the _TYPED values that
-# set_aside_refused_values takes out of their columns.
+# one at most.
 _MORE = "+"
 _REPEATABLE = _SINGLE - {"N"}
 _TYPED = {"EMAIL": "emails", "TEL": "phones", "ADR": "addresses", "URL": "urls"}
@@ -488,16 +482,14 @@ def parse_vcf_file(data):
     return cards, groups, errors
 
 
-def parse_one_card(data):
+def parse_one_card(data, *, fit=True):
     """Parse a body that must hold exactly one vCard (a CardDAV PUT).
 
     Returns ``(is_group, fields)``: group fields (see ``_parse_group``) for
     a group card, Contact kwargs otherwise. Raises
     :class:`InvalidVCardError` for anything else.
 
-    A value that a column cannot hold is not a reason to refuse a contact
-    card. A text longer than its column is cut (see ``_fit``). A value that
-    breaks a value rule is set aside (see ``set_aside_refused_values``).
+    Without *fit*, a text longer than its column stays whole (see ``_fit``).
     """
     components = list(_read_components(data))
     if len(components) != 1 or components[0][0] != "VCARD":
@@ -505,12 +497,11 @@ def parse_one_card(data):
     lines = components[0][1]
     is_group = _is_group(lines)
     try:
-        fields = _parse_group(lines) if is_group else _parse_card(lines, fit=True)
+        return is_group, (
+            _parse_group(lines) if is_group else _parse_card(lines, fit=fit)
+        )
     except Exception as exc:  # pylint: disable=broad-exception-caught
         raise InvalidVCardError(str(exc)) from exc
-    if not is_group:
-        set_aside_refused_values(fields)
-    return is_group, fields
 
 
 # --- group cards ------------------------------------------------------
@@ -635,12 +626,12 @@ def _set_aside(name, line, fields, seen):
     return False
 
 
-def _parse_card(lines, fit=False):
+def _parse_card(lines, *, fit=True):
     """Convert the content lines of one VCARD into contact fields and label names.
 
     ``label_names`` holds the CATEGORIES values. A card without a
-    CATEGORIES property has no ``label_names`` key. With *fit*, a text
-    longer than its column is cut (see ``_fit``).
+    CATEGORIES property has no ``label_names`` key. Without *fit*, a text
+    longer than its column stays whole (see ``_fit``).
     """
     fields = {
         "full_name": "",
@@ -699,34 +690,6 @@ def _parse_card(lines, fit=False):
     if fit:
         fields["full_name"] = _cut(fields["full_name"])
     return fields
-
-
-def _take_shadow(extra, name, item):
-    """Remove the shadow line of *item* from *extra*; the line, or None."""
-    for text in extra.get(name, []):
-        line = _line_from_text(name, text)
-        if line is None or _decode(name, line) != item:
-            continue
-        extra[name].remove(text)
-        if not extra[name]:
-            del extra[name]
-        return text
-    return None
-
-
-def set_aside_refused_values(fields):
-    """Take out of a parsed card the values that break a value rule.
-
-    The EMAIL, TEL, ADR and URL values that ``split_typed_values`` refuses
-    leave their columns. Each one stays in ``vcard_extra`` as its content
-    line, so serialization writes it back after the modeled lines.
-    """
-    extra = fields["vcard_extra"]
-    for name, field in _TYPED.items():
-        fields[field], refused = split_typed_values(field, fields[field])
-        for item in refused:
-            text = _take_shadow(extra, name, item) or _encode(name, item)
-            extra.setdefault(_MORE, []).append(text)
 
 
 # --- serialization ----------------------------------------------------
@@ -846,12 +809,12 @@ def _unmodeled_lines(extra, skipped=frozenset()):
 
 
 def _repeated_lines(extra):
-    """The stored lines of the _MORE key, safe to write."""
+    """The stored later instances of _SINGLE properties, safe to write."""
     for text in extra.get(_MORE, []):
         if "\r" in text or "\n" in text:
             continue
         match = re.match(r"(?:[A-Za-z0-9-]+\.)?([A-Za-z0-9-]+)[;:]", text)
-        if match and match.group(1).upper() in _REPEATABLE | set(_TYPED):
+        if match and match.group(1).upper() in _REPEATABLE:
             yield text
 
 

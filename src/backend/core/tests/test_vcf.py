@@ -228,16 +228,36 @@ def test_import_error_detail_quotes_the_start_of_a_long_value():
     assert detail["value"] == "x" * tasks.MAX_QUOTED_VALUE_LENGTH + "…"
 
 
-def test_import_rejects_a_card_with_a_text_longer_than_its_column():
-    """CardDAV cuts such a text. The import does not change a card."""
+def test_import_cuts_a_text_longer_than_its_column():
+    """The contact holds the start of the text, and the full line is kept."""
     user = factories.UserFactory()
     line = f"TITLE:{'x' * 300}"
 
     result = import_contacts(user, "vcf", REFUSED_VALUE_VCF.format(line=line).encode())
 
-    assert counters(result) == {"imported": 0, "skipped": 0, "errors": 1, "total": 1}
-    assert result["error_details"][0]["reason"] == "failed"
-    assert not models.Contact.objects.filter(owner=user).exists()
+    assert counters(result) == {"imported": 1, "skipped": 0, "errors": 0, "total": 1}
+    contact = models.Contact.objects.get(owner=user)
+    assert contact.job_title == "x" * 255
+    assert contact.vcard_extra["TITLE"] == [line]
+
+
+def test_import_reads_an_exported_contact_with_a_long_text():
+    """The import accepts each contact that the export writes."""
+    user = factories.UserFactory()
+    client = APIClient()
+    client.force_login(user)
+    line = f"TITLE:{'x' * 300}"
+    import_contacts(user, "vcf", REFUSED_VALUE_VCF.format(line=line).encode())
+    export = client.get("/api/v1.0/contacts/export-vcf/").content
+    assert line in export.decode().replace("\r\n ", "").split("\r\n")
+
+    other = factories.UserFactory()
+    result = import_contacts(other, "vcf", export)
+
+    assert counters(result) == {"imported": 1, "skipped": 0, "errors": 0, "total": 1}
+    restored = models.Contact.objects.get(owner=other)
+    assert restored.job_title == "x" * 255
+    assert restored.vcard_extra["TITLE"] == [line]
 
 
 def test_import_turns_categories_into_labels():

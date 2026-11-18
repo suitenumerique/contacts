@@ -770,7 +770,8 @@ class CardDAVView(View):  # pylint: disable=too-many-public-methods
     def _parse_body(self, body, existing):
         """``(is_group, fields)`` of a PUT body, or the response refusing it."""
         try:
-            is_group, fields = parse_one_card(body)
+            # An overlay keeps no line, so its long text is not cut but refused.
+            is_group, fields = parse_one_card(body, fit=storage.keeps_lines(existing))
         except InvalidVCardError as exc:
             logger.info("CardDAV PUT refused an unreadable card: %s", exc)
             return _invalid_card()
@@ -838,9 +839,8 @@ class CardDAVView(View):  # pylint: disable=too-many-public-methods
         fields the client did not touch, and leaves columns vCard does not
         carry alone.
         """
-        _is_group, served = parse_one_card(
-            storage.render_card(self.user, storage.PERSONAL, existing)
-        )
+        rendered = storage.render_card(self.user, storage.PERSONAL, existing)
+        _is_group, served = parse_one_card(rendered, fit=storage.keeps_lines(existing))
         # A card without CATEGORIES has no label_names.
         served.setdefault("label_names", [])
         if self._sends_categories():
