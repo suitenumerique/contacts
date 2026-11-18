@@ -55,8 +55,7 @@ def validate_photo(value):
 
 
 # The value rules of the multi-valued contact fields (emails, phones,
-# addresses, urls). An entry is {"type": ..., "value": ...}. Every writer
-# of a contact applies these rules.
+# addresses, urls). An entry is {"type": ..., "value": ...}.
 MAX_TYPED_VALUES = 50
 TYPE_MAX_LENGTH = 32
 TYPE_PATTERN = rf"^[A-Za-z0-9-]{{0,{TYPE_MAX_LENGTH}}}$"

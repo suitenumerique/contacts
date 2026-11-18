@@ -925,6 +925,9 @@ def test_cannot_write_org_contact(auth, user):
         pytest.param(VCARD.replace("END:VCARD\r\n", ""), id="unterminated"),
         pytest.param(VCARD + VCARD, id="two-cards"),
         pytest.param(NAMELESS_VCARD, id="no-names"),
+        pytest.param(
+            VCARD.replace("EMAIL;TYPE=WORK:ada@example.org\r\n", ""), id="no-contact"
+        ),
         pytest.param("not a vcard at all", id="garbage"),
     ],
 )
@@ -934,36 +937,6 @@ def test_put_refuses_an_invalid_card(auth, user, body):
     assert response.status_code == 403
     assert conditions(response) == [CARD("valid-address-data")]
     assert not models.Contact.objects.filter(owner=user).exists()
-
-
-# The email-or-phone rule is a rule of the web form. CardDAV does not apply it.
-BARE_VCARD = (
-    "BEGIN:VCARD\r\nVERSION:3.0\r\nFN:Jean Dupont\r\nN:Dupont;Jean;;;\r\n"
-    "ADR;TYPE=HOME:;;1 rue de la Mairie;Brigny;;01000;France\r\nEND:VCARD\r\n"
-)
-
-
-def test_put_creates_a_card_without_email_and_phone(auth, user):
-    response = put(auth, f"{PERSONAL}{uuid.uuid4()}.vcf", BARE_VCARD)
-    assert response.status_code == 201, response.content
-    contact = models.Contact.objects.get(owner=user)
-    assert (contact.full_name, contact.emails, contact.phones) == (
-        "Jean Dupont",
-        [],
-        [],
-    )
-    assert contact.addresses == [
-        {"type": "home", "value": "1 rue de la Mairie\n01000 Brigny\nFrance"}
-    ]
-
-
-def test_put_can_remove_the_last_email_and_phone(auth, user):
-    url = f"{PERSONAL}{uuid.uuid4()}.vcf"
-    assert put(auth, url, VCARD).status_code == 201
-    body = VCARD.replace("EMAIL;TYPE=WORK:ada@example.org\r\n", "")
-    assert put(auth, url, body).status_code == 204
-    contact = models.Contact.objects.get(owner=user)
-    assert (contact.emails, contact.phones) == ([], [])
 
 
 def with_lines(card, *lines):
@@ -1042,7 +1015,7 @@ def test_put_update_keeps_a_card_with_a_value_that_breaks_a_value_rule(auth, use
 
 LONG = "x" * 300
 LONG_VCARD = (
-    f"BEGIN:VCARD\r\nVERSION:3.0\r\nFN:{LONG}\r\n"
+    f"BEGIN:VCARD\r\nVERSION:3.0\r\nEMAIL:ada@example.org\r\nFN:{LONG}\r\n"
     f"N:{LONG};{LONG};{LONG};{LONG};{LONG}\r\nNICKNAME:{LONG}\r\n"
     f"ORG:{LONG};{LONG}\r\nTITLE:{LONG}\r\nEND:VCARD\r\n"
 )
@@ -1067,7 +1040,7 @@ def test_put_cuts_a_text_longer_than_its_column(auth, user):
         "job_title",
     ):
         assert getattr(contact, field) == "x" * 255, field
-    assert set(LONG_VCARD.split("\r\n")[2:-2]) <= set(served_lines(auth, url))
+    assert set(LONG_VCARD.split("\r\n")[3:-2]) <= set(served_lines(auth, url))
 
     before = row(contact)
     assert put(auth, url, get(auth, url).content).status_code == 204
@@ -1077,7 +1050,7 @@ def test_put_cuts_a_text_longer_than_its_column(auth, user):
 def test_put_cuts_a_name_composed_from_long_parts(auth, user):
     body = (
         "BEGIN:VCARD\r\nVERSION:3.0\r\nFN:\r\n"
-        f"N:{'f' * 200};{'g' * 200};;;\r\nEND:VCARD\r\n"
+        f"N:{'f' * 200};{'g' * 200};;;\r\nEMAIL:ada@example.org\r\nEND:VCARD\r\n"
     )
     response = put(auth, f"{PERSONAL}{uuid.uuid4()}.vcf", body)
     assert response.status_code == 201, response.content
