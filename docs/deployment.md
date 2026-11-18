@@ -53,7 +53,8 @@ untrusted machines share the private network with Caddy.
 
 `make test-front-production` builds the image and checks the heartbeat,
 the healthcheck, the backend proxying, the SPA fallback, `robots.txt`,
-the `noindex` header, and the admin allowlist with spoofed and trusted `X-Forwarded-For`. CI runs it.
+the `noindex` header, and the admin allowlist with spoofed and trusted
+`X-Forwarded-For`. CI runs it.
 
 ## Backend image
 

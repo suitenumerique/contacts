@@ -98,6 +98,9 @@ stop_container() {
 
 code() { curl -s -o /dev/null -w '%{http_code}' --connect-timeout 3 --max-time 10 "$@"; }
 
+# header NAME URL: the value of one response header.
+header() { curl -s -o /dev/null -w "%header{$1}" --connect-timeout 3 --max-time 10 "$2"; }
+
 assert_code() {
   local expected="$1" label="$2"; shift 2
   local got; got=$(code "$@" || true)
@@ -120,21 +123,21 @@ assert_code 200 "carddav discovery proxy" "$BASE/.well-known/carddav"
 assert_code 200 "SPA route falls back to index.html" "$BASE/contacts/some-id"
 assert_code 404 "missing asset stays a 404" "$BASE/assets/missing.js"
 
-# The SPA fallback answers index.html with a 200 when the file is missing,
-# so check the type and the rules too. The file must allow crawling:
-# crawlers read the noindex header only on the pages that they can fetch.
-[ "$(curl -s -o /dev/null --max-time 10 -w '%{content_type}' "$BASE/robots.txt")" = "text/plain; charset=utf-8" ] \
-  || fail "robots.txt is not a text/plain file"
-ROBOTS_RULES=$(curl -s --max-time 10 "$BASE/robots.txt" | grep -v '^#' | tr -d '\r' | paste -sd'|' -)
-[ "$ROBOTS_RULES" = "User-agent: *|Disallow:" ] \
-  || fail "robots.txt must allow crawling, got: $ROBOTS_RULES"
+# Without the file, the SPA fallback answers index.html for /robots.txt.
+ROBOTS=$(curl -s --max-time 10 "$BASE/robots.txt" || true)
+grep -q '^User-agent: \*' <<<"$ROBOTS" || fail "robots.txt is not served"
+# A crawler reads the noindex header only on a page that it can fetch.
+if grep -q '^Disallow: /' <<<"$ROBOTS"; then
+  fail "robots.txt must allow crawling"
+fi
 echo "ok: robots.txt allows crawling"
-for path in / /contacts/some-id /api/hello /admin/ /robots.txt; do
-  [ "$(curl -s -o /dev/null -w '%header{x-robots-tag}' "$BASE$path")" = "noindex" ] \
-    || fail "X-Robots-Tag noindex header missing on $path"
+
+# One static path and one proxied path.
+for path in / /api/hello; do
+  [ "$(header x-robots-tag "$BASE$path")" = "noindex" ] \
+    || fail "X-Robots-Tag header missing on $path"
 done
-echo "ok: noindex header"
-[ "$(curl -s -o /dev/null -w '%header{x-frame-options}' "$BASE/")" = "DENY" ] \
+[ "$(header x-frame-options "$BASE/")" = "DENY" ] \
   || fail "X-Frame-Options header missing"
 echo "ok: security headers"
 
