@@ -224,14 +224,11 @@ that is not exactly one readable vCard, is refused with `403` and the
 `DATA_UPLOAD_MAX_MEMORY_SIZE`) gets `403` with `CARDDAV:max-resource-size`.
 
 One length is different: a text of more than 255 characters in `FN`, `N`,
-`NICKNAME`, `ORG` or `TITLE` does not refuse the card. A client cannot
-correct a refused card, and the change on the device is lost. The contact
-holds the first 255 characters. The server keeps the full line and serves
-it back until the text changes. A vCard export holds the full line, and
-the import of a vCard file applies the same rule. An overlay keeps no line
-of its own (see below). Thus a `PUT` that gives an overlay a new text of
-this length is refused. A `PUT` that sends such a text of the parent back
-unchanged is accepted.
+`NICKNAME`, `ORG` or `TITLE` does not refuse the card, because a client
+cannot correct a refused card. The contact holds the first 255 characters.
+The server keeps the full line and serves it back until the text changes.
+A vCard export holds the full line, and a vCard import applies the same
+rule.
 
 A `PUT` over an existing card applies only what the client changed against
 the card it was served: an unchanged `PUT` is a no-op, and what vCard does
@@ -253,7 +250,10 @@ Overlays appear in the `personal` book (they are the user's rows) and the
 read-only contact they cover is hidden. A `PUT` on an overlay follows the
 REST rule for the fields the client changed: equal to the source value,
 they stay inherited; different, they become local overrides. The overlay
-shows its parent's unmodeled vCard properties and cannot change them.
+shows its parent's unmodeled vCard properties and cannot change them. Thus
+it cannot keep the full line of a long text: a `PUT` that gives it a new
+text of more than 255 characters is refused, and a `PUT` that cuts such a
+text of its parent to exactly its first 255 characters has no effect.
 
 ### vCard mapping
 
@@ -262,10 +262,9 @@ carries a `UID`: the client's when it sent one, else the contact id.
 What the columns cannot hold is kept in `Contact.vcard_extra` as raw
 content lines, so a card read, edited on a phone and written back keeps
 its property groups (`item1.`), parameters, ADR components, lists of
-values in one `N` component, `KEY`, `X-` properties, later instances
+values in one `N` component, `KEY`, `X-` properties, and later instances
 of one-column
-properties (a second `ORG`, `NOTE`...), and the full line of a text that
-is longer than its column (see [Writes](#writes)). See `core/services/vcf_service.py`
+properties (a second `ORG`, `NOTE`...). See `core/services/vcf_service.py`
 for the mapping.
 
 A card is served without the characters that XML 1.0 does not allow, such
@@ -382,6 +381,3 @@ colleague's book does not invalidate this one's tokens. Schedule
   there is no model for "a book".
 - **No `CARDDAV:no-uid-conflict` check**: two cards of one book may carry
   the same UID if a client sends them.
-- **An overlay cannot cut a long text of its parent to exactly its first
-  255 characters** (see [Writes](#writes)): the `PUT` succeeds, but the
-  server serves the full text again. A different shorter text works.
