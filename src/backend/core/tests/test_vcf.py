@@ -172,6 +172,62 @@ def test_import_error_details_are_capped():
     assert len(result["error_details"]) == tasks.MAX_ERROR_DETAILS
 
 
+REFUSED_VALUE_VCF = (
+    "BEGIN:VCARD\r\nVERSION:3.0\r\nFN:Jean Dupont\r\n"
+    "EMAIL:jean@example.org\r\nTEL:+33199000405\r\n{line}\r\nEND:VCARD\r\n"
+)
+
+
+@pytest.mark.parametrize(
+    ("line", "reason", "value"),
+    [
+        (f"TEL;TYPE=CELL:{'1' * 65}", "invalid_phone", "1" * 65),
+        ("URL:javascript:alert(1)", "invalid_url", "javascript:alert(1)"),
+        (
+            "item1.URL;TYPE=WORK,pref:ftp://example.org/x",
+            "invalid_url",
+            "ftp://example.org/x",
+        ),
+    ],
+    ids=["phone", "url-script", "url-ftp"],
+)
+def test_import_rejects_a_card_with_a_value_that_the_api_refuses(line, reason, value):
+    """The import does not remove a value. It rejects the card and says why."""
+    user = factories.UserFactory()
+
+    result = import_contacts(user, "vcf", REFUSED_VALUE_VCF.format(line=line).encode())
+
+    assert counters(result) == {"imported": 0, "skipped": 0, "errors": 1, "total": 1}
+    assert result["error_details"] == [
+        {"entry": 1, "name": "Jean Dupont", "reason": reason, "value": value}
+    ]
+    assert not models.Contact.objects.filter(owner=user).exists()
+
+
+def test_import_rejects_a_card_with_too_many_values():
+    user = factories.UserFactory()
+    phones = "\r\n".join(f"TEL:+3319900{index:04}" for index in range(51))
+
+    result = import_contacts(
+        user, "vcf", REFUSED_VALUE_VCF.format(line=phones).encode()
+    )
+
+    assert counters(result) == {"imported": 0, "skipped": 0, "errors": 1, "total": 1}
+    assert result["error_details"][0]["reason"] == "too_many_values"
+
+
+def test_import_error_detail_quotes_the_start_of_a_long_value():
+    """A long value must not fill the result."""
+    user = factories.UserFactory()
+    line = f"ADR;TYPE=HOME:;;{'x' * 1025};;;;"
+
+    result = import_contacts(user, "vcf", REFUSED_VALUE_VCF.format(line=line).encode())
+
+    detail = result["error_details"][0]
+    assert detail["reason"] == "value_too_long"
+    assert detail["value"] == "x" * tasks.MAX_QUOTED_VALUE_LENGTH + "…"
+
+
 def test_import_turns_categories_into_labels():
     user = factories.UserFactory()
     models.ContactLabel.objects.create(owner=user, name="Amis")

@@ -6,12 +6,11 @@ import logging
 
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
-from django.core.validators import validate_email
 from django.db import transaction
 
 from core.enums import Scope
 from core.task_utils import register_task, set_task_progress
-from core.validators import validate_photo
+from core.validators import broken_value_rule, validate_photo
 
 logger = logging.getLogger(__name__)
 
@@ -19,24 +18,14 @@ logger = logging.getLogger(__name__)
 # still counts them all; this only bounds what travels back to the browser.
 MAX_ERROR_DETAILS = 20
 
+# How many characters of a refused value an error detail quotes.
+MAX_QUOTED_VALUE_LENGTH = 100
+
 # How long an uploaded file waits in the cache for the worker (seconds).
 IMPORT_FILE_TTL = 60 * 60
 
 # Hard limit on one import run (milliseconds).
 IMPORT_TIME_LIMIT = 15 * 60 * 1000
-
-
-def _first_invalid_email(emails):
-    """The first malformed address in *emails*, or "" when they all pass."""
-    for entry in emails or []:
-        value = (entry.get("value") or "").strip()
-        if not value:
-            continue
-        try:
-            validate_email(value)
-        except ValidationError:
-            return value
-    return ""
 
 
 def dedup_keys(emails, given_name, family_name, full_name, phones):
@@ -72,20 +61,31 @@ def _rejection(fields):
     """Why this card cannot become a contact, as ``(reason, value)``.
 
     Returns ``("", "")`` when it can. The rules are the ones the API
-    enforces on create (``ContactSerializer.validate``): a name, at least
-    an email or a phone, valid emails. The parsers already fill
-    ``full_name`` from the name parts (and a vCard from its first email,
-    as vCard requires FN), so the name check is on ``full_name``.
+    enforces on create (``ContactSerializer``): a name, the value rules of
+    ``core.validators``, at least an email or a phone. The parsers already
+    fill ``full_name`` from the name parts (and a vCard from its first
+    email, as vCard requires FN), so the name check is on ``full_name``.
+    The parsers give safe types and no blank value, so these two value
+    rules need no check.
     """
     if not fields["full_name"].strip():
         return "no_name", ""
-    if bad_email := _first_invalid_email(fields["emails"]):
-        return "invalid_email", bad_email
+    for field in ("emails", "phones", "addresses", "urls"):
+        reason, value = broken_value_rule(field, fields.get(field, []))
+        if reason:
+            return reason, value
     has_email = any((entry.get("value") or "").strip() for entry in fields["emails"])
     has_phone = any((entry.get("value") or "").strip() for entry in fields["phones"])
     if not has_email and not has_phone:
         return "no_email_or_phone", ""
     return "", ""
+
+
+def _quoted(value):
+    """*value* as an error detail quotes it. A long value is cut."""
+    if len(value) <= MAX_QUOTED_VALUE_LENGTH:
+        return value
+    return f"{value[:MAX_QUOTED_VALUE_LENGTH]}…"
 
 
 # Google Contacts exports its system groups among a contact's labels: in
@@ -230,7 +230,7 @@ def import_contacts(user, file_format, data, scope=Scope.PERSONAL):  # pylint: d
                         "entry": index + 1,
                         "name": fields["full_name"],
                         "reason": reason,
-                        "value": value,
+                        "value": _quoted(value),
                     }
                 )
         elif uid:

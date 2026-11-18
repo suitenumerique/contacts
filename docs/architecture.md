@@ -114,7 +114,9 @@ The REST paths on this page are relative to `/api/v1.0/`.
   (or the full name when there is neither) and the digits of the first
   phone. Trashed contacts count as
   matches, and a matched trashed contact is restored, so re-importing a
-  file creates nothing new. vCard `CATEGORIES` become labels, except the
+  file creates nothing new. The import rejects a card that breaks a rule
+  of a REST create: a name, an email or a phone, valid values. The result
+  of the task gives the reason. vCard `CATEGORIES` become labels, except the
   system groups of a Google Contacts export (`myContacts` is dropped,
   `starred` makes a favorite; same for the CSV `Labels` column), and group
   cards (Apple's `X-ADDRESSBOOKSERVER-KIND:group`, or vCard 4 `KIND:group`)

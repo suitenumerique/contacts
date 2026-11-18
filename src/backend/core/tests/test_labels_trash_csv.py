@@ -576,6 +576,58 @@ def test_import_applies_the_api_rules(user):
     ) == {"Luc Phone", "Jeanne"}
 
 
+def test_csv_import_rejects_a_card_with_a_phone_that_is_too_long(user):
+    """The import does not remove a value. It rejects the card and says why."""
+    long_phone = "1" * 65
+    data = (
+        "prenom,nom,email,telephone,phone2\n"
+        f"Jean,Dupont,jean@example.org,{long_phone},+33199000405\n"
+    )
+
+    result = import_contacts(user, "csv", data.encode())
+
+    assert (result["imported"], result["errors"]) == (0, 1)
+    assert result["error_details"] == [
+        {
+            "entry": 1,
+            "name": "Jean Dupont",
+            "reason": "invalid_phone",
+            "value": long_phone,
+        }
+    ]
+    assert not models.Contact.objects.filter(owner=user).exists()
+
+
+@pytest.mark.parametrize(
+    ("cell", "reason"),
+    [
+        ("javascript:alert(1)", "invalid_url"),
+        ("ftp://example.org/x", "invalid_url"),
+        ("https://example.org/" + "x" * 1024, "value_too_long"),
+    ],
+    ids=lambda value: value[:20],
+)
+def test_csv_import_rejects_a_card_with_a_url_that_the_api_refuses(user, cell, reason):
+    data = f"nom,email,website_1\nDupont,jean@example.org,{cell}\n"
+
+    result = import_contacts(user, "csv", data.encode())
+
+    assert (result["imported"], result["errors"]) == (0, 1)
+    assert result["error_details"][0]["reason"] == reason
+    assert not models.Contact.objects.filter(owner=user).exists()
+
+
+def test_csv_import_rejects_a_card_with_too_many_values(user):
+    header = ",".join(f"phone_{index}" for index in range(1, 52))
+    phones = ",".join(f"+3319900{index:04}" for index in range(51))
+
+    result = import_contacts(user, "csv", f"nom,{header}\nDupont,{phones}\n".encode())
+
+    assert (result["imported"], result["errors"]) == (0, 1)
+    assert result["error_details"][0]["reason"] == "too_many_values"
+    assert not models.Contact.objects.filter(owner=user).exists()
+
+
 def test_import_restores_a_trashed_duplicate(user):
     trashed = factories.ContactFactory(
         owner=user,

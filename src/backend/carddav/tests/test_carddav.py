@@ -931,6 +931,9 @@ def test_cannot_write_org_contact(auth, user):
         pytest.param(
             VCARD.replace("EMAIL;TYPE=WORK:ada@example.org\r\n", ""), id="no-contact"
         ),
+        pytest.param(
+            VCARD.replace("FN:Ada", f"TEL:{'1' * 65}\r\nFN:Ada"), id="long-phone"
+        ),
         pytest.param("not a vcard at all", id="garbage"),
     ],
 )

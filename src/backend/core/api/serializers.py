@@ -1,22 +1,13 @@
 """Client serializers for the contacts core app."""
 
-import re
-
 from django.core.exceptions import ValidationError as DjangoValidationError
-from django.core.validators import URLValidator, validate_email
 
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
-from core import models
+from core import models, validators
 from core.entitlements import EntitlementsUnavailableError, get_user_entitlements
 from core.enums import ChannelScope, ChannelScopeLevel, ChannelType, Scope
-
-# Upper bound of entries in each multi-valued contact field.
-MAX_TYPED_VALUES = 50
-
-_URL_SCHEME = re.compile(r"^[a-z][a-z0-9+.-]*:", re.IGNORECASE)
-_http_url = URLValidator(schemes=["http", "https"])
 
 
 def _acting_user(context):
@@ -126,17 +117,19 @@ class TypedValueSerializer(serializers.Serializer):  # pylint: disable=abstract-
     """A {"type": ..., "value": ...} entry (emails, phones, addresses, urls)."""
 
     type = serializers.RegexField(
-        r"^[A-Za-z0-9-]{0,32}$",
-        max_length=32,
+        validators.TYPE_PATTERN,
+        max_length=validators.TYPE_MAX_LENGTH,
         required=False,
         allow_blank=True,
         default="",
     )
-    value = serializers.CharField(max_length=1024)
+    value = serializers.CharField(max_length=validators.VALUE_MAX_LENGTH)
 
 
 def _typed_values():
-    return TypedValueSerializer(many=True, required=False, max_length=MAX_TYPED_VALUES)
+    return TypedValueSerializer(
+        many=True, required=False, max_length=validators.MAX_TYPED_VALUES
+    )
 
 
 class ContactLabelSerializer(serializers.ModelSerializer):
@@ -323,38 +316,19 @@ class ContactSerializer(serializers.ModelSerializer):
     def validate_emails(self, value):
         """Every address must be a valid email."""
         for item in value:
-            try:
-                validate_email(item["value"])
-            except DjangoValidationError as exc:
-                raise serializers.ValidationError(
-                    f"Enter a valid email address: {item['value']}"
-                ) from exc
+            validators.validate_email_value(item["value"])
         return value
 
     def validate_phones(self, value):
         """Phone numbers are short; anything longer is not a phone number."""
         for item in value:
-            if len(item["value"]) > 64:
-                raise serializers.ValidationError(
-                    "Phone numbers are 64 characters max."
-                )
+            validators.validate_phone_value(item["value"])
         return value
 
     def validate_urls(self, value):
-        """Accept http(s) URLs and scheme-less ones ("example.com").
-
-        The frontend prefixes scheme-less values with https://, so those are
-        validated as such; every other scheme (javascript:, data:, ...) is
-        refused.
-        """
+        """Accept http(s) URLs and scheme-less ones ("example.com")."""
         for item in value:
-            url = item["value"].strip()
-            candidate = url if _URL_SCHEME.match(url) else f"https://{url}"
-            try:
-                _http_url(candidate)
-            except DjangoValidationError as exc:
-                raise serializers.ValidationError(f"Enter a valid URL: {url}") from exc
-            item["value"] = url
+            validators.validate_url_value(item["value"])
         return value
 
     def validate(self, attrs):
@@ -733,6 +707,10 @@ class ImportErrorDetailSerializer(serializers.Serializer):  # pylint: disable=ab
             "unreadable",
             "no_name",
             "invalid_email",
+            "invalid_phone",
+            "invalid_url",
+            "value_too_long",
+            "too_many_values",
             "no_email_or_phone",
             "failed",
         ]

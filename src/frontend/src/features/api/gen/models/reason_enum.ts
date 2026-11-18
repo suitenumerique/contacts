@@ -8,6 +8,10 @@
  * * `unreadable` - unreadable
  * * `no_name` - no_name
  * * `invalid_email` - invalid_email
+ * * `invalid_phone` - invalid_phone
+ * * `invalid_url` - invalid_url
+ * * `value_too_long` - value_too_long
+ * * `too_many_values` - too_many_values
  * * `no_email_or_phone` - no_email_or_phone
  * * `failed` - failed
  */
@@ -17,6 +21,10 @@ export const ReasonEnum = {
   unreadable: "unreadable",
   no_name: "no_name",
   invalid_email: "invalid_email",
+  invalid_phone: "invalid_phone",
+  invalid_url: "invalid_url",
+  value_too_long: "value_too_long",
+  too_many_values: "too_many_values",
   no_email_or_phone: "no_email_or_phone",
   failed: "failed",
 } as const;
