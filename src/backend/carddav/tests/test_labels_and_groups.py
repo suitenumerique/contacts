@@ -327,6 +327,25 @@ def test_put_a_group_card_creates_the_group(groups_auth, user):
     assert "\r\nX-ADDRESSBOOKSERVER-MEMBER:urn:uuid:ada-uid\r\n" in body
 
 
+def test_put_stores_a_group_card_without_its_nul_characters(groups_auth, user):
+    put(groups_auth, f"{PERSONAL}ada.vcf", contact_card("ada-uid", "Ada"))
+    body = card(
+        "team-uid",
+        "Te\0am",
+        "X-ADDRESSBOOKSERVER-KIND:group",
+        "X-ADDRESSBOOKSERVER-MEMBER:urn:uuid:a\0da-uid",
+        "X-FOO;ENCODING=QUOTED-PRINTABLE:a=00b",
+    )
+
+    response = put(groups_auth, f"{PERSONAL}team.vcf", body)
+
+    assert response.status_code == 201
+    group = models.ContactGroup.objects.get(owner=user)
+    assert group.name == "Team"
+    assert [member.full_name for member in group.members.all()] == ["Ada"]
+    assert group.vcard_extra == {"UID": ["UID:team-uid"], "X-FOO": ["X-FOO:ab"]}
+
+
 def test_a_group_card_sent_back_unchanged_is_a_no_op(groups_auth, user):
     put(groups_auth, f"{PERSONAL}ada.vcf", contact_card("ada-uid", "Ada"))
     url = f"{PERSONAL}team.vcf"

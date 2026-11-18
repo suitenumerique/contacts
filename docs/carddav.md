@@ -211,6 +211,8 @@ that is not exactly one readable vCard, is refused with `403` and the
 `CARDDAV:valid-address-data` precondition. A body larger than
 `max-resource-size` (the smaller of `CONTACTS_VCF_MAX_FILE_SIZE` and
 `DATA_UPLOAD_MAX_MEMORY_SIZE`) gets `403` with `CARDDAV:max-resource-size`.
+The server removes each NUL character (U+0000) from a card before it
+validates the card.
 
 A `PUT` over an existing card applies only what the client changed against
 the card it was served: an unchanged `PUT` is a no-op, and what vCard does

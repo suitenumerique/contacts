@@ -1009,6 +1009,51 @@ def test_put_etag_only_when_the_stored_card_is_the_body(auth, user):
     assert again["ETag"] == served["ETag"]
 
 
+@pytest.mark.parametrize(
+    ("line", "notes", "extra"),
+    [
+        pytest.param(
+            "NOTE;ENCODING=QUOTED-PRINTABLE:a=00b", "ab", {}, id="column-encoded"
+        ),
+        pytest.param(
+            "X-FOO;ENCODING=QUOTED-PRINTABLE:a=00b",
+            "",
+            {"X-FOO": ["X-FOO:ab"]},
+            id="extra-encoded",
+        ),
+        pytest.param("NOTE:a\0b", "ab", {}, id="column-literal"),
+        pytest.param(
+            "X-FOO;X-BAR=a\0b:c\0d",
+            "",
+            {"X-FOO": ["X-FOO;X-BAR=ab:cd"]},
+            id="extra-literal",
+        ),
+    ],
+)
+def test_put_stores_a_card_without_its_nul_characters(auth, user, line, notes, extra):
+    """PostgreSQL cannot store a NUL character in a text or JSON column."""
+    body = VCARD.replace("END:VCARD", f"{line}\r\nEND:VCARD")
+
+    response = put(auth, f"{PERSONAL}{uuid.uuid4()}.vcf", body)
+
+    assert response.status_code == 201, response.content
+    contact = models.Contact.objects.get(owner=user)
+    assert (contact.notes, contact.vcard_extra) == (notes, extra)
+
+
+def test_put_with_a_nul_character_gets_no_etag(auth, user):
+    """The stored card is not the body, thus the client must read it back."""
+    url = f"{PERSONAL}{uuid.uuid4()}.vcf"
+    put(auth, url, VCARD)
+    served = get(auth, url).content
+
+    response = put(auth, url, served.replace(b"FN:Ada", b"FN:A\0da"))
+
+    assert response.status_code == 204
+    assert not response.has_header("ETag")
+    assert get(auth, url).content == served
+
+
 def test_get_then_unchanged_put_is_a_no_op(auth, user):
     contact = factories.ContactFactory(
         owner=user,
