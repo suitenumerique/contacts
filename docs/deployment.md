@@ -8,6 +8,8 @@ It serves the built SPA and proxies the backend paths to Django: `/api/`,
 `/carddav/`, `/.well-known/carddav`, the admin URL, `/static/` and
 `/__heartbeat__/`. The Scalingo deployment runs the same Caddyfile in
 front of gunicorn (`bin/scalingo_postfrontend`, `bin/scalingo_run_web`).
+Caddy adds `X-Robots-Tag: noindex` to every response, because the whole
+app is behind login.
 
 | Variable | Default | Description |
 | -------- | ------- | ----------- |
