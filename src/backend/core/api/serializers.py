@@ -332,15 +332,15 @@ class ContactSerializer(serializers.ModelSerializer):
         return value
 
     def validate(self, attrs):
-        """Enforce the core-field rules (user-facing writes only).
+        """Enforce the name rule (user-facing writes only).
 
-        - a name is required: ``full_name`` or any structured part. A blank
-          ``full_name`` is filled from the parts, like a vCard FN;
-        - at least one of email / phone must be filled.
+        A name is required: ``full_name`` or any structured part. A blank
+        ``full_name`` is filled from the parts, like a vCard FN. A contact
+        needs no email and no phone.
 
-        On partial updates the rules apply to the merged result of the
+        On partial updates the rule applies to the merged result of the
         fields being modified, so updating one field never demands the
-        whole card again, but a field cannot be blanked below the rules.
+        whole card again, but the name cannot be blanked.
         """
 
         def effective(field):
@@ -365,11 +365,6 @@ class ContactSerializer(serializers.ModelSerializer):
                         {"full_name": "A name is required."}
                     )
                 attrs["full_name"] = composed[:255]  # the column's max_length
-        if creating or "emails" in attrs or "phones" in attrs:
-            if not (effective("emails") or effective("phones")):
-                raise serializers.ValidationError(
-                    "At least an email address or a phone number is required."
-                )
         return self._validate_scope(attrs)
 
     def _validate_scope(self, attrs):
@@ -711,7 +706,6 @@ class ImportErrorDetailSerializer(serializers.Serializer):  # pylint: disable=ab
             "invalid_url",
             "value_too_long",
             "too_many_values",
-            "no_email_or_phone",
             "failed",
         ]
     )

@@ -3046,11 +3046,10 @@
                     "invalid_url",
                     "value_too_long",
                     "too_many_values",
-                    "no_email_or_phone",
                     "failed"
                 ],
                 "type": "string",
-                "description": "* `unreadable` - unreadable\n* `no_name` - no_name\n* `invalid_email` - invalid_email\n* `invalid_phone` - invalid_phone\n* `invalid_url` - invalid_url\n* `value_too_long` - value_too_long\n* `too_many_values` - too_many_values\n* `no_email_or_phone` - no_email_or_phone\n* `failed` - failed"
+                "description": "* `unreadable` - unreadable\n* `no_name` - no_name\n* `invalid_email` - invalid_email\n* `invalid_phone` - invalid_phone\n* `invalid_url` - invalid_url\n* `value_too_long` - value_too_long\n* `too_many_values` - too_many_values\n* `failed` - failed"
             },
             "ScopeEnum": {
                 "enum": [

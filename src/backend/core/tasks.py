@@ -61,8 +61,8 @@ def _rejection(fields):
     """Why this card cannot become a contact, as ``(reason, value)``.
 
     Returns ``("", "")`` when it can. The rules are the ones the API
-    enforces on create (``ContactSerializer``): a name, the value rules of
-    ``core.validators``, at least an email or a phone. The parsers already
+    enforces on create (``ContactSerializer``): a name and the value rules
+    of ``core.validators``. The parsers already
     fill ``full_name`` from the name parts (and a vCard from its first
     email, as vCard requires FN), so the name check is on ``full_name``.
     The parsers give safe types and no blank value, so these two value
@@ -74,10 +74,6 @@ def _rejection(fields):
         reason, value = broken_value_rule(field, fields.get(field, []))
         if reason:
             return reason, value
-    has_email = any((entry.get("value") or "").strip() for entry in fields["emails"])
-    has_phone = any((entry.get("value") or "").strip() for entry in fields["phones"])
-    if not has_email and not has_phone:
-        return "no_email_or_phone", ""
     return "", ""
 
 

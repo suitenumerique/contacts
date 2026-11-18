@@ -204,7 +204,7 @@ corbeille). A card cannot change from a contact into a group or back.
 A `PUT` is validated like a REST write: a name required (`FN`, or an `N`
 component other than the prefix; a card without either falls back to its
 first email as `FN`,
-as vCard requires one), an email or a phone required, the same field
+as vCard requires one), the same field
 lengths. A card with only `FN` keeps it whole, it is never split into
 first and last name. A card that fails, or
 that is not exactly one readable vCard, is refused with `403` and the
