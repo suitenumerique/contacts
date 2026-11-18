@@ -22,6 +22,7 @@ from carddav.tests.test_carddav import (
     hrefs,
     make_channel,
     put,
+    row,
     sync,
 )
 
@@ -42,6 +43,18 @@ def auth(user):
 @pytest.fixture
 def groups_auth(user):
     _channel, headers = make_channel(user, groups=True)
+    return headers
+
+
+@pytest.fixture(params=[False, True], ids=["without_groups", "with_groups"])
+def with_groups(request):
+    return request.param
+
+
+@pytest.fixture
+def any_auth(user, with_groups):
+    """The headers of a device, for each value of its groups option."""
+    _channel, headers = make_channel(user, groups=with_groups)
     return headers
 
 
@@ -75,6 +88,10 @@ def etag(auth, url):
     return get(auth, url)["ETag"]
 
 
+def label_names(contact):
+    return [label.name for label in contact.labels.all()]
+
+
 # --- labels as CATEGORIES ---------------------------------------------
 
 
@@ -100,13 +117,13 @@ def test_put_categories_become_labels(auth, user):
     assert labels[0] == existing
 
 
-def test_put_changed_categories_update_labels(auth, user):
+def test_put_changed_categories_update_labels(any_auth, user):
     url = f"{PERSONAL}ada.vcf"
-    put(auth, url, contact_card("ada", "Ada", "CATEGORIES:Amis,Travail"))
-    served = get(auth, url).content.decode()
+    put(any_auth, url, contact_card("ada", "Ada", "CATEGORIES:Amis,Travail"))
+    served = get(any_auth, url).content.decode()
 
     body = served.replace("CATEGORIES:Amis,Travail", "CATEGORIES:Travail,Famille")
-    assert put(auth, url, body).status_code == 204
+    assert put(any_auth, url, body).status_code == 204
     contact = models.Contact.objects.get(owner=user)
     assert sorted(label.name for label in contact.labels.all()) == [
         "Famille",
@@ -116,61 +133,65 @@ def test_put_changed_categories_update_labels(auth, user):
     assert models.ContactLabel.objects.filter(owner=user, name="Amis").exists()
 
 
-def test_unchanged_put_keeps_labels_and_version(auth, user):
+@pytest.mark.parametrize("names", [["Amis"], []])
+def test_unchanged_put_keeps_labels_and_version(any_auth, user, names):
     url = f"{PERSONAL}ada.vcf"
-    put(auth, url, contact_card("ada", "Ada", "CATEGORIES:Amis"))
+    categories = [f"CATEGORIES:{name}" for name in names]
+    put(any_auth, url, contact_card("ada", "Ada", *categories))
     contact = models.Contact.objects.get(owner=user)
+    stored = row(contact)
     before = seq_of(contact.pk)
+    served = get(any_auth, url)
 
-    assert put(auth, url, get(auth, url).content).status_code == 204
+    response = put(any_auth, url, served.content)
+    assert response.status_code == 204
+    assert response["ETag"] == served["ETag"]
+    assert row(contact) == stored
     assert seq_of(contact.pk) == before
-    assert [label.name for label in contact.labels.all()] == ["Amis"]
+    assert label_names(contact) == names
 
 
-def test_put_without_categories_keeps_labels(auth, user):
-    """DAVx5 does not keep CATEGORIES when groups are separate vCards."""
+def test_put_without_categories_keeps_labels_only_with_groups(
+    any_auth, with_groups, user
+):
+    """Only a device without groups manages categories."""
     url = f"{PERSONAL}ada.vcf"
-    put(auth, url, contact_card("ada", "Ada", "CATEGORIES:Amis"))
-    served = get(auth, url).content.decode()
+    put(any_auth, url, contact_card("ada", "Ada", "CATEGORIES:Amis"))
+    served = get(any_auth, url).content.decode()
 
     body = served.replace("CATEGORIES:Amis\r\n", "TEL:+33123456789\r\n")
-    response = put(auth, url, body)
+    response = put(any_auth, url, body)
     assert response.status_code == 204
     contact = models.Contact.objects.get(owner=user)
     assert [phone["value"] for phone in contact.phones] == ["+33123456789"]
-    assert [label.name for label in contact.labels.all()] == ["Amis"]
-    # The stored card differs from the body: the client reads it back.
-    assert not response.has_header("ETag")
-    assert "\r\nCATEGORIES:Amis\r\n" in get(auth, url).content.decode()
+    assert label_names(contact) == (["Amis"] if with_groups else [])
+    # A kept label makes the stored card differ from the body. The answer
+    # then has no ETag, so the client reads the card back.
+    assert response.has_header("ETag") is not with_groups
 
 
-def test_put_empty_categories_removes_labels(auth, user):
+def test_put_empty_categories_removes_labels(any_auth, user):
     url = f"{PERSONAL}ada.vcf"
-    put(auth, url, contact_card("ada", "Ada", "CATEGORIES:Amis,Travail"))
-    served = get(auth, url).content.decode()
+    put(any_auth, url, contact_card("ada", "Ada", "CATEGORIES:Amis,Travail"))
+    served = get(any_auth, url).content.decode()
 
     body = served.replace("CATEGORIES:Amis,Travail", "CATEGORIES:")
-    assert put(auth, url, body).status_code == 204
-    contact = models.Contact.objects.get(owner=user)
-    assert not contact.labels.exists()
+    assert put(any_auth, url, body).status_code == 204
+    assert label_names(models.Contact.objects.get(owner=user)) == []
 
 
-def test_put_first_categories_add_labels(auth, user):
+def test_put_first_categories_add_labels(any_auth, user):
     url = f"{PERSONAL}ada.vcf"
-    put(auth, url, contact_card("ada", "Ada"))
-    served = get(auth, url).content.decode()
+    put(any_auth, url, contact_card("ada", "Ada"))
+    served = get(any_auth, url).content.decode()
 
     body = served.replace("END:VCARD", "CATEGORIES:Amis\r\nEND:VCARD")
-    assert put(auth, url, body).status_code == 204
-    contact = models.Contact.objects.get(owner=user)
-    assert [label.name for label in contact.labels.all()] == ["Amis"]
+    assert put(any_auth, url, body).status_code == 204
+    assert label_names(models.Contact.objects.get(owner=user)) == ["Amis"]
 
 
-@pytest.mark.parametrize(
-    "categories,expected",
-    [([], ["Amis"]), (["CATEGORIES:Travail"], ["Travail"]), (["CATEGORIES:"], [])],
-)
-def test_restore_follows_the_categories_of_the_body(auth, user, categories, expected):
+def restored_label_names(auth, user, *categories):
+    """The label names of a card labeled "Amis", trashed, then PUT again."""
     url = f"{PERSONAL}ada.vcf"
     put(auth, url, contact_card("ada", "Ada", "CATEGORIES:Amis"))
     assert dav(Client(), "DELETE", url, headers=auth).status_code == 204
@@ -178,7 +199,23 @@ def test_restore_follows_the_categories_of_the_body(auth, user, categories, expe
     assert put(auth, url, contact_card("ada", "Ada", *categories)).status_code == 201
     contact = models.Contact.objects.get(owner=user)
     assert contact.deleted_at is None
-    assert [label.name for label in contact.labels.all()] == expected
+    return label_names(contact)
+
+
+@pytest.mark.parametrize(
+    "categories,expected",
+    [("CATEGORIES:Travail", ["Travail"]), ("CATEGORIES:", [])],
+)
+def test_restore_follows_the_categories_of_the_body(
+    any_auth, user, categories, expected
+):
+    assert restored_label_names(any_auth, user, categories) == expected
+
+
+def test_restore_without_categories_keeps_labels_only_with_groups(
+    any_auth, with_groups, user
+):
+    assert restored_label_names(any_auth, user) == (["Amis"] if with_groups else [])
 
 
 @pytest.mark.parametrize("change", ["add", "remove", "rename", "delete"])

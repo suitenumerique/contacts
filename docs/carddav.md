@@ -68,7 +68,8 @@ POST /api/v1.0/channels/
 as group cards, see [Groups](#groups). DAVx⁵'s default contact group method
 ("groups are separate vCards") reads them; leave it off for a DAVx⁵ account
 set to "groups are per-contact categories", which would save each group
-card as a contact.
+card as a contact. The option also decides what a `PUT` without
+`CATEGORIES` does to the labels of a contact, see [Labels](#labels).
 
 ```json
 {"id": "…", "type": "carddav", "api_key": "…", "carddav_password": "…"}
@@ -168,10 +169,15 @@ takes the label off the contact, and the label itself stays. A row without
 an owner has no labels, so its own stored `CATEGORIES` lines are served
 as they are.
 
-A `PUT` whose body has no `CATEGORIES` property keeps the labels of the
-contact. Some clients do not store `CATEGORIES` and send none: DAVx⁵ does
-this with its "groups are separate vCards" method. A `CATEGORIES` property
-with an empty value removes all the labels.
+A `CATEGORIES` property with an empty value removes all the labels of the
+contact. For a `PUT` whose body has no `CATEGORIES` property, the `groups`
+option of the device decides:
+
+- A device with `groups` (iPhone, Mac, DAVx⁵ set to "groups are separate
+  vCards") does not manage categories. The server keeps the labels.
+- A device without `groups` (for example DAVx⁵ set to "groups are
+  per-contact categories") can manage categories. The server removes the
+  labels.
 
 ### Groups
 
@@ -227,7 +233,8 @@ A `PUT` onto a card of the user's own that is in the corbeille restores it
 with the new content (`201`). The restore keeps the row, thus the data
 that vCard does not carry (favorite, group memberships) stays. The labels
 follow the `CATEGORIES` of the body. A body without `CATEGORIES` keeps
-the labels.
+the labels for a device with `groups`, and removes them for a device
+without `groups`.
 
 `DELETE` moves the contact to the corbeille (soft delete), matching the REST
 API: it does not erase it. The one exception is an overlay (a local copy of
@@ -363,7 +370,11 @@ colleague's book does not invalidate this one's tokens. Schedule
   there is no model for "a book".
 - **No `CARDDAV:no-uid-conflict` check**: two cards of one book may carry
   the same UID if a client sends them.
-- **The last label of a card stays when a client removes it.** The client
-  then sends no `CATEGORIES`, and a `PUT` without `CATEGORIES` keeps the
-  labels (see [Labels](#labels)). The response has no `ETag`, so the
-  client reads the card back with its label.
+- **A device without `groups` must store `CATEGORIES`.** If the client does
+  not store them, it sends a card without `CATEGORIES` when it edits a
+  contact, and the server removes the labels of this contact (see
+  [Labels](#labels)). DAVx⁵ with its default group method ("groups are
+  separate vCards") thus needs a device with `groups`.
+- **A device with `groups` cannot remove the last label of a card.** The
+  client then sends no `CATEGORIES`, and the server keeps the labels. The
+  response has no `ETag`, so the client reads the card back with its label.

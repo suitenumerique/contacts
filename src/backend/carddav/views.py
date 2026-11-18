@@ -820,11 +820,14 @@ class CardDAVView(View):  # pylint: disable=too-many-public-methods
         _is_group, served = parse_one_card(
             storage.render_card(self.user, storage.PERSONAL, existing)
         )
-        # A body without CATEGORIES has no label_names, so the labels stay.
-        # The served card of a contact without labels has none either.
-        changed = {
-            key: value for key, value in fields.items() if served.get(key) != value
-        }
+        # A card without CATEGORIES has no label_names.
+        served.setdefault("label_names", [])
+        if not self._with_groups():
+            # A device without groups can manage categories, so a body
+            # without CATEGORIES removes the labels. For a device with
+            # groups, the labels stay.
+            fields.setdefault("label_names", [])
+        changed = {key: value for key, value in fields.items() if served[key] != value}
         if existing.overlay_of_id:
             # An overlay renders its parent's vcard_extra; its own would
             # never be shown.
