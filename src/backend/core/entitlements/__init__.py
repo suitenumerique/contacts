@@ -11,11 +11,11 @@ class EntitlementsUnavailableError(Exception):
 
 
 def _organization_claims(user):
-    """Return the organization claim of *user*, from the stored organization.
+    """Return the organization claim of *user* as a mapping.
 
-    The identifier of an organization is the value of the claim that
-    OIDC_USERINFO_ORGANIZATION_CLAIM names. An organization from an email
-    domain has no claim, and the result is empty.
+    The key is the name in OIDC_USERINFO_ORGANIZATION_CLAIM. The value is
+    the ``external_id`` of the organization of the user. The mapping is
+    empty when the setting is empty.
     """
     claim = settings.OIDC_USERINFO_ORGANIZATION_CLAIM
     if not claim:
@@ -28,9 +28,11 @@ def get_user_entitlements(user, user_info=None, force_refresh=False):
 
     Args:
         user: The user that the entitlements are for.
-        user_info: The full OIDC user_info dict (forwarded to backend).
-            The default is the organization claim of the stored user.
-        force_refresh: If True, bypass backend cache and fetch fresh data.
+        user_info: The claims to forward to the backend. The default is
+            the organization claim of the stored user.
+        force_refresh: If True, do not read the fresh cache entry and
+            call the backend. When the call fails, the backend can still
+            return its last known answer.
 
     Returns:
         dict: {"can_access": bool, "can_admin": bool, ...}
@@ -51,7 +53,8 @@ def get_user_entitlements(user, user_info=None, force_refresh=False):
 def user_can_admin(user):
     """Whether *user* administers their organization's shared data.
 
-    Fail-closed: False when the entitlements service is unavailable.
+    False when no entitlements are available: the backend gives no answer
+    and it has no last known answer.
     """
     try:
         return bool(get_user_entitlements(user).get("can_admin"))

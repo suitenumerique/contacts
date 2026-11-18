@@ -48,7 +48,7 @@ class DeployCenterEntitlementsBackend(EntitlementsBackend):
         self.stale_timeout = stale_timeout
 
     def _claims(self, user_info):
-        """Return the configured claims that *user_info* gives a value to."""
+        """Return the configured claims that have a truthy value in *user_info*."""
         user_info = user_info or {}
         return {
             claim: user_info[claim]
@@ -58,9 +58,6 @@ class DeployCenterEntitlementsBackend(EntitlementsBackend):
 
     def _cache_key(self, user_sub, claims):
         return f"entitlements:user:{user_sub}:{urlencode(claims)}"
-
-    def _stale_cache_key(self, user_sub, claims):
-        return f"entitlements:user:{user_sub}:{urlencode(claims)}:stale"
 
     def _make_request(self, user_email, claims):
         """Make a request to the DeployCenter entitlements API.
@@ -117,7 +114,7 @@ class DeployCenterEntitlementsBackend(EntitlementsBackend):
         claims = self._claims(user_info)
         cacheable = bool(user_sub)
         cache_key = self._cache_key(user_sub, claims)
-        stale_key = self._stale_cache_key(user_sub, claims)
+        stale_key = f"{cache_key}:stale"
 
         if cacheable and not force_refresh:
             cached = cache.get(cache_key)
