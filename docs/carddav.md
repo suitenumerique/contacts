@@ -247,6 +247,9 @@ of one-column
 properties (a second `ORG`, `NOTE`...). See `core/services/vcf_service.py`
 for the mapping.
 
+A card is served without the characters that XML 1.0 does not allow, such
+as a vertical tab. The stored data keeps these characters.
+
 ## Supported methods
 
 `OPTIONS`, `PROPFIND`, `REPORT`, `GET`, `HEAD`, `PUT`, `DELETE`.

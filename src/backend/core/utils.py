@@ -48,3 +48,20 @@ def build_search_text(*parts):
     ]
     unique = dict.fromkeys([*words, *pieces])
     return f" {' '.join(unique)}" if unique else ""
+
+
+def decode_text(data):
+    """Decode *data* as UTF-8, then as Windows-1252, then as Latin-1.
+
+    The function does not detect the encoding. It keeps the first one that
+    decodes all the bytes. UTF-8 can start with a byte order mark. The
+    function returns a string unchanged.
+    """
+    if isinstance(data, str):
+        return data
+    for encoding in ("utf-8-sig", "cp1252"):
+        try:
+            return data.decode(encoding)
+        except UnicodeDecodeError:
+            continue
+    return data.decode("latin-1")

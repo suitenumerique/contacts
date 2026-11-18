@@ -922,10 +922,11 @@ class Test(Base):
     DRAMATIQ_BROKER = {
         "BROKER": "core.task_utils.EagerBroker",
         "OPTIONS": {},
-        # Retries and TimeLimit only declare the actor options they own;
-        # the eager broker runs neither.
+        # AgeLimit, Retries and TimeLimit only declare the actor options they
+        # own; the eager broker runs none of them.
         "MIDDLEWARE": [
             "dramatiq.middleware.CurrentMessage",
+            "dramatiq.middleware.AgeLimit",
             "dramatiq.middleware.Retries",
             "dramatiq.middleware.TimeLimit",
         ],
