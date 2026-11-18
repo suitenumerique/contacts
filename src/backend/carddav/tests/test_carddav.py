@@ -929,6 +929,9 @@ def test_cannot_write_org_contact(auth, user):
         pytest.param(VCARD + VCARD, id="two-cards"),
         pytest.param(NAMELESS_VCARD, id="no-names"),
         pytest.param(
+            VCARD.replace("EMAIL;TYPE=WORK:ada@example.org\r\n", ""), id="no-contact"
+        ),
+        pytest.param(
             VCARD.replace("FN:Ada", f"TEL:{'1' * 65}\r\nFN:Ada"), id="long-phone"
         ),
         pytest.param("not a vcard at all", id="garbage"),
@@ -940,36 +943,6 @@ def test_put_refuses_an_invalid_card(auth, user, body):
     assert response.status_code == 403
     assert conditions(response) == [CARD("valid-address-data")]
     assert not models.Contact.objects.filter(owner=user).exists()
-
-
-# The email-or-phone rule is a rule of the web form. CardDAV does not apply it.
-BARE_VCARD = (
-    "BEGIN:VCARD\r\nVERSION:3.0\r\nFN:Jean Dupont\r\nN:Dupont;Jean;;;\r\n"
-    "ADR;TYPE=HOME:;;1 rue de la Mairie;Brigny;;01000;France\r\nEND:VCARD\r\n"
-)
-
-
-def test_put_creates_a_card_without_email_and_phone(auth, user):
-    response = put(auth, f"{PERSONAL}{uuid.uuid4()}.vcf", BARE_VCARD)
-    assert response.status_code == 201, response.content
-    contact = models.Contact.objects.get(owner=user)
-    assert (contact.full_name, contact.emails, contact.phones) == (
-        "Jean Dupont",
-        [],
-        [],
-    )
-    assert contact.addresses == [
-        {"type": "home", "value": "1 rue de la Mairie\n01000 Brigny\nFrance"}
-    ]
-
-
-def test_put_can_remove_the_last_email_and_phone(auth, user):
-    url = f"{PERSONAL}{uuid.uuid4()}.vcf"
-    assert put(auth, url, VCARD).status_code == 201
-    body = VCARD.replace("EMAIL;TYPE=WORK:ada@example.org\r\n", "")
-    assert put(auth, url, body).status_code == 204
-    contact = models.Contact.objects.get(owner=user)
-    assert (contact.emails, contact.phones) == ([], [])
 
 
 def test_put_cannot_blank_the_required_names(auth, user):

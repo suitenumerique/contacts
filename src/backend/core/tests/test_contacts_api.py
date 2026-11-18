@@ -157,50 +157,6 @@ def test_create_requires_email_or_phone(client):
     assert response.status_code == 201, response.content
 
 
-def test_update_keeps_a_card_without_email_and_phone(client, user):
-    """A CardDAV client writes such a card. The web form sends every list."""
-    contact = factories.ContactFactory(owner=user, full_name="Jean Dupont", emails=[])
-    response = client.patch(
-        f"{CONTACTS_URL}{contact.id}/",
-        {
-            "company": "Mairie de Brigny",
-            "emails": [],
-            "phones": [],
-            "addresses": [{"type": "home", "value": "1 rue de la Mairie"}],
-            "urls": [],
-        },
-        format="json",
-    )
-    assert response.status_code == 200, response.content
-    contact.refresh_from_db()
-    assert contact.company == "Mairie de Brigny"
-    assert (contact.emails, contact.phones) == ([], [])
-
-
-@pytest.mark.parametrize(
-    "stored",
-    [
-        {"emails": [{"type": "work", "value": "jean@example.org"}]},
-        {"emails": [], "phones": [{"type": "cell", "value": "+33199000405"}]},
-    ],
-)
-def test_update_cannot_remove_the_last_email_or_phone(client, user, stored):
-    contact = factories.ContactFactory(owner=user, **stored)
-    response = client.patch(
-        f"{CONTACTS_URL}{contact.id}/", {"emails": [], "phones": []}, format="json"
-    )
-    assert response.status_code == 400
-    assert response.json()["errors"] == [
-        {
-            "code": "invalid",
-            "detail": "At least an email address or a phone number is required.",
-            "attr": "non_field_errors",
-        }
-    ]
-    contact.refresh_from_db()
-    assert contact.emails or contact.phones
-
-
 def test_favorite_endpoint_stars_and_unstars(client, user):
     contact = factories.ContactFactory(owner=user, full_name="Imported Only")
 

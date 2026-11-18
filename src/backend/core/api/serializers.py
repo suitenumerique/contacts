@@ -336,26 +336,22 @@ class ContactSerializer(serializers.ModelSerializer):
 
         - a name is required: ``full_name`` or any structured part. A blank
           ``full_name`` is filled from the parts, like a vCard FN;
-        - at least one of email / phone must be filled. This is a rule of
-          the web form. A card from a CardDAV client can have neither, and
-          an update keeps such a card. ``email_or_phone_required`` set to
-          False in the context turns the rule off.
+        - at least one of email / phone must be filled.
 
         On partial updates the rules apply to the merged result of the
         fields being modified, so updating one field never demands the
         whole card again, but a field cannot be blanked below the rules.
         """
 
-        def stored(field):
+        def effective(field):
+            if field in attrs:
+                return attrs[field]
             if self.instance is None:
                 return ""
             if self.instance.overlay_of_id:
                 # Unspecified fields of an overlay come from its parent.
                 return self.instance.merged_value(field)
             return getattr(self.instance, field, "")
-
-        def effective(field):
-            return attrs[field] if field in attrs else stored(field)
 
         creating = self.instance is None
         name_fields = ("full_name", *models.NAME_PARTS)
@@ -369,13 +365,11 @@ class ContactSerializer(serializers.ModelSerializer):
                         {"full_name": "A name is required."}
                     )
                 attrs["full_name"] = composed[:255]  # the column's max_length
-        required = self.context.get("email_or_phone_required", True) and (
-            creating or stored("emails") or stored("phones")
-        )
-        if required and not (effective("emails") or effective("phones")):
-            raise serializers.ValidationError(
-                "At least an email address or a phone number is required."
-            )
+        if creating or "emails" in attrs or "phones" in attrs:
+            if not (effective("emails") or effective("phones")):
+                raise serializers.ValidationError(
+                    "At least an email address or a phone number is required."
+                )
         return self._validate_scope(attrs)
 
     def _validate_scope(self, attrs):
