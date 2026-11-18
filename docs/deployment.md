@@ -83,7 +83,8 @@ in the middle of an import waits for the end of the import. The probe fails
 when the import needs more than 5 seconds to end.
 
 Docker marks the container unhealthy only after `retries` failed probes in
-a row (3 by default). One failed probe does not change the status.
+a row (3 by default). With the default retry count, one isolated failed
+probe does not mark the container unhealthy.
 
 ## Legal pages
 
