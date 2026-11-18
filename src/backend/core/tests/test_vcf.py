@@ -155,7 +155,8 @@ def test_import_rejects_malformed_emails_and_says_which():
         models.Contact.objects.filter(owner=user).values_list("full_name", flat=True)
     ) == {"No Way To Reach Me", "Fine Person"}
 
-    (detail,) = result["error_details"]
+    assert len(result["error_details"]) == 1
+    detail = result["error_details"][0]
     assert detail["reason"] == "invalid_email"
     assert detail["name"] == "Bad Address"
     assert detail["value"] == "not-an-email"
