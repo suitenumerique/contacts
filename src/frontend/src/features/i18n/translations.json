@@ -312,6 +312,10 @@
             "unreadable": "part of the file could not be read.",
             "no_name": "no name.",
             "invalid_email": "“{{value}}” is not a valid email address.",
+            "invalid_phone": "“{{value}}” is too long for a phone number.",
+            "invalid_url": "“{{value}}” is not a valid website address.",
+            "value_too_long": "“{{value}}” is too long.",
+            "too_many_values": "too many email addresses, phone numbers, addresses or websites.",
             "no_email_or_phone": "an email address or a phone number is required.",
             "failed": "could not be saved."
           }
@@ -676,6 +680,10 @@
             "unreadable": "une partie du fichier n'a pas pu être lue.",
             "no_name": "aucun nom.",
             "invalid_email": "« {{value}} » n'est pas une adresse e-mail valide.",
+            "invalid_phone": "« {{value}} » est trop long pour un numéro de téléphone.",
+            "invalid_url": "« {{value}} » n'est pas une adresse de site web valide.",
+            "value_too_long": "« {{value}} » est trop long.",
+            "too_many_values": "trop d'e-mails, de téléphones, d'adresses ou de sites web.",
             "no_email_or_phone": "un e-mail ou un téléphone est requis.",
             "failed": "n'a pas pu être enregistrée."
           }
@@ -1040,6 +1048,10 @@
             "unreadable": "een deel van het bestand kon niet worden gelezen.",
             "no_name": "geen naam.",
             "invalid_email": "“{{value}}” is geen geldig e-mailadres.",
+            "invalid_phone": "“{{value}}” is te lang voor een telefoonnummer.",
+            "invalid_url": "“{{value}}” is geen geldig websiteadres.",
+            "value_too_long": "“{{value}}” is te lang.",
+            "too_many_values": "te veel e-mailadressen, telefoonnummers, adressen of websites.",
             "no_email_or_phone": "een e-mailadres of telefoonnummer is vereist.",
             "failed": "kon niet worden opgeslagen."
           }
