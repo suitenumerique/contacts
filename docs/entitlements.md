@@ -43,24 +43,15 @@ OIDC_USERINFO_ORGANIZATION_CLAIM=siret
 
 `service_id` is the integer identifier of the service in DeployCenter.
 
-DeployCenter finds the organization with its `siret`. It refuses a call
-that has no `siret`. The backend sends the claims that `oidc_claims` lists,
-thus `oidc_claims` must contain `siret`. The value is the organization
-claim of the user, thus `OIDC_USERINFO_ORGANIZATION_CLAIM=siret` is
-necessary (see [organizations.md](organizations.md)). The login sends the
-value from the identity provider. All other checks send the `external_id`
-of the organization of the user. Organizations from the email domain have
-no `siret`: each call fails, and Contacts denies access.
-
-DeployCenter answers `is_admin`. The backend gives it to the rest of
-Contacts as `can_admin`.
+DeployCenter refuses a call that has no `siret`. Thus `oidc_claims` must
+contain `siret`, and `OIDC_USERINFO_ORGANIZATION_CLAIM` must be `siret`
+(see [organizations.md](organizations.md)). An organization that comes
+from the email domain has no `siret`: Contacts denies access to its users.
 
 The DeployCenter backend caches each answer for
 `ENTITLEMENTS_CACHE_TIMEOUT` and keeps a second copy for `stale_timeout`
 seconds (a backend parameter, one day by default). When the API fails, that
-last known answer is used; past it, the call fails. Each cached answer is
-for one user and one `siret`. A user who moves to another organization does
-not get the answer of the previous organization.
+last known answer is used; past it, the call fails.
 
 ## Where it is consulted
 
