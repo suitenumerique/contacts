@@ -7,6 +7,19 @@ import unicodedata
 # initial: "felix.marchand@brigny.example", "jean-pierre", "o'neil".
 _WORD_SEPARATORS = re.compile(r"[\W_]+")
 
+# The explicit bidi embeddings, overrides and isolates. The marks U+200E and
+# U+200F stay, because a name in two scripts can need them.
+_BIDI_CONTROLS = dict.fromkeys([*range(0x202A, 0x202F), *range(0x2066, 0x206A)])
+
+
+def strip_bidi_controls(text):
+    """Return *text* without the characters that reorder the text around it.
+
+    A name with U+202E reverses the sentence that quotes it. Arabic and
+    Hebrew letters carry their own direction and do not need these characters.
+    """
+    return text.translate(_BIDI_CONTROLS)
+
 
 def strip_diacritics(text):
     """Return *text* with combining accents removed ("Édouard" -> "Edouard").
