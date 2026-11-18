@@ -201,34 +201,17 @@ corbeille). A card cannot change from a contact into a group or back.
 
 ### Writes
 
-A `PUT` needs a name (`FN`, or an `N`
+A `PUT` is validated like a REST write: a name required (`FN`, or an `N`
 component other than the prefix; a card without either falls back to its
 first email as `FN`,
-as vCard requires one). It does not need an email or a phone: that rule is
-a rule of the web form. A card with only `FN` keeps it whole, it is never split into
-first and last name. A card without a name, or a body
+as vCard requires one), the same field
+lengths. A `PUT` does not need an email or a phone: that rule is a rule of
+the web form. A card with only `FN` keeps it whole, it is never split into
+first and last name. A card that fails, or
 that is not exactly one readable vCard, is refused with `403` and the
 `CARDDAV:valid-address-data` precondition. A body larger than
 `max-resource-size` (the smaller of `CONTACTS_VCF_MAX_FILE_SIZE` and
 `DATA_UPLOAD_MAX_MEMORY_SIZE`) gets `403` with `CARDDAV:max-resource-size`.
-
-A `PUT` does not refuse a card because one value breaks a rule of the REST
-API. A client cannot correct a refused card, and the change on the device
-is lost. The server stores the card and does this with the value:
-
-- An email address that is not valid, a phone number of more than 64
-  characters, a URL that is not http(s), and a value of more than 1024
-  characters do not go into the contact. The same applies to each value
-  after the first 50 of one property. The server keeps the line in
-  `vcard_extra` and serves it back after the other lines, so the client
-  reads the value that it sent. The web app does not show the value.
-- A text of more than 255 characters in `FN`, `N`, `NICKNAME`, `ORG` or
-  `TITLE` is cut to 255 characters in the contact. The server serves the
-  full line back until the text changes in the web app.
-- NUL characters are removed.
-
-An overlay keeps no line of its own (see below). Thus a value that does
-not go into the overlay is lost, and a long text is served back cut.
 
 A `PUT` over an existing card applies only what the client changed against
 the card it was served: an unchanged `PUT` is a no-op, and what vCard does
@@ -260,10 +243,9 @@ carries a `UID`: the client's when it sent one, else the contact id.
 What the columns cannot hold is kept in `Contact.vcard_extra` as raw
 content lines, so a card read, edited on a phone and written back keeps
 its property groups (`item1.`), parameters, ADR components, lists of
-values in one `N` component, `KEY`, `X-` properties, later instances
+values in one `N` component, `KEY`, `X-` properties, and later instances
 of one-column
-properties (a second `ORG`, `NOTE`...), and the values that break a rule
-(see [Writes](#writes)). See `core/services/vcf_service.py`
+properties (a second `ORG`, `NOTE`...). See `core/services/vcf_service.py`
 for the mapping.
 
 ## Supported methods

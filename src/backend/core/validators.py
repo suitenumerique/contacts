@@ -95,38 +95,39 @@ def validate_url_value(value):
         raise ValidationError(f"Enter a valid URL: {value}") from exc
 
 
-_VALUE_VALIDATORS = {
-    "emails": validate_email_value,
-    "phones": validate_phone_value,
-    "urls": validate_url_value,
+_FIELD_RULES = {
+    "emails": ("invalid_email", validate_email_value),
+    "phones": ("invalid_phone", validate_phone_value),
+    "urls": ("invalid_url", validate_url_value),
 }
 
 
-def _breaks_a_value_rule(field, entry):
-    value = entry["value"]
-    if not re.fullmatch(TYPE_PATTERN, entry.get("type") or ""):
-        return True
-    if not value.strip() or len(value) > VALUE_MAX_LENGTH:
-        return True
-    if field not in _VALUE_VALIDATORS:
-        return False
+def _broken_rule(field, value):
+    """The name of the value rule of *field* that *value* breaks, or ""."""
+    if len(value) > VALUE_MAX_LENGTH:
+        return "value_too_long"
+    if field not in _FIELD_RULES:
+        return ""
+    rule, validate = _FIELD_RULES[field]
     try:
-        _VALUE_VALIDATORS[field](value)
+        validate(value)
     except ValidationError:
-        return True
-    return False
+        return rule
+    return ""
 
 
-def split_typed_values(field, entries):
-    """Split the entries of a multi-valued contact field into ``(kept, refused)``.
+def broken_value_rule(field, entries):
+    """The first value rule that the entries of a multi-valued contact field break.
 
-    An entry is refused when it breaks a value rule of *field*. It is also
-    refused when *kept* already holds ``MAX_TYPED_VALUES`` entries.
+    Returns ``(rule, value)``: the name of the rule and the value that
+    breaks it, or ``("", "")`` when the entries break no rule. The rules
+    are ``too_many_values`` (it has no value), ``value_too_long``,
+    ``invalid_email``, ``invalid_phone`` and ``invalid_url``. The type of
+    an entry and a blank value are not checked.
     """
-    kept, refused = [], []
+    if len(entries) > MAX_TYPED_VALUES:
+        return "too_many_values", ""
     for entry in entries:
-        if len(kept) >= MAX_TYPED_VALUES or _breaks_a_value_rule(field, entry):
-            refused.append(entry)
-        else:
-            kept.append(entry)
-    return kept, refused
+        if rule := _broken_rule(field, entry["value"]):
+            return rule, entry["value"]
+    return "", ""

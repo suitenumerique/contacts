@@ -14,8 +14,6 @@ COPY/MOVE.
 
 Writes are checked with ``Contact.is_writable`` and validated by the REST
 ``ContactSerializer``, without the email-or-phone rule of the web form.
-The name rule is the only rule that refuses a readable card: the parser
-(``parse_one_card``) sets aside each value that breaks a value rule.
 Group cards (for devices set up with groups) are written as the user's
 own groups, with the members their UIDs name.
 """

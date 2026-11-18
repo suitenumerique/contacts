@@ -114,12 +114,16 @@ The REST paths on this page are relative to `/api/v1.0/`.
   (or the full name when there is neither) and the digits of the first
   phone. Trashed contacts count as
   matches, and a matched trashed contact is restored, so re-importing a
-  file creates nothing new. The import does not store a phone number, an
-  address or a URL that the REST API refuses. It stores 50 values of each
-  kind at most. From a vCard, the line of such a value stays in
-  `vcard_extra`. From a CSV file, the value is lost. The import rejects
-  a card that then has no email address and no phone number. vCard `CATEGORIES`
-  become labels, except the
+  file creates nothing new. The import rejects a card that has no name,
+  and a card that has no email address and no phone number. It also
+  rejects a card with a value that the REST API refuses: an email address
+  that is not valid, a phone number of more than 64 characters, a URL that
+  is not a valid http(s) address, a value of more than 1024 characters, or
+  more than 50 values of one kind. The import does not remove a value to
+  keep the card. For the first 20 rejected cards, the result of the task
+  gives the reason and the value that is the cause. It gives only the
+  first 100 characters of a long value. vCard `CATEGORIES` become
+  labels, except the
   system groups of a Google Contacts export (`myContacts` is dropped,
   `starred` makes a favorite; same for the CSV `Labels` column), and group
   cards (Apple's `X-ADDRESSBOOKSERVER-KIND:group`, or vCard 4 `KIND:group`)

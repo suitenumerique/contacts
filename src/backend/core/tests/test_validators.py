@@ -12,7 +12,7 @@ from core import factories
 from core.validators import (
     MAX_TYPED_VALUES,
     PHOTO_MAX_BYTES,
-    split_typed_values,
+    broken_value_rule,
     validate_photo,
 )
 
@@ -76,47 +76,33 @@ VALID_VALUES = {
 
 
 @pytest.mark.parametrize(
-    ("field", "value"),
+    ("field", "value", "rule"),
     [
-        ("emails", "not-an-email"),
-        ("phones", "1" * 65),
-        ("urls", "javascript:alert(1)"),
-        ("urls", "data:text/html,<script>alert(1)</script>"),
-        ("urls", "ftp://example.org/x"),
-        ("urls", "not a url"),
-        ("addresses", "x" * 1025),
-        ("addresses", " "),
+        ("emails", "not-an-email", "invalid_email"),
+        ("phones", "1" * 65, "invalid_phone"),
+        ("urls", "javascript:alert(1)", "invalid_url"),
+        ("urls", "data:text/html,<script>alert(1)</script>", "invalid_url"),
+        ("urls", "ftp://example.org/x", "invalid_url"),
+        ("urls", "not a url", "invalid_url"),
+        ("addresses", "x" * 1025, "value_too_long"),
+        ("phones", "1" * 1025, "value_too_long"),
     ],
     ids=lambda value: value[:20],
 )
-def test_split_refuses_a_value_that_breaks_a_rule(field, value):
-    valid = {"type": "work", "value": VALID_VALUES[field]}
-    broken = {"type": "work", "value": value}
-    assert split_typed_values(field, [broken, valid]) == ([valid], [broken])
-
-
-@pytest.mark.parametrize("type_value", ["<script>", "x" * 33, "home office"])
-def test_split_refuses_a_type_that_breaks_the_pattern(type_value):
-    broken = {"type": type_value, "value": "a@example.org"}
-    assert split_typed_values("emails", [broken]) == ([], [broken])
+def test_broken_value_rule_names_the_rule_and_the_value(field, value, rule):
+    entries = [
+        {"type": "work", "value": VALID_VALUES[field]},
+        {"type": "work", "value": value},
+    ]
+    assert broken_value_rule(field, entries) == (rule, value)
 
 
 @pytest.mark.parametrize("field", VALID_VALUES)
-def test_split_keeps_valid_values(field):
-    entries = [
-        {"type": "x-custom-1", "value": VALID_VALUES[field]},
-        {"type": "", "value": VALID_VALUES[field]},
-        {"value": VALID_VALUES[field]},
-    ]
-    assert split_typed_values(field, entries) == (entries, [])
+def test_valid_values_break_no_value_rule(field):
+    entries = [{"type": "work", "value": VALID_VALUES[field]}] * MAX_TYPED_VALUES
+    assert broken_value_rule(field, entries) == ("", "")
 
 
-def test_split_keeps_the_first_values_up_to_the_limit():
-    phones = [
-        {"type": "", "value": f"+3319900{index:04}"}
-        for index in range(MAX_TYPED_VALUES + 2)
-    ]
-    assert split_typed_values("phones", phones) == (
-        phones[:MAX_TYPED_VALUES],
-        phones[MAX_TYPED_VALUES:],
-    )
+def test_too_many_values_break_a_value_rule():
+    phones = [{"type": "", "value": "+33199000405"}] * (MAX_TYPED_VALUES + 1)
+    assert broken_value_rule("phones", phones) == ("too_many_values", "")

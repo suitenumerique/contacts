@@ -713,6 +713,10 @@ class ImportErrorDetailSerializer(serializers.Serializer):  # pylint: disable=ab
             "unreadable",
             "no_name",
             "invalid_email",
+            "invalid_phone",
+            "invalid_url",
+            "value_too_long",
+            "too_many_values",
             "no_email_or_phone",
             "failed",
         ]
