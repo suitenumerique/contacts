@@ -240,7 +240,7 @@ class Base(Configuration):
         "django_dramatiq",
         "rest_framework",
         # Django
-        "django.contrib.admin",
+        "core.admin_site.ContactsAdminConfig",
         "django.contrib.auth",
         "django.contrib.contenttypes",
         "django.contrib.postgres",
@@ -313,6 +313,19 @@ class Base(Configuration):
         "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
         "DEFAULT_THROTTLE_CLASSES": ["rest_framework.throttling.ScopedRateThrottle"],
         "DEFAULT_THROTTLE_RATES": {
+            # Failed admin password logins per client address. Past it, the
+            # login form answers 429, also for a correct password.
+            "admin_login": values.Value(
+                default="20/hour",
+                environ_name="ADMIN_LOGIN_THROTTLE_RATE",
+                environ_prefix=None,
+            ),
+            # The same, per submitted username from any address.
+            "admin_login_username": values.Value(
+                default="10/hour",
+                environ_name="ADMIN_LOGIN_USERNAME_THROTTLE_RATE",
+                environ_prefix=None,
+            ),
             # Failed CardDAV authentications per client address. Past it,
             # failures get 429; valid credentials still get through.
             "carddav_auth": values.Value(
