@@ -13,13 +13,15 @@ property name, so parse -> serialize -> parse is stable:
   extra TYPE values, ADR components, a list of values in one N component,
   more ORG units) as a "shadow" line. Serialization writes the shadow back
   instead of rebuilding the line, as long as it still decodes to the
-  column's current value; once the column is edited it is ignored;
+  column's current value, after the cut of a long text (see below); once
+  the column is edited it is ignored;
 - later instances of a single-column property (a second ORG, NOTE, ...)
   verbatim, written back after the modeled lines.
 
 The parsers cut a text that is longer than its column (see ``_fit``). The
 column holds the start of the text. The full line is kept as a shadow
-line.
+line. Serialization applies the same cut to the decoded shadow before it
+compares the result with the column.
 
 Mappings: FN <-> full_name; N <-> family_name, given_name, middle_name,
 civility (``M.``/``Mme``) plus name_prefix, name_suffix; NICKNAME <->
@@ -311,7 +313,10 @@ def _decode(name, line):  # pylint: disable=too-many-return-statements
 
 
 def _cut(text):
-    """*text* cut to the size of its column."""
+    """The first ``_COLUMN_SIZE`` characters of *text*.
+
+    The result has no whitespace at its start and at its end.
+    """
     return text[:_COLUMN_SIZE].strip()
 
 
@@ -486,8 +491,8 @@ def parse_one_card(data, *, fit=True):
     """Parse a body that must hold exactly one vCard (a CardDAV PUT).
 
     Returns ``(is_group, fields)``: group fields (see ``_parse_group``) for
-    a group card, Contact kwargs otherwise. Raises
-    :class:`InvalidVCardError` for anything else.
+    a group card, contact fields and label names (see ``_parse_card``)
+    otherwise. Raises :class:`InvalidVCardError` for anything else.
 
     Without *fit*, a text longer than its column stays whole (see ``_fit``).
     """

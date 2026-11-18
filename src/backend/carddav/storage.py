@@ -85,7 +85,8 @@ def is_group(card):
 def keeps_lines(card):
     """Whether *card* can keep content lines of its own.
 
-    An overlay cannot: it renders the ``vcard_extra`` of its parent.
+    An overlay cannot: it renders the ``vcard_extra`` of its parent. None
+    stands for a new card, which can keep lines.
     """
     return getattr(card, "overlay_of_id", None) is None
 

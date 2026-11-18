@@ -242,7 +242,7 @@ def test_import_cuts_a_text_longer_than_its_column():
 
 
 def test_import_reads_an_exported_contact_with_a_long_text():
-    """The import accepts each contact that the export writes."""
+    """The import of an exported contact keeps its long title."""
     user = factories.UserFactory()
     client = APIClient()
     client.force_login(user)

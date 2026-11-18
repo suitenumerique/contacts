@@ -770,7 +770,8 @@ class CardDAVView(View):  # pylint: disable=too-many-public-methods
     def _parse_body(self, body, existing):
         """``(is_group, fields)`` of a PUT body, or the response refusing it."""
         try:
-            # An overlay keeps no line, so a long text is not cut. A new one is refused.
+            # The text of an overlay is not cut, so that validation refuses a new
+            # long text. An unchanged long text of the parent is still accepted.
             is_group, fields = parse_one_card(body, fit=storage.keeps_lines(existing))
         except InvalidVCardError as exc:
             logger.info("CardDAV PUT refused an unreadable card: %s", exc)
