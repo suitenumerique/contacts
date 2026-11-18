@@ -356,12 +356,27 @@ def _default_full_name(name_parts, emails):
 # --- parsing ----------------------------------------------------------
 
 
+def _remove_nul(line):
+    """Remove the NUL characters from the value and the parameters of *line*.
+
+    PostgreSQL cannot store a NUL character in a text or JSON column. The
+    names in a line hold none: vobject does not parse a line with such a name.
+    """
+    line.value = line.value.replace("\0", "")
+    line.params = {
+        key: [value.replace("\0", "") for value in values]
+        for key, values in line.params.items()
+    }
+
+
 def _read_components(data):
     """Yield ``(name, lines)`` for each top-level component in *data*.
 
     Lines keep their encoded values (only quoted-printable is decoded, by
     ``ContentLine``). Unparseable lines are skipped; an unbalanced
     BEGIN/END raises :class:`InvalidVCardError`.
+
+    The value and the parameters of a line hold no NUL character.
     """
     stack, lines = [], []
     stream = io.StringIO(decode_text(data))
@@ -372,6 +387,9 @@ def _read_components(data):
             line = vobject.base.textLineToContentLine(text, number)
         except VObjectError, LookupError, ValueError:
             continue
+        # The quoted-printable decoding can make a NUL character from "=00".
+        # Thus the removal comes after the decoding, not before.
+        _remove_nul(line)
         name, value = line.name.upper(), str(line.value).strip().upper()
         if name == "BEGIN":
             stack.append(value)
