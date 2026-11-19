@@ -31,20 +31,15 @@ address as a single `X-Forwarded-For` entry.
 
 ### Content-Security-Policy
 
-Caddy sends a `Content-Security-Policy` header that starts from
-`default-src 'none'` and allows the app's own origin. Each origin outside
-the app must be added with a variable. Without it the browser blocks the
-feature. A blocked widget does not stop the rest of the app. A blocked API
-stops the app: it cannot load its configuration or its data.
-
-| Feature | `CONTACTS_FRONTEND_CSP_SCRIPT_SRC` | `CONTACTS_FRONTEND_CSP_CONNECT_SRC` |
-| ------- | ---------------------------------- | ----------------------------------- |
-| App launcher (`FRONTEND_LAGAUFRE_ENABLED`) | Origin of `FRONTEND_LAGAUFRE_WIDGET_PATH`. Default: `https://static.suite.anct.gouv.fr` | Origin of `FRONTEND_LAGAUFRE_WIDGET_API_URL`. Default: `https://lasuite.numerique.gouv.fr` |
-| Feedback widget (`FRONTEND_FEEDBACK_MESSAGES_WIDGET_ENABLED`) | Origin of `FRONTEND_FEEDBACK_MESSAGES_WIDGET_PATH` | Origin of `FRONTEND_FEEDBACK_MESSAGES_WIDGET_API_URL` |
-| API on another origin (frontend built with `API_ORIGIN`) | | That origin |
-
-Use origins only (scheme and host): a value that contains `;` or a quote
-can change the rest of the policy.
+Caddy sends a `Content-Security-Policy` header that allows scripts and
+requests from the app's own origin only. For each widget that is on (app
+launcher, feedback widget), add the origin of its script to
+`CONTACTS_FRONTEND_CSP_SCRIPT_SRC` and the origin of its API to
+`CONTACTS_FRONTEND_CSP_CONNECT_SRC`. If an origin is missing, the browser
+blocks the widget. The defaults of the app launcher are
+`https://static.suite.anct.gouv.fr` (script) and
+`https://lasuite.numerique.gouv.fr` (API). A frontend built with
+`API_ORIGIN` needs that origin in `CONTACTS_FRONTEND_CSP_CONNECT_SRC`.
 
 ### Client address in Django
 
@@ -65,9 +60,8 @@ untrusted machines share the private network with Caddy.
 ### Smoke test
 
 `make test-front-production` builds the image and checks the heartbeat,
-the healthcheck, the backend proxying, the SPA fallback, the
-`Content-Security-Policy` header, and the admin allowlist with spoofed and
-trusted `X-Forwarded-For`. CI runs it.
+the healthcheck, the backend proxying, the SPA fallback, and the admin
+allowlist with spoofed and trusted `X-Forwarded-For`. CI runs it.
 
 ## Backend image
 

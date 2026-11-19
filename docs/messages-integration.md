@@ -180,6 +180,9 @@ The widget needs all four of:
 | `FRONTEND_FEEDBACK_MESSAGES_WIDGET_CHANNEL` | the public widget channel id on the Messages side |
 | `FRONTEND_FEEDBACK_MESSAGES_WIDGET_PATH` | base URL of the widget scripts, with a trailing slash (the frontend loads `<path>feedback.js`) |
 
+The frontend proxy must also allow the two origins: see
+[Content-Security-Policy](deployment.md#content-security-policy).
+
 ## 5. When there is no service credential
 
 Without a deployment-wide channel, a user can still sync their address book
