@@ -34,7 +34,8 @@ address as a single `X-Forwarded-For` entry.
 Caddy sends a `Content-Security-Policy` header that starts from
 `default-src 'none'` and allows the app's own origin. Each origin outside
 the app must be added with a variable. Without it the browser blocks the
-feature, and the rest of the app still works.
+feature. A blocked widget does not stop the rest of the app. A blocked API
+stops the app: it cannot load its configuration or its data.
 
 | Feature | `CONTACTS_FRONTEND_CSP_SCRIPT_SRC` | `CONTACTS_FRONTEND_CSP_CONNECT_SRC` |
 | ------- | ---------------------------------- | ----------------------------------- |
