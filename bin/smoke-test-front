@@ -139,6 +139,11 @@ for path in / /api/hello; do
 done
 [ "$(header x-frame-options "$BASE/")" = "DENY" ] \
   || fail "X-Frame-Options header missing"
+CSP=$(curl -s -o /dev/null -w '%header{content-security-policy}' "$BASE/")
+case "$CSP" in
+  "default-src 'none'; script-src 'self' ;"*"; connect-src 'self' ;"*) ;;
+  *) fail "default Content-Security-Policy is not self-only: $CSP" ;;
+esac
 echo "ok: security headers"
 
 assert_code 200 "default admin passthrough" "$BASE/admin/"
@@ -164,6 +169,18 @@ stop_container
 # A custom admin path is filtered too.
 start_container -e 'DJANGO_ADMIN_URL=gestion' -e 'DJANGO_ADMIN_IP_ALLOWLIST=192.0.2.0/24'
 assert_code 403 "custom admin path denied" "$BASE/gestion/"
+stop_container
+
+# The CSP variables add origins to script-src and connect-src.
+start_container \
+  -e 'CONTACTS_FRONTEND_CSP_SCRIPT_SRC=https://widgets.example' \
+  -e 'CONTACTS_FRONTEND_CSP_CONNECT_SRC=https://api.example'
+CSP=$(curl -s -o /dev/null -w '%header{content-security-policy}' "$BASE/")
+case "$CSP" in
+  *"script-src 'self' https://widgets.example;"*"connect-src 'self' https://api.example;"*) ;;
+  *) fail "CSP variables are not applied: $CSP" ;;
+esac
+echo "ok: CSP extra origins"
 stop_container
 
 # Allowlist containing the client IP: admin passes through.

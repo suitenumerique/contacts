@@ -19,6 +19,8 @@ app is behind login.
 | `DJANGO_ADMIN_URL` | `admin` | Django admin path, without slashes. Read by Django too, so set it on both. |
 | `DJANGO_ADMIN_IP_ALLOWLIST` | `0.0.0.0/0 ::/0` | Space-separated CIDR list of client IPs allowed on the admin URL; others get `403` from Caddy. The default allows everyone. |
 | `CONTACTS_FRONTEND_TRUSTED_PROXIES` | _(empty)_ | Space-separated CIDR list of upstream proxies whose `X-Forwarded-For` sets the client IP. Empty: the TCP peer is the client. |
+| `CONTACTS_FRONTEND_CSP_SCRIPT_SRC` | _(empty)_ | Space-separated list of extra origins that can serve scripts (`script-src`). Empty: only the app's own origin. |
+| `CONTACTS_FRONTEND_CSP_CONNECT_SRC` | _(empty)_ | Space-separated list of extra origins the app can call (`connect-src`). Empty: only the app's own origin. |
 
 To turn the admin filter off, leave `DJANGO_ADMIN_IP_ALLOWLIST` unset. Do
 not set it to an empty value: an empty list matches no client, so every
@@ -28,6 +30,16 @@ Caddy walks `X-Forwarded-For` right to left and takes the first address
 that is not a trusted proxy (`trusted_proxies_strict`), so a header sent or
 extended by the client never passes the allowlist. It then hands Django that
 address as a single `X-Forwarded-For` entry.
+
+### Content-Security-Policy
+
+Caddy sends a `Content-Security-Policy` header that allows scripts and
+requests from the app's own origin only. For each widget that is on (app
+launcher, feedback widget), add the origin of its script to
+`CONTACTS_FRONTEND_CSP_SCRIPT_SRC` and the origin of its API to
+`CONTACTS_FRONTEND_CSP_CONNECT_SRC`. If an origin is missing, the browser
+blocks the widget. A frontend built with `API_ORIGIN` needs that origin in
+`CONTACTS_FRONTEND_CSP_CONNECT_SRC`.
 
 ### Client address in Django
 

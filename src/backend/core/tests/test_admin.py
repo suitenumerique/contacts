@@ -93,9 +93,10 @@ def test_channel_change_page_renders(admin_client):
     response = admin_client.get(url)
 
     assert response.status_code == 200
-    assert reverse("admin:core_channel_rotate_token", args=[channel.pk]) in (
-        response.content.decode()
-    )
+    content = response.content.decode()
+    assert reverse("admin:core_channel_rotate_token", args=[channel.pk]) in content
+    assert "core/admin/confirm_submit.js" in content
+    assert "onsubmit=" not in content
 
 
 def test_contact_change_page_renders(admin_client):
