@@ -357,7 +357,6 @@ def test_export_writes_labels_as_categories():
 
 
 def test_import_reads_an_exported_contact_without_email_and_phone():
-    """The import accepts each contact that the export writes."""
     user = factories.UserFactory()
     client = APIClient()
     client.force_login(user)

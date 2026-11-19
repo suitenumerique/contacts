@@ -32,17 +32,17 @@ def dedup_keys(card, uid=""):
     """Keys identifying a card, used to spot one that is already there.
 
     *card* holds the emails, the phones, the given, family and full name.
+    The first rule that applies gives the keys:
 
-    Every email address is a key. A card without any email falls back to
-    its name plus the digits of its first phone: matching on email alone
-    would never match it, so every re-import would create another copy.
-    The name is the given/family pair when there is one, so that "Dr Jean
-    Dupont" in FN still matches the "Jean Dupont" the API derives; the
-    full name otherwise.
+    1. Each email address is a key.
+    2. The name and the digits of the first phone that has digits.
+    3. The name and *uid*, for a card that has both. A name alone does not
+       tell two persons apart.
+    4. No key. The card matches nothing.
 
-    A card without an email and a phone falls back to its name plus its
-    *uid*: a name alone does not tell two persons apart. Without a UID,
-    such a card has no key, so each import adds it.
+    The name is the given and family names, or the full name when the card
+    has neither. Then "Dr Jean Dupont" in FN matches the "Jean Dupont" that
+    the API derives. Case and extra spaces in the name are ignored.
     """
     keys = {
         f"email:{(entry.get('value') or '').strip().lower()}"
@@ -55,13 +55,10 @@ def dedup_keys(card, uid=""):
         (card["full_name"] or "").split()
     )
     name = name.casefold()
-    digits = ""
     for entry in card["phones"] or []:
         digits = "".join(ch for ch in (entry.get("value") or "") if ch.isdigit())
         if digits:
-            break
-    if digits:
-        return {f"name:{name}|{digits}"}
+            return {f"name:{name}|{digits}"}
     return {f"name:{name}|uid:{uid}"} if name and uid else set()
 
 
@@ -197,9 +194,8 @@ def import_contacts(user, file_format, data, scope=Scope.PERSONAL):  # pylint: d
     their organization's (the caller checks the user administers it).
 
     A card matching one of the contacts already there (see
-    ``dedup_keys``) is skipped, so re-importing a file creates nothing new,
-    except for a card that has no key. When the match is in the corbeille,
-    the contact is restored instead and counted as imported.
+    ``dedup_keys``) is skipped. When the match is in the corbeille, the
+    contact is restored instead and counted as imported.
 
     The group cards of a vCard file are imported after the contacts (see
     ``_import_groups``).

@@ -334,9 +334,10 @@ class ContactSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         """Enforce the name rule (user-facing writes only).
 
-        A name is required: ``full_name`` or any structured part. A blank
-        ``full_name`` is filled from the parts, like a vCard FN. A contact
-        needs no email and no phone.
+        A name is required: the full name, the given name, the middle name,
+        the family name or the suffix. A blank ``full_name`` is filled from
+        the other four, like a vCard FN. Neither an email nor a phone is
+        required.
 
         On partial updates the rule applies to the merged result of the
         fields being modified, so updating one field never demands the
@@ -349,7 +350,8 @@ class ContactSerializer(serializers.ModelSerializer):
             if self.instance is None:
                 return ""
             if self.instance.overlay_of_id:
-                # Unspecified fields of an overlay come from its parent.
+                # An overlay stores only its overrides. The parent gives the
+                # other fields.
                 return self.instance.merged_value(field)
             return getattr(self.instance, field, "")
 
