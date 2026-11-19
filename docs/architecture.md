@@ -112,7 +112,9 @@ The REST paths on this page are relative to `/api/v1.0/`.
   `scope=organization`. Overlays are not part of the match. The match is
   on any email address, or for a card without email, on first + last name
   (or the full name when there is neither) and the digits of the first
-  phone. Trashed contacts count as
+  phone. A card without an email and a phone matches on its name and its
+  UID. Without a UID (a CSV row), such a card matches nothing, and each
+  import adds it. Trashed contacts count as
   matches, and a matched trashed contact is restored, so re-importing a
   file creates nothing new. The import rejects a card that breaks a rule
   of a REST create: a name and valid values. The result

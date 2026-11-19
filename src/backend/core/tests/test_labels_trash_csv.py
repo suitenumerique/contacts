@@ -576,6 +576,15 @@ def test_import_applies_the_api_rules(user):
     ) == {"Paul Durand", "Luc Phone", "Jeanne"}
 
 
+def test_import_does_not_match_a_row_with_only_a_name(user):
+    """A CSV row has no UID, and a name alone does not tell two persons apart."""
+    data = "prenom,nom\nJean,Dupont\nJean,Dupont\n".encode()
+
+    assert import_contacts(user, "csv", data)["imported"] == 2
+    assert import_contacts(user, "csv", data)["imported"] == 2
+    assert models.Contact.objects.filter(owner=user).count() == 4
+
+
 def test_csv_import_rejects_a_card_with_a_phone_that_is_too_long(user):
     """The import does not remove a value. It rejects the card and says why."""
     long_phone = "1" * 65
