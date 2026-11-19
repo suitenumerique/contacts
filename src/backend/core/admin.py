@@ -89,8 +89,16 @@ class UserAdmin(auth_admin.UserAdmin):
         "-updated_at",
         "full_name",
     )
-    raw_id_fields = ("organization",)
-    readonly_fields = ("id", "sub", "email", "full_name", "created_at", "updated_at")
+    # Each login sets the organization from the claims of the identity provider.
+    readonly_fields = (
+        "id",
+        "sub",
+        "email",
+        "full_name",
+        "organization",
+        "created_at",
+        "updated_at",
+    )
     search_fields = ("id", "sub", "admin_email", "email", "full_name")
 
 
