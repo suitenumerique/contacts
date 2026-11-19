@@ -36,10 +36,8 @@ requests from the app's own origin only. For each widget that is on (app
 launcher, feedback widget), add the origin of its script to
 `CONTACTS_FRONTEND_CSP_SCRIPT_SRC` and the origin of its API to
 `CONTACTS_FRONTEND_CSP_CONNECT_SRC`. If an origin is missing, the browser
-blocks the widget. The defaults of the app launcher are
-`https://static.suite.anct.gouv.fr` (script) and
-`https://lasuite.numerique.gouv.fr` (API). A frontend built with
-`API_ORIGIN` needs that origin in `CONTACTS_FRONTEND_CSP_CONNECT_SRC`.
+blocks the widget. A frontend built with `API_ORIGIN` needs that origin in
+`CONTACTS_FRONTEND_CSP_CONNECT_SRC`.
 
 ### Client address in Django
 
