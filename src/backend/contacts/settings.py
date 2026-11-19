@@ -836,6 +836,24 @@ class Base(Configuration):
                 "OIDC_ALLOW_DUPLICATE_EMAILS cannot be set to True simultaneously. "
             )
 
+        # The entitlements backend gets only the claims that the login stores.
+        # pylint: disable-next=no-member
+        claims = cls.ENTITLEMENTS_BACKEND_PARAMETERS.get("oidc_claims") or []
+        not_stored = [claim for claim in claims if claim not in cls.OIDC_STORE_CLAIMS]
+        if not_stored:
+            raise ValueError(
+                "OIDC_STORE_CLAIMS must contain each claim of oidc_claims in "
+                f"ENTITLEMENTS_BACKEND_PARAMETERS. Missing: {', '.join(not_stored)}."
+            )
+
+        # The is_admin entitlement gives rights on the organization of the user.
+        # A backend that reads claims must thus get the claim of this organization.
+        if claims and cls.OIDC_USERINFO_ORGANIZATION_CLAIM not in claims:
+            raise ValueError(
+                "OIDC_USERINFO_ORGANIZATION_CLAIM must be one of oidc_claims in "
+                "ENTITLEMENTS_BACKEND_PARAMETERS."
+            )
+
 
 class Build(Base):
     """Settings used when the application is built.

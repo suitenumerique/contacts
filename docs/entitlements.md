@@ -46,11 +46,13 @@ OIDC_USERINFO_ORGANIZATION_CLAIM=siret
 
 The backend sends the claims that the login stored on the user.
 DeployCenter refuses a call that has no `siret`. Thus `oidc_claims` and
-`OIDC_STORE_CLAIMS` must both contain `siret`: without a stored `siret`,
-Contacts denies access to the user until their next login. Set
-`OIDC_USERINFO_ORGANIZATION_CLAIM` to `siret` too, so that the organization
+`OIDC_STORE_CLAIMS` must both contain `siret`, and
+`OIDC_USERINFO_ORGANIZATION_CLAIM` must be `siret`, so that the organization
 in Contacts is the one that DeployCenter answers for (see
-[organizations.md](organizations.md)).
+[organizations.md](organizations.md)). Contacts does not start when
+`OIDC_STORE_CLAIMS` lacks a claim of `oidc_claims`, or when `oidc_claims`
+lacks the organization claim. A user with no login since `OIDC_STORE_CLAIMS`
+was set has no stored `siret`, and has no access until their next login.
 
 The DeployCenter backend caches each answer for
 `ENTITLEMENTS_CACHE_TIMEOUT` and keeps a second copy for `stale_timeout`
