@@ -223,6 +223,13 @@ that is not exactly one readable vCard, is refused with `403` and the
 `max-resource-size` (the smaller of `CONTACTS_VCF_MAX_FILE_SIZE` and
 `DATA_UPLOAD_MAX_MEMORY_SIZE`) gets `403` with `CARDDAV:max-resource-size`.
 
+One length is different: a text of more than 255 characters in `FN`, `N`,
+`NICKNAME`, `ORG` or `TITLE` does not refuse the card, because a client
+cannot correct a refused card. The contact holds the first 255 characters.
+The server keeps the full line and serves it back until the text changes.
+A vCard export holds the full line, and a vCard import applies the same
+rule.
+
 A `PUT` over an existing card applies only what the client changed against
 the card it was served: an unchanged `PUT` is a no-op, and what vCard does
 not carry (favorites, group memberships) is left alone. The
@@ -243,7 +250,10 @@ Overlays appear in the `personal` book (they are the user's rows) and the
 read-only contact they cover is hidden. A `PUT` on an overlay follows the
 REST rule for the fields the client changed: equal to the source value,
 they stay inherited; different, they become local overrides. The overlay
-shows its parent's unmodeled vCard properties and cannot change them.
+shows its parent's unmodeled vCard properties and cannot change them. Thus
+it cannot keep the full line of a long text: a `PUT` that gives it a new
+text of more than 255 characters is refused, and a `PUT` that cuts such a
+text of its parent to exactly its first 255 characters has no effect.
 
 ### vCard mapping
 

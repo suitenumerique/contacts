@@ -922,9 +922,6 @@ def test_cannot_write_org_contact(auth, user):
 @pytest.mark.parametrize(
     "body",
     [
-        pytest.param(
-            VCARD.replace("FN:Ada", f"TITLE:{'x' * 300}\r\nFN:Ada"), id="long"
-        ),
         pytest.param(VCARD.replace("END:VCARD\r\n", ""), id="unterminated"),
         pytest.param(VCARD + VCARD, id="two-cards"),
         pytest.param(NAMELESS_VCARD, id="no-names"),
@@ -943,6 +940,90 @@ def test_put_refuses_an_invalid_card(auth, user, body):
     assert response.status_code == 403
     assert conditions(response) == [CARD("valid-address-data")]
     assert not models.Contact.objects.filter(owner=user).exists()
+
+
+def with_lines(card, *lines):
+    """*card* with *lines* added before its END."""
+    return card.replace("END:VCARD", "\r\n".join([*lines, "END:VCARD"]))
+
+
+def served_lines(auth, url):
+    """The unfolded content lines of the card served at *url*."""
+    return get(auth, url).content.decode().replace("\r\n ", "").split("\r\n")
+
+
+LONG = "x" * 300
+LONG_VCARD = (
+    f"BEGIN:VCARD\r\nVERSION:3.0\r\nEMAIL:ada@example.org\r\nFN:{LONG}\r\n"
+    f"N:{LONG};{LONG};{LONG};{LONG};{LONG}\r\nNICKNAME:{LONG}\r\n"
+    f"ORG:{LONG};{LONG}\r\nTITLE:{LONG}\r\nEND:VCARD\r\n"
+)
+
+
+def test_put_cuts_a_text_longer_than_its_column(auth, user):
+    """The contact holds the start of the text. The server serves the line back."""
+    url = f"{PERSONAL}{uuid.uuid4()}.vcf"
+    assert put(auth, url, LONG_VCARD).status_code == 201
+
+    contact = models.Contact.objects.get(owner=user)
+    for field in (
+        "full_name",
+        "name_prefix",
+        "given_name",
+        "middle_name",
+        "family_name",
+        "name_suffix",
+        "nickname",
+        "company",
+        "department",
+        "job_title",
+    ):
+        assert getattr(contact, field) == "x" * 255, field
+    assert set(LONG_VCARD.split("\r\n")[3:-2]) <= set(served_lines(auth, url))
+
+    before = row(contact)
+    assert put(auth, url, get(auth, url).content).status_code == 204
+    assert row(contact) == before
+
+
+def test_put_cuts_a_name_composed_from_long_parts(auth, user):
+    body = (
+        "BEGIN:VCARD\r\nVERSION:3.0\r\nFN:\r\n"
+        f"N:{'f' * 200};{'g' * 200};;;\r\nEMAIL:ada@example.org\r\nEND:VCARD\r\n"
+    )
+    response = put(auth, f"{PERSONAL}{uuid.uuid4()}.vcf", body)
+    assert response.status_code == 201, response.content
+    contact = models.Contact.objects.get(owner=user)
+    assert contact.full_name == f"{'g' * 200} {'f' * 54}"
+
+
+def test_a_cut_text_is_served_whole_until_it_changes(auth, user):
+    url = f"{PERSONAL}{uuid.uuid4()}.vcf"
+    line = f"TITLE:{LONG}"
+    assert put(auth, url, with_lines(VCARD, line)).status_code == 201
+    assert line in served_lines(auth, url)
+
+    contact = models.Contact.objects.get(owner=user)
+    contact.job_title = "Mathematician"
+    contact.save()
+
+    lines = served_lines(auth, url)
+    assert "TITLE:Mathematician" in lines
+    assert line not in lines
+
+
+def test_put_can_shorten_a_cut_text_to_its_stored_start(auth, user):
+    """The full line goes away, and the server serves the short text."""
+    url = f"{PERSONAL}{uuid.uuid4()}.vcf"
+    line = f"TITLE:{LONG}"
+    assert put(auth, url, with_lines(VCARD, line)).status_code == 201
+
+    short = f"TITLE:{'x' * 255}"
+    body = "\r\n".join(served_lines(auth, url)).replace(line, short)
+    assert put(auth, url, body).status_code == 204
+    lines = served_lines(auth, url)
+    assert short in lines
+    assert line not in lines
 
 
 def test_put_cannot_blank_the_required_names(auth, user):
@@ -1298,6 +1379,66 @@ def test_put_on_overlay_records_overrides_and_keeps_inheritance(auth, user):
     parent.company = "ANCT"
     parent.save()
     assert "ANCT" in get(auth, url).content.decode()  # still tracking the source
+
+
+def test_put_on_overlay_refuses_a_text_longer_than_its_column(auth, user):
+    """An overlay keeps no line of its own, so it cannot keep the full text."""
+    _parent, overlay = _overlay_of(
+        user,
+        full_name="Directory Name",
+        emails=[{"type": "work", "value": "inherited@example.org"}],
+    )
+    before = row(overlay)
+    url = f"{PERSONAL}{overlay.id}.vcf"
+    body = with_lines(get(auth, url).content.decode(), f"TITLE:{LONG}")
+    assert put(auth, url, body).status_code == 403
+    assert row(overlay) == before
+
+
+def test_put_on_overlay_accepts_the_long_text_of_its_parent(auth, user):
+    """The parent holds the full line, and the PUT does not change the text."""
+    line = f"TITLE:{LONG}"
+    _parent, overlay = _overlay_of(
+        user,
+        full_name="Directory Name",
+        emails=[{"type": "work", "value": "inherited@example.org"}],
+        job_title="x" * 255,
+        vcard_extra={"TITLE": [line]},
+    )
+    url = f"{PERSONAL}{overlay.id}.vcf"
+    served = get(auth, url).content.decode()
+    assert line in served_lines(auth, url)
+
+    before = row(overlay)
+    assert put(auth, url, served).status_code == 204
+    assert row(overlay) == before
+
+    assert put(auth, url, with_lines(served, "TEL:+33199000405")).status_code == 204
+    overlay.refresh_from_db()
+    assert [phone["value"] for phone in overlay.phones] == ["+33199000405"]
+    assert overlay.job_title == ""
+    assert line in served_lines(auth, url)
+
+
+def test_overlay_keeps_the_long_text_of_its_parent_next_to_its_own_change(auth, user):
+    """The overlay changes the department. The company of the parent stays whole."""
+    _parent, overlay = _overlay_of(
+        user,
+        full_name="Directory Name",
+        emails=[{"type": "work", "value": "inherited@example.org"}],
+        company="x" * 255,
+        department="Research",
+        vcard_extra={"ORG": [f"ORG:{LONG};Research"]},
+    )
+    overlay.department = "Engineering"
+    overlay.overridden_fields = ["department", "full_name"]
+    overlay.save()
+    url = f"{PERSONAL}{overlay.id}.vcf"
+    assert f"ORG:{LONG};Engineering" in served_lines(auth, url)
+
+    before = row(overlay)
+    assert put(auth, url, get(auth, url).content).status_code == 204
+    assert row(overlay) == before
 
 
 def test_delete_overlay_reverts_to_source(auth, user):

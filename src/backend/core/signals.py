@@ -2,10 +2,11 @@
 Declare and configure the signals for the contacts core application
 """
 
-from django.db.models.signals import post_save
+from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
 
 from core.models import NAME_PARTS, Contact
+from core.services.vcf_service import without_replaced_texts
 
 # Fields feeding Contact.compute_search_fields.
 _SEARCH_SOURCE_FIELDS = frozenset(
@@ -19,6 +20,13 @@ _SEARCH_SOURCE_FIELDS = frozenset(
         "phones",
     }
 )
+
+
+@receiver(pre_save, sender=Contact, dispatch_uid="core_remove_replaced_texts")
+def remove_replaced_texts(sender, instance, raw=False, **kwargs):  # pylint: disable=unused-argument
+    """Remove the long vCard texts that the columns of a contact replaced."""
+    if not raw:
+        instance.vcard_extra = without_replaced_texts(instance)
 
 
 @receiver(post_save, sender=Contact, dispatch_uid="core_refresh_overlay_search")

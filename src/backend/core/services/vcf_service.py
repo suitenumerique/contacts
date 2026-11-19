@@ -13,9 +13,19 @@ property name, so parse -> serialize -> parse is stable:
   extra TYPE values, ADR components, a list of values in one N component,
   more ORG units) as a "shadow" line. Serialization writes the shadow back
   instead of rebuilding the line, as long as it still decodes to the
-  column's current value; once the column is edited it is ignored;
+  column's current value, after the cut of a long text (see below); once
+  the column is edited it is ignored;
 - later instances of a single-column property (a second ORG, NOTE, ...)
   verbatim, written back after the modeled lines.
+
+The parsers cut a text that is longer than its column (see ``_fit``). The
+column holds the start of the text. The full line is kept as a shadow
+line. Serialization applies the same cut to the decoded shadow before it
+compares the result with the column. Each long text of an N or ORG line
+is independent: serialization writes it while its own column holds its
+start, also when another column of the line changed. A long text goes
+out of the stored line when its column changes (see
+``without_replaced_texts``).
 
 Mappings: FN <-> full_name; N <-> family_name, given_name, middle_name,
 civility (``M.``/``Mme``) plus name_prefix, name_suffix; NICKNAME <->
@@ -57,6 +67,9 @@ _DEFAULT_TYPE = {"EMAIL": "other", "TEL": "other", "ADR": "other", "URL": ""}
 _TEXT = {"TITLE": "job_title", "NOTE": "notes", "NICKNAME": "nickname"}
 # Modeled properties whose original line may be kept as a shadow.
 _SHADOWED = frozenset({"FN", "N", "ORG", *_TEXT, *_TYPED})
+# The properties whose columns hold _COLUMN_SIZE characters at most.
+_SIZED = frozenset({"FN", "N", "NICKNAME", "ORG", "TITLE"})
+_COLUMN_SIZE = 255
 
 _IGNORED_TYPES = frozenset({"internet", "pref", "voice"})
 _TYPE_RE = re.compile(r"[A-Za-z0-9-]{1,32}")
@@ -303,6 +316,45 @@ def _decode(name, line):  # pylint: disable=too-many-return-statements
     return {"type": _type_param(line, _DEFAULT_TYPE[name]), "value": text}
 
 
+def _cut(text):
+    """The first ``_COLUMN_SIZE`` characters of *text*.
+
+    The result has no whitespace at its start and at its end.
+    """
+    return text[:_COLUMN_SIZE].strip()
+
+
+def _fit(name, value):
+    """The decoded *value* of a line, with each text cut to its column.
+
+    The line of a text that is cut is a shadow: it does not encode the
+    column value. Serialization writes the line back while the column
+    holds the start of its text.
+    """
+    if name not in _SIZED:
+        return value
+    if isinstance(value, dict):
+        return {field: _cut(text) for field, text in value.items()}
+    return _cut(value)
+
+
+def _full(name, line, item):
+    """*item* with the full text of *line* in place of each text it holds cut.
+
+    None when *line* holds no such text. An N or ORG line can thus give
+    one long text while its other texts differ from *item*.
+    """
+    value = _decode(name, line)
+    if not isinstance(item, dict):
+        return value if value != item and _cut(value) == item else None
+    texts = {
+        field: text
+        for field, text in value.items()
+        if text != item[field] and _cut(text) == item[field]
+    }
+    return {**item, **texts} if texts else None
+
+
 def _encode(name, item):
     """The content line text written for a modeled value."""
     if name in ("FN", "NICKNAME", "TITLE", "NOTE"):
@@ -456,12 +508,14 @@ def parse_vcf_file(data):
     return cards, groups, errors
 
 
-def parse_one_card(data):
+def parse_one_card(data, *, fit=True):
     """Parse a body that must hold exactly one vCard (a CardDAV PUT).
 
     Returns ``(is_group, fields)``: group fields (see ``_parse_group``) for
-    a group card, Contact kwargs otherwise. Raises
-    :class:`InvalidVCardError` for anything else.
+    a group card, contact fields and label names (see ``_parse_card``)
+    otherwise. Raises :class:`InvalidVCardError` for anything else.
+
+    Without *fit*, a text longer than its column stays whole (see ``_fit``).
     """
     components = list(_read_components(data))
     if len(components) != 1 or components[0][0] != "VCARD":
@@ -469,7 +523,9 @@ def parse_one_card(data):
     lines = components[0][1]
     is_group = _is_group(lines)
     try:
-        return is_group, (_parse_group(lines) if is_group else _parse_card(lines))
+        return is_group, (
+            _parse_group(lines) if is_group else _parse_card(lines, fit=fit)
+        )
     except Exception as exc:  # pylint: disable=broad-exception-caught
         raise InvalidVCardError(str(exc)) from exc
 
@@ -596,11 +652,12 @@ def _set_aside(name, line, fields, seen):
     return False
 
 
-def _parse_card(lines):
+def _parse_card(lines, *, fit=True):
     """Convert the content lines of one VCARD into contact fields and label names.
 
     ``label_names`` holds the CATEGORIES values. A card without a
-    CATEGORIES property has no ``label_names`` key.
+    CATEGORIES property has no ``label_names`` key. Without *fit*, a text
+    longer than its column stays whole (see ``_fit``).
     """
     fields = {
         "full_name": "",
@@ -632,6 +689,8 @@ def _parse_card(lines):
             continue
 
         value = _decode(name, line)
+        if fit:
+            value = _fit(name, value)
         if name in _TYPED:
             used = bool(value["value"])
             if used:
@@ -654,6 +713,8 @@ def _parse_card(lines):
     fields["full_name"] = full_name or _default_full_name(
         [fields[part] for part in NAME_PARTS], fields["emails"]
     )
+    if fit:
+        fields["full_name"] = _cut(fields["full_name"])
     return fields
 
 
@@ -703,10 +764,15 @@ def serialize_contact(contact):
 
     def emit(name, item):
         for line in shadows[name]:
-            if _decode(name, line) == item:
-                shadows[name].remove(line)
-                lines.append(_raw(line))
-                return
+            if _fit(name, _decode(name, line)) == item:
+                text = _raw(line)
+            elif name in _SIZED and (full := _full(name, line, item)):
+                text = _encode(name, full)
+            else:
+                continue
+            shadows[name].remove(line)
+            lines.append(text)
+            return
         lines.append(_encode(name, item))
 
     emit("FN", formatted_name(contact))
@@ -740,6 +806,49 @@ def serialize_contact(contact):
 
     body = "".join(_fold(line) for line in lines)
     return f"BEGIN:VCARD\r\n{body}END:VCARD\r\n"
+
+
+def without_replaced_texts(contact):
+    """The ``vcard_extra`` of *contact* without the long texts it replaced.
+
+    A line can hold a text that is longer than its column (see ``_fit``).
+    The text is removed when its column does not hold its start, so that
+    it cannot come back when the column holds that start again. The other
+    long texts of the line stay.
+    """
+    extra = dict(contact.vcard_extra or {})
+    if not _SIZED & extra.keys():
+        return extra
+    merged = contact.merged_value
+    items = {
+        "FN": formatted_name(contact),
+        "N": structured_name(contact),
+        "NICKNAME": merged("nickname") or "",
+        "ORG": {
+            "company": merged("company") or "",
+            "department": merged("department") or "",
+        },
+        "TITLE": merged("job_title") or "",
+    }
+    for name in _SIZED & extra.keys():
+        kept = []
+        for text in extra[name]:
+            line = _line_from_text(name, text)
+            if line is None:
+                kept.append(text)
+                continue
+            value = _decode(name, line)
+            # A line stays when it holds no long text, or when each column
+            # holds the text of the line.
+            if _fit(name, value) in (value, items[name]):
+                kept.append(text)
+            elif full := _full(name, line, items[name]):
+                kept.append(_encode(name, full))
+        if kept:
+            extra[name] = kept
+        else:
+            del extra[name]
+    return extra
 
 
 def contact_label_names(contact):

@@ -82,6 +82,15 @@ def is_group(card):
     return isinstance(card, ContactGroup)
 
 
+def keeps_lines(card):
+    """Whether *card* can keep content lines of its own.
+
+    An overlay cannot: it renders the ``vcard_extra`` of its parent. None
+    stands for a new card, which can keep lines.
+    """
+    return getattr(card, "overlay_of_id", None) is None
+
+
 def pk_from_name(name):
     """The card id a ``<uuid>.vcf`` name stands for, or None.
 
