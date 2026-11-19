@@ -260,6 +260,64 @@ def test_import_reads_an_exported_contact_with_a_long_text():
     assert restored.vcard_extra["TITLE"] == [line]
 
 
+LONG = "x" * 300
+START = "x" * 255
+
+
+def patch_imported_contact(line, *changes):
+    """Import a card with *line*, apply *changes* over REST, export the lines."""
+    user = factories.UserFactory()
+    client = APIClient()
+    client.force_login(user)
+    import_contacts(user, "vcf", REFUSED_VALUE_VCF.format(line=line).encode())
+    url = f"/api/v1.0/contacts/{models.Contact.objects.get(owner=user).pk}/"
+    for change in changes:
+        response = client.patch(url, change, format="json")
+        assert response.status_code == 200, response.content
+    export = client.get("/api/v1.0/contacts/export-vcf/").content
+    return export.decode().replace("\r\n ", "").split("\r\n")
+
+
+@pytest.mark.parametrize(
+    ("line", "change", "expected"),
+    [
+        pytest.param(
+            f"ORG:{LONG};Research",
+            {"department": "Engineering"},
+            f"ORG:{LONG};Engineering",
+            id="ORG",
+        ),
+        pytest.param(
+            f"N:{LONG};Jean;;;", {"given_name": "Ada"}, f"N:{LONG};Ada;;;", id="N"
+        ),
+    ],
+)
+def test_a_change_of_one_part_keeps_the_long_text_of_another_part(
+    line, change, expected
+):
+    assert expected in patch_imported_contact(line, change)
+
+
+@pytest.mark.parametrize(
+    ("line", "field", "expected"),
+    [
+        pytest.param(f"TITLE:{LONG}", "job_title", f"TITLE:{START}", id="TITLE"),
+        pytest.param(
+            f"ORG:{LONG};{'d' * 300}",
+            "company",
+            f"ORG:{START};{'d' * 300}",
+            id="ORG",
+        ),
+    ],
+)
+def test_a_replaced_long_text_does_not_come_back(line, field, expected):
+    """The second change gives the column the start of the long text again."""
+    lines = patch_imported_contact(line, {field: "New text"}, {field: START})
+
+    assert expected in lines
+    assert line not in lines
+
+
 def test_import_turns_categories_into_labels():
     user = factories.UserFactory()
     models.ContactLabel.objects.create(owner=user, name="Amis")

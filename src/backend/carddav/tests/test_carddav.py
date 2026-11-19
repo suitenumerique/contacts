@@ -1420,6 +1420,27 @@ def test_put_on_overlay_accepts_the_long_text_of_its_parent(auth, user):
     assert line in served_lines(auth, url)
 
 
+def test_overlay_keeps_the_long_text_of_its_parent_next_to_its_own_change(auth, user):
+    """The overlay changes the department. The company of the parent stays whole."""
+    _parent, overlay = _overlay_of(
+        user,
+        full_name="Directory Name",
+        emails=[{"type": "work", "value": "inherited@example.org"}],
+        company="x" * 255,
+        department="Research",
+        vcard_extra={"ORG": [f"ORG:{LONG};Research"]},
+    )
+    overlay.department = "Engineering"
+    overlay.overridden_fields = ["department", "full_name"]
+    overlay.save()
+    url = f"{PERSONAL}{overlay.id}.vcf"
+    assert f"ORG:{LONG};Engineering" in served_lines(auth, url)
+
+    before = row(overlay)
+    assert put(auth, url, get(auth, url).content).status_code == 204
+    assert row(overlay) == before
+
+
 def test_delete_overlay_reverts_to_source(auth, user):
     """Deleting an overlay drops the local copy; the parent shows again."""
     parent, overlay = _overlay_of(user, full_name="Directory Name")
