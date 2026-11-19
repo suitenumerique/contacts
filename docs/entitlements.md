@@ -6,7 +6,7 @@ Contacts asks it two questions:
 | Key | Meaning |
 | --- | ------- |
 | `can_access` | the user may use the app at all |
-| `can_admin` | the user administers their organization |
+| `is_admin` | the user administers their organization |
 
 The answer also carries `organization_name`, which is what names the
 `Organization` row on login (see [organizations.md](organizations.md)).
@@ -29,7 +29,7 @@ core/entitlements/
 | `ENTITLEMENTS_BACKEND_PARAMETERS` | `{}` | kwargs passed to it, as a Python dict literal |
 | `ENTITLEMENTS_CACHE_TIMEOUT` | `300` | seconds a response stays fresh |
 
-The default backend grants `can_access` to everyone and `can_admin` to no
+The default backend grants `can_access` to everyone and `is_admin` to no
 one: a deployment that does not configure anything lets every user in,
 and has no administrator.
 
@@ -60,7 +60,7 @@ last known answer is used; past it, the call fails.
    organization name. A failure here is swallowed: login still succeeds
    and the organization name is left as it is.
 2. **`GET /users/me/`** (`UserMeSerializer`): exposes `can_access` and
-   `can_admin` to the SPA.
+   `is_admin` to the SPA.
 3. **The frontend** (`src/routes/index.tsx`): sends a user whose
    `can_access` is false to `/no-access`. This is presentation only; the
    API enforces the same rule on its own (see below).
@@ -89,7 +89,7 @@ acts as the token's user, who must pass `can_access` like in the web app. A
 `user`-scoped channel is that user's own credential, so it is checked like
 the user (`core/authentication/channel.py`), fail-closed too.
 
-`can_admin` gates the organization's address book: only an administrator
+`is_admin` gates the organization's address book: only an administrator
 creates, edits, trashes, restores and deletes its contacts and groups,
 imports a file into it, or copies one of their own contacts into it (see
 [architecture.md](architecture.md)); everyone else in the organization

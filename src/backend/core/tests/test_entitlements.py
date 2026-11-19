@@ -18,7 +18,7 @@ from core.authentication.backends import OIDCAuthenticationBackend
 from core.entitlements import (
     EntitlementsUnavailableError,
     get_user_entitlements,
-    user_can_admin,
+    user_is_admin,
 )
 from core.entitlements.backends.deploycenter import DeployCenterEntitlementsBackend
 from core.entitlements.backends.local import LocalEntitlementsBackend
@@ -33,7 +33,7 @@ def test_local_backend_grants_access_but_not_admin():
     """The local backend lets everyone in and makes no one an administrator."""
     backend = LocalEntitlementsBackend()
     result = backend.get_user_entitlements("sub-123", "user@example.com")
-    assert result == {"can_access": True, "can_admin": False}
+    assert result == {"can_access": True, "is_admin": False}
 
 
 def test_local_backend_ignores_parameters():
@@ -45,7 +45,7 @@ def test_local_backend_ignores_parameters():
         user_info={"some": "claim"},
         force_refresh=True,
     )
-    assert result == {"can_access": True, "can_admin": False}
+    assert result == {"can_access": True, "is_admin": False}
 
 
 # -- Factory --
@@ -165,7 +165,7 @@ def test_deploycenter_backend_grants_access():
     result = backend.get_user_entitlements("sub-123", "user@example.com", CLAIMS)
     assert result == {
         "can_access": True,
-        "can_admin": False,
+        "is_admin": False,
         "organization_name": "Mairie de Test",
     }
 
@@ -182,12 +182,12 @@ def test_deploycenter_backend_grants_access():
 
 
 @responses.activate
-def test_deploycenter_backend_maps_is_admin_to_can_admin():
-    """DeployCenter answers is_admin, which Contacts reads as can_admin."""
+def test_deploycenter_backend_reads_is_admin():
+    """The backend returns the is_admin of the DeployCenter answer."""
     add_dc_answer(dc_answer(is_admin=True))
 
     result = dc_backend().get_user_entitlements("sub-123", "user@example.com", CLAIMS)
-    assert result["can_admin"] is True
+    assert result["is_admin"] is True
 
 
 @responses.activate
@@ -199,7 +199,7 @@ def test_deploycenter_backend_denies_access():
     result = backend.get_user_entitlements("sub-123", "user@example.com", CLAIMS)
     assert result == {
         "can_access": False,
-        "can_admin": False,
+        "is_admin": False,
         "organization_name": "Mairie de Test",
     }
 
@@ -220,7 +220,7 @@ def test_deploycenter_backend_denies_access_to_an_unknown_organization():
     )
 
     result = dc_backend().get_user_entitlements("sub-123", "user@example.com", CLAIMS)
-    assert result == {"can_access": False, "can_admin": False}
+    assert result == {"can_access": False, "is_admin": False}
 
 
 @responses.activate
@@ -503,7 +503,7 @@ def test_deploycenter_administrator_administers_the_organization():
     user = factories.UserFactory(organization__external_id=SIRET)
     group = factories.ContactGroupFactory(owner=None, organization=user.organization)
 
-    assert user_can_admin(user) is True
+    assert user_is_admin(user) is True
     assert group.is_writable(user) is True
 
 
@@ -519,7 +519,7 @@ def test_api_serves_a_deploycenter_user_outside_login():
     assert client.get("/api/v1.0/contacts/").status_code == 200
     me = client.get("/api/v1.0/users/me/").json()
     assert me["can_access"] is True
-    assert me["can_admin"] is True
+    assert me["is_admin"] is True
     assert len(responses.calls) == 1
 
 
@@ -550,7 +550,7 @@ def test_cached_checks_read_the_organization_one_time(django_assert_num_queries)
     user = models.User.objects.get(pk=stored.pk)
 
     with django_assert_num_queries(1):
-        assert [user_can_admin(user) for _ in range(3)] == [True, True, True]
+        assert [user_is_admin(user) for _ in range(3)] == [True, True, True]
     assert len(responses.calls) == 1
 
 
@@ -563,7 +563,7 @@ def test_local_backend_does_not_read_the_organization(
     user = models.User.objects.get(pk=stored.pk)
 
     with django_assert_num_queries(0):
-        assert user_can_admin(user) is False
+        assert user_is_admin(user) is False
 
 
 @responses.activate
@@ -576,7 +576,7 @@ def test_deploycenter_fails_closed_for_an_email_domain_organization(settings):
 
     with pytest.raises(EntitlementsUnavailableError):
         get_user_entitlements(user)
-    assert user_can_admin(user) is False
+    assert user_is_admin(user) is False
 
 
 @responses.activate
@@ -594,7 +594,7 @@ def test_login_reads_the_entitlements_of_the_new_organization():
     assert user.organization.external_id == SIRET
     assert user.organization.name == "Mairie de Test"
     # The answer from the login serves the next check.
-    assert user_can_admin(user) is True
+    assert user_is_admin(user) is True
     assert len(responses.calls) == 1
 
 
@@ -604,7 +604,7 @@ def test_login_does_not_reuse_the_answer_of_the_previous_organization():
     """The user moves while DeployCenter is down: the old answer does not follow."""
     add_dc_answer(dc_answer(is_admin=True))
     user = factories.UserFactory(organization__external_id=OTHER_SIRET)
-    assert user_can_admin(user) is True
+    assert user_is_admin(user) is True
 
     responses.replace(
         responses.GET, DC_URL, body=requests.ConnectionError("Connection error")
@@ -615,4 +615,4 @@ def test_login_does_not_reuse_the_answer_of_the_previous_organization():
 
     assert user.organization.external_id == SIRET
     assert user.organization.name == ""
-    assert user_can_admin(user) is False
+    assert user_is_admin(user) is False

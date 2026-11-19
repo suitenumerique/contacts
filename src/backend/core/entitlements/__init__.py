@@ -35,7 +35,7 @@ def get_user_entitlements(user, user_info=None, force_refresh=False):
             return its last known answer.
 
     Returns:
-        dict: {"can_access": bool, "can_admin": bool, ...}
+        dict: {"can_access": bool, "is_admin": bool, ...}
 
     Raises:
         EntitlementsUnavailableError: If the backend cannot be reached
@@ -50,13 +50,13 @@ def get_user_entitlements(user, user_info=None, force_refresh=False):
     )
 
 
-def user_can_admin(user):
+def user_is_admin(user):
     """Whether *user* administers their organization's shared data.
 
     False when no entitlements are available: the backend gives no answer
     and it has no last known answer.
     """
     try:
-        return bool(get_user_entitlements(user).get("can_admin"))
+        return bool(get_user_entitlements(user).get("is_admin"))
     except EntitlementsUnavailableError:
         return False

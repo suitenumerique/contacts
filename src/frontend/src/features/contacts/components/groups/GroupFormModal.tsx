@@ -97,7 +97,7 @@ export const GroupFormModal = ({ isOpen, group, onClose, onSaved }: GroupFormMod
           data-testid="group-description-input"
           onChange={(event) => setDescription(event.target.value)}
         />
-        {!group && user?.can_admin && (
+        {!group && user?.is_admin && (
           <Checkbox
             label={t("contacts.groups.shareWithOrg")}
             text={t("contacts.groups.shareWithOrgHint")}

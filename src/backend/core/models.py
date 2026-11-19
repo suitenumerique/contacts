@@ -545,16 +545,16 @@ class Contact(BaseModel):
         The one place that decides it. Synced rows are read-only; a
         personal row (the user's own overlays included) is its owner's; an
         organization row is writable by the organization's administrators
-        (``can_admin`` entitlement).
+        (``is_admin`` entitlement).
         """
         # pylint: disable-next=import-outside-toplevel
-        from core.entitlements import user_can_admin  # noqa: PLC0415
+        from core.entitlements import user_is_admin  # noqa: PLC0415
 
         if user is None or getattr(user, "pk", None) is None or self.source:
             return False
         if self.scope == Scope.PERSONAL:
             return self.owner_id == user.id
-        return self.organization_id == user.organization_id and user_can_admin(user)
+        return self.organization_id == user.organization_id and user_is_admin(user)
 
     def delete(self, *args, **kwargs):
         """Delete the row, detaching its overlays first.
@@ -1034,16 +1034,16 @@ class ContactGroup(BaseModel):
 
         The one place that decides it. Synced groups are read-only; a
         personal group is its owner's; an organization group is writable by
-        the organization's administrators (``can_admin`` entitlement).
+        the organization's administrators (``is_admin`` entitlement).
         """
         # pylint: disable-next=import-outside-toplevel
-        from core.entitlements import user_can_admin  # noqa: PLC0415
+        from core.entitlements import user_is_admin  # noqa: PLC0415
 
         if user is None or getattr(user, "pk", None) is None or self.source:
             return False
         if self.scope == Scope.PERSONAL:
             return self.owner_id == user.id
-        return self.organization_id == user.organization_id and user_can_admin(user)
+        return self.organization_id == user.organization_id and user_is_admin(user)
 
 
 class ContactGroupMembership(BaseModel):

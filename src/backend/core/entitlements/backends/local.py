@@ -9,4 +9,4 @@ class LocalEntitlementsBackend(EntitlementsBackend):
     def get_user_entitlements(
         self, user_sub, user_email, user_info=None, force_refresh=False
     ):
-        return {"can_access": True, "can_admin": False}
+        return {"can_access": True, "is_admin": False}

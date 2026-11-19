@@ -3256,7 +3256,7 @@
                         "description": "Check entitlements for the current user.",
                         "readOnly": true
                     },
-                    "can_admin": {
+                    "is_admin": {
                         "type": "boolean",
                         "description": "Check admin entitlement for the current user.",
                         "readOnly": true
@@ -3272,10 +3272,10 @@
                 },
                 "required": [
                     "can_access",
-                    "can_admin",
                     "email",
                     "full_name",
                     "id",
+                    "is_admin",
                     "organization"
                 ]
             },
