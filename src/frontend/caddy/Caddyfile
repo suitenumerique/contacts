@@ -19,12 +19,10 @@
 	# Security headers for everything served here (`header` replaces, so
 	# Django's own X-Frame-Options is not duplicated).
 	#
-	# The Content-Security-Policy allows the app's own origin only. Inline
-	# styles stay allowed: the UI kit sets style attributes and
+	# Inline styles stay allowed: the UI kit sets style attributes and
 	# react-toastify injects a <style> element. Images also load from
 	# data: and blob: (photo upload) and from any https: URL (a contact
-	# photo can be a remote URL). The two CSP variables add the origins of
-	# the optional widgets and of a cross-origin API (docs/deployment.md).
+	# photo can be a remote URL).
 	header {
 		-Server
 		X-Frame-Options "DENY"

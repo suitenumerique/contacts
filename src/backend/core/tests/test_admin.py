@@ -87,8 +87,6 @@ def test_channel_change_page_renders(admin_client):
     assert response.status_code == 200
     content = response.content.decode()
     assert reverse("admin:core_channel_rotate_token", args=[channel.pk]) in content
-    # The Content-Security-Policy blocks inline handlers: the confirmation
-    # comes from a static script.
     assert "core/admin/confirm_submit.js" in content
     assert "onsubmit=" not in content
 
