@@ -39,28 +39,48 @@ def test_invalid_settings_oidc_email_configuration():
     )
 
 
-@pytest.mark.parametrize(
-    "stored_claims, organization_claim, setting_in_error",
-    [
-        ([], "siret", "OIDC_STORE_CLAIMS"),
-        (["email"], "siret", "OIDC_STORE_CLAIMS"),
-        (["siret"], "", "OIDC_USERINFO_ORGANIZATION_CLAIM"),
-        (["siret"], "idp_id", "OIDC_USERINFO_ORGANIZATION_CLAIM"),
-    ],
-)
-def test_invalid_settings_entitlement_claims(
-    stored_claims, organization_claim, setting_in_error
-):
-    """
-    A claim that the entitlements backend sends must be a stored claim.
-    The organization claim must be one of the claims that the backend sends.
-    """
+@pytest.mark.parametrize("stored_claims", [[], ["email"]])
+def test_invalid_settings_entitlement_claim_not_stored(stored_claims):
+    """A claim that the entitlements backend sends must be a stored claim."""
 
     class TestSettings(Base):
         """Fake test settings."""
 
         ENTITLEMENTS_BACKEND_PARAMETERS = {"oidc_claims": ["siret"]}
         OIDC_STORE_CLAIMS = stored_claims
+
+    with pytest.raises(ValueError, match="^OIDC_STORE_CLAIMS must"):
+        TestSettings().post_setup()
+
+
+@pytest.mark.parametrize(
+    "parameters, organization_claim, setting_in_error",
+    [
+        ({}, "siret", "ENTITLEMENTS_BACKEND_PARAMETERS"),
+        ({"oidc_claims": []}, "siret", "ENTITLEMENTS_BACKEND_PARAMETERS"),
+        ({"oidc_claims": ["email"]}, "siret", "ENTITLEMENTS_BACKEND_PARAMETERS"),
+        ({"oidc_claims": ["siret"]}, "", "OIDC_USERINFO_ORGANIZATION_CLAIM"),
+        (
+            {"oidc_claims": ["siret", "email"]},
+            "email",
+            "OIDC_USERINFO_ORGANIZATION_CLAIM",
+        ),
+    ],
+)
+def test_invalid_settings_deploycenter(
+    parameters, organization_claim, setting_in_error
+):
+    """
+    The DeployCenter backend must send the siret claim.
+    The siret must also be the organization claim.
+    """
+
+    class TestSettings(Base):
+        """Fake test settings."""
+
+        ENTITLEMENTS_BACKEND = DEPLOYCENTER
+        ENTITLEMENTS_BACKEND_PARAMETERS = parameters
+        OIDC_STORE_CLAIMS = ["siret", "email"]
         OIDC_USERINFO_ORGANIZATION_CLAIM = organization_claim
 
     with pytest.raises(ValueError, match=f"^{setting_in_error} must"):
@@ -68,27 +88,11 @@ def test_invalid_settings_entitlement_claims(
 
 
 @pytest.mark.parametrize(
-    "parameters", [{}, {"oidc_claims": []}, {"oidc_claims": ["email"]}]
-)
-def test_invalid_settings_deploycenter_without_siret(parameters):
-    """The DeployCenter backend must send the siret claim."""
-
-    class TestSettings(Base):
-        """Fake test settings."""
-
-        ENTITLEMENTS_BACKEND = DEPLOYCENTER
-        ENTITLEMENTS_BACKEND_PARAMETERS = parameters
-        OIDC_STORE_CLAIMS = ["email"]
-        OIDC_USERINFO_ORGANIZATION_CLAIM = "email"
-
-    with pytest.raises(ValueError, match="^ENTITLEMENTS_BACKEND_PARAMETERS must"):
-        TestSettings().post_setup()
-
-
-@pytest.mark.parametrize(
     "backend, parameters, stored_claims, organization_claim",
     [
         (DEPLOYCENTER, {"oidc_claims": ["siret"]}, ["siret", "email"], "siret"),
+        # The rule on the organization claim is for DeployCenter only.
+        (LOCAL, {"oidc_claims": ["siret"]}, ["siret"], ""),
         # A backend that sends no claim puts no rule on the other settings.
         (LOCAL, {}, [], ""),
         (LOCAL, {"oidc_claims": None}, [], "siret"),
