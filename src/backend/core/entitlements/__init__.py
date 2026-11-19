@@ -7,17 +7,19 @@ class EntitlementsUnavailableError(Exception):
     """Raised when the entitlements backend cannot be reached or returns an error."""
 
 
-def get_user_entitlements(user_sub, user_email, user_info=None, force_refresh=False):
+def get_user_entitlements(user, force_refresh=False):
     """Get user entitlements, delegating to the configured backend.
 
+    The backend gets the claims that the login stored on the user (see
+    OIDC_STORE_CLAIMS).
+
     Args:
-        user_sub: The user's OIDC subject identifier.
-        user_email: The user's email address.
-        user_info: The full OIDC user_info dict (forwarded to backend).
-        force_refresh: If True, bypass backend cache and fetch fresh data.
+        force_refresh: If True, call the backend and do not read the fresh
+            cache entry. When the call fails, the backend can still return
+            its last known answer.
 
     Returns:
-        dict: {"can_access": bool, "can_admin": bool, ...}
+        dict: {"can_access": bool, "is_admin": bool, ...}
 
     Raises:
         EntitlementsUnavailableError: If the backend cannot be reached
@@ -25,16 +27,17 @@ def get_user_entitlements(user_sub, user_email, user_info=None, force_refresh=Fa
     """
     backend = get_entitlements_backend()
     return backend.get_user_entitlements(
-        user_sub, user_email, user_info=user_info, force_refresh=force_refresh
+        user.sub, user.email, user_info=user.claims, force_refresh=force_refresh
     )
 
 
-def user_can_admin(user):
+def user_is_admin(user):
     """Whether *user* administers their organization's shared data.
 
-    Fail-closed: False when the entitlements service is unavailable.
+    False when no entitlements are available: the backend gives no answer
+    and it has no last known answer.
     """
     try:
-        return bool(get_user_entitlements(user.sub, user.email).get("can_admin"))
+        return bool(get_user_entitlements(user).get("is_admin"))
     except EntitlementsUnavailableError:
         return False

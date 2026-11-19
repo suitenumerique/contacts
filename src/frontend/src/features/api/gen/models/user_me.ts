@@ -30,6 +30,6 @@ export interface UserMe {
   /** Check entitlements for the current user. */
   readonly can_access: boolean;
   /** Check admin entitlement for the current user. */
-  readonly can_admin: boolean;
+  readonly is_admin: boolean;
   readonly organization: Organization;
 }

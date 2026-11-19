@@ -194,7 +194,7 @@ const useCardMenu = (contact: Contact): DropdownMenuItem[] => {
   const isOverlay = !!contact.overlay_of;
   // An administrator may copy one of their own contacts to the organization.
   const canShare =
-    !!user?.can_admin &&
+    !!user?.is_admin &&
     contact.is_writable &&
     !contact.is_org_contact &&
     !isOverlay &&

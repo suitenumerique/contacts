@@ -22,7 +22,7 @@ class EntitlementsBackend(ABC):
         Returns:
             dict: {
                 "can_access": bool,
-                "can_admin": bool,
+                "is_admin": bool,
                 "organization_name": str,  # optional, extracted from response
             }
 

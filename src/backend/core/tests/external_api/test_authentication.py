@@ -116,7 +116,7 @@ def test_an_unentitled_user_is_refused(user, monkeypatch):
     )
     monkeypatch.setattr(
         "core.api.permissions.get_user_entitlements",
-        lambda sub, email: {"can_access": False},
+        lambda _user: {"can_access": False},
     )
 
     assert _client().get(URL).status_code == 403

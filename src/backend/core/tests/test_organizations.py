@@ -182,8 +182,8 @@ def test_users_me_includes_organization():
     ENTITLEMENTS_BACKEND="core.entitlements.backends.local.LocalEntitlementsBackend",
     ENTITLEMENTS_BACKEND_PARAMETERS={},
 )
-def test_users_me_includes_can_admin():
-    """GET /users/me/ includes can_admin from entitlements."""
+def test_users_me_includes_is_admin():
+    """GET /users/me/ includes is_admin from entitlements."""
     get_entitlements_backend.cache_clear()
     user = factories.UserFactory()
 
@@ -193,9 +193,9 @@ def test_users_me_includes_can_admin():
 
     assert response.status_code == HTTP_200_OK
     data = response.json()
-    assert "can_admin" in data
+    assert "is_admin" in data
     # The local backend makes no one an administrator.
-    assert data["can_admin"] is False
+    assert data["is_admin"] is False
     get_entitlements_backend.cache_clear()
 
 

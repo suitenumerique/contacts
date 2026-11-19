@@ -61,7 +61,7 @@ class UserMeSerializer(UserSerializer):
     """Serialize users for me endpoint."""
 
     can_access = serializers.SerializerMethodField(read_only=True)
-    can_admin = serializers.SerializerMethodField(read_only=True)
+    is_admin = serializers.SerializerMethodField(read_only=True)
     organization = OrganizationSerializer(read_only=True)
 
     def __init__(self, *args, **kwargs):
@@ -73,13 +73,13 @@ class UserMeSerializer(UserSerializer):
         fields = [
             *UserSerializer.Meta.fields,
             "can_access",
-            "can_admin",
+            "is_admin",
             "organization",
         ]
         read_only_fields = [
             *UserSerializer.Meta.read_only_fields,
             "can_access",
-            "can_admin",
+            "is_admin",
             "organization",
         ]
 
@@ -87,13 +87,11 @@ class UserMeSerializer(UserSerializer):
         """Get cached entitlements for the user, keyed by user.sub.
 
         Cache is per-serializer-instance (request-scoped) to avoid
-        duplicate calls when both can_access and can_admin are serialized.
+        duplicate calls when both can_access and is_admin are serialized.
         """
         if user.sub not in self._entitlements_cache:
             try:
-                self._entitlements_cache[user.sub] = get_user_entitlements(
-                    user.sub, user.email
-                )
+                self._entitlements_cache[user.sub] = get_user_entitlements(user)
             except EntitlementsUnavailableError:
                 self._entitlements_cache[user.sub] = None
         return self._entitlements_cache[user.sub]
@@ -105,12 +103,12 @@ class UserMeSerializer(UserSerializer):
             return False  # fail-closed
         return entitlements.get("can_access", False)
 
-    def get_can_admin(self, user) -> bool:
+    def get_is_admin(self, user) -> bool:
         """Check admin entitlement for the current user."""
         entitlements = self._get_entitlements(user)
         if entitlements is None:
             return False  # fail-closed
-        return entitlements.get("can_admin", False)
+        return entitlements.get("is_admin", False)
 
 
 class TypedValueSerializer(serializers.Serializer):  # pylint: disable=abstract-method

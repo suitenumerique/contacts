@@ -319,7 +319,7 @@ export const ContactFormModal = ({
     >
       <div className="contact-form">
         {error && <Alert type={VariantType.ERROR}>{error}</Alert>}
-        {!isEdit && !forkSourceId && user?.can_admin && (
+        {!isEdit && !forkSourceId && user?.is_admin && (
           <Checkbox
             label={t("contacts.form.shareWithOrg")}
             text={t("contacts.form.shareWithOrgHint")}

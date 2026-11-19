@@ -108,7 +108,7 @@ export const ImportContactsModal = ({ isOpen, onClose }: ImportContactsModalProp
           </div>
         )}
 
-        {!summary && user?.can_admin && (
+        {!summary && user?.is_admin && (
           <Checkbox
             label={t("contacts.import.intoOrganization")}
             text={t("contacts.import.intoOrganizationHint")}
