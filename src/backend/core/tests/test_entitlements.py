@@ -11,7 +11,7 @@ import requests
 import responses
 from rest_framework.test import APIClient
 
-from core import factories, models
+from core import factories
 from core.api.serializers import UserMeSerializer
 from core.authentication import channel as channel_auth
 from core.authentication.backends import OIDCAuthenticationBackend
@@ -394,9 +394,7 @@ def test_auth_backend_warms_cache_on_login():
         return_value={"can_access": True},
     ) as mock_ent:
         backend.post_get_or_create_user(user, {"sub": "x"}, is_new_user=False)
-        mock_ent.assert_called_once_with(
-            user, user_info={"sub": "x"}, force_refresh=True
-        )
+        mock_ent.assert_called_once_with(user, force_refresh=True)
 
 
 def test_auth_backend_login_succeeds_when_access_denied():
@@ -463,7 +461,7 @@ def test_user_me_serializer_can_access_fail_closed():
 
 @pytest.fixture
 def deploycenter(settings):
-    """Use the DeployCenter backend, with organizations from the siret claim."""
+    """Use the DeployCenter backend, with a login that stores the siret claim."""
     settings.ENTITLEMENTS_BACKEND = (
         "core.entitlements.backends.deploycenter.DeployCenterEntitlementsBackend"
     )
@@ -474,17 +472,28 @@ def deploycenter(settings):
         "oidc_claims": ["siret"],
     }
     settings.OIDC_USERINFO_ORGANIZATION_CLAIM = "siret"
+    settings.OIDC_STORE_CLAIMS = ["siret"]
     get_entitlements_backend.cache_clear()
     yield
     get_entitlements_backend.cache_clear()
 
 
+def login(monkeypatch, **userinfo):
+    """Run a login with *userinfo* as the answer of the identity provider."""
+    monkeypatch.setattr(
+        OIDCAuthenticationBackend, "get_userinfo", lambda *args: userinfo
+    )
+    return OIDCAuthenticationBackend().get_or_create_user(
+        access_token="test-token", id_token=None, payload=None
+    )
+
+
 @responses.activate
 @pytest.mark.usefixtures("deploycenter")
-def test_check_outside_login_sends_the_organization_claim():
-    """A check for a stored user sends the siret of the organization of the user."""
+def test_check_outside_login_sends_the_stored_claim():
+    """A check outside a login sends the siret that the login stored on the user."""
     add_dc_answer(dc_answer())
-    user = factories.UserFactory(organization__external_id=SIRET)
+    user = factories.UserFactory(claims=CLAIMS)
 
     assert get_user_entitlements(user)["can_access"] is True
     assert responses.calls[0].request.params == {
@@ -500,7 +509,7 @@ def test_check_outside_login_sends_the_organization_claim():
 def test_deploycenter_administrator_administers_the_organization():
     """An administrator in DeployCenter can write the rows of the organization."""
     add_dc_answer(dc_answer(is_admin=True))
-    user = factories.UserFactory(organization__external_id=SIRET)
+    user = factories.UserFactory(claims=CLAIMS)
     group = factories.ContactGroupFactory(owner=None, organization=user.organization)
 
     assert user_is_admin(user) is True
@@ -512,7 +521,7 @@ def test_deploycenter_administrator_administers_the_organization():
 def test_api_serves_a_deploycenter_user_outside_login():
     """The API gate and /users/me/ get an answer without a login before them."""
     add_dc_answer(dc_answer(is_admin=True))
-    user = factories.UserFactory(organization__external_id=SIRET)
+    user = factories.UserFactory(claims=CLAIMS)
     client = APIClient()
     client.force_login(user)
 
@@ -531,10 +540,10 @@ def test_api_serves_a_deploycenter_user_outside_login():
     [carddav_auth._check_entitled, channel_auth._check_entitled],
     ids=["carddav", "user_channel"],
 )
-def test_device_and_api_key_checks_send_the_organization_claim(check_entitled):
+def test_device_and_api_key_checks_send_the_stored_claim(check_entitled):
     """A CardDAV device and a user API key get an answer from DeployCenter."""
     add_dc_answer(dc_answer())
-    user = factories.UserFactory(organization__external_id=SIRET)
+    user = factories.UserFactory(claims=CLAIMS)
 
     check_entitled(user)
 
@@ -543,36 +552,10 @@ def test_device_and_api_key_checks_send_the_organization_claim(check_entitled):
 
 @responses.activate
 @pytest.mark.usefixtures("deploycenter")
-def test_cached_checks_read_the_organization_one_time(django_assert_num_queries):
-    """Many checks for one user object cost one query and one call."""
+def test_deploycenter_fails_closed_without_a_stored_siret():
+    """The siret of the organization does not replace a stored claim."""
     add_dc_answer(dc_answer(is_admin=True))
-    stored = factories.UserFactory(organization__external_id=SIRET)
-    user = models.User.objects.get(pk=stored.pk)
-
-    with django_assert_num_queries(1):
-        assert [user_is_admin(user) for _ in range(3)] == [True, True, True]
-    assert len(responses.calls) == 1
-
-
-def test_local_backend_does_not_read_the_organization(
-    settings, django_assert_num_queries
-):
-    """A backend that does not use the claims costs no query."""
-    settings.OIDC_USERINFO_ORGANIZATION_CLAIM = "siret"
-    stored = factories.UserFactory()
-    user = models.User.objects.get(pk=stored.pk)
-
-    with django_assert_num_queries(0):
-        assert user_is_admin(user) is False
-
-
-@responses.activate
-@pytest.mark.usefixtures("deploycenter")
-def test_deploycenter_fails_closed_for_an_email_domain_organization(settings):
-    """An organization from the email domain has no siret to send."""
-    settings.OIDC_USERINFO_ORGANIZATION_CLAIM = ""
-    add_dc_answer(dc_answer(is_admin=True))
-    user = factories.UserFactory()
+    user = factories.UserFactory(organization__external_id=SIRET)
 
     with pytest.raises(EntitlementsUnavailableError):
         get_user_entitlements(user)
@@ -581,16 +564,31 @@ def test_deploycenter_fails_closed_for_an_email_domain_organization(settings):
 
 @responses.activate
 @pytest.mark.usefixtures("deploycenter")
-def test_login_reads_the_entitlements_of_the_new_organization():
-    """The login sends the siret from the identity provider, then the user moves."""
+def test_first_login_sends_the_claim_of_the_new_user(monkeypatch):
+    """The first login stores the siret before it asks DeployCenter."""
     add_dc_answer(dc_answer(is_admin=True))
-    user = factories.UserFactory(organization__external_id=OTHER_SIRET)
 
-    OIDCAuthenticationBackend().post_get_or_create_user(
-        user, {"sub": user.sub, "siret": SIRET}, is_new_user=False
-    )
+    user = login(monkeypatch, sub="new-sub", email="new@example.com", siret=SIRET)
 
     assert responses.calls[0].request.params["siret"] == SIRET
+    assert user.claims == CLAIMS
+    assert user_is_admin(user) is True
+    assert len(responses.calls) == 1
+
+
+@responses.activate
+@pytest.mark.usefixtures("deploycenter")
+def test_login_reads_the_entitlements_of_the_new_organization(monkeypatch):
+    """The login sends the siret from the identity provider, then the user moves."""
+    add_dc_answer(dc_answer(is_admin=True))
+    stored = factories.UserFactory(
+        organization__external_id=OTHER_SIRET, claims={"siret": OTHER_SIRET}
+    )
+
+    user = login(monkeypatch, sub=stored.sub, email=stored.email, siret=SIRET)
+
+    assert responses.calls[0].request.params["siret"] == SIRET
+    assert user.claims == CLAIMS
     assert user.organization.external_id == SIRET
     assert user.organization.name == "Mairie de Test"
     # The answer from the login serves the next check.
@@ -600,18 +598,18 @@ def test_login_reads_the_entitlements_of_the_new_organization():
 
 @responses.activate
 @pytest.mark.usefixtures("deploycenter")
-def test_login_does_not_reuse_the_answer_of_the_previous_organization():
+def test_login_does_not_reuse_the_answer_of_the_previous_organization(monkeypatch):
     """The user moves while DeployCenter is down: the old answer does not follow."""
     add_dc_answer(dc_answer(is_admin=True))
-    user = factories.UserFactory(organization__external_id=OTHER_SIRET)
-    assert user_is_admin(user) is True
+    stored = factories.UserFactory(
+        organization__external_id=OTHER_SIRET, claims={"siret": OTHER_SIRET}
+    )
+    assert user_is_admin(stored) is True
 
     responses.replace(
         responses.GET, DC_URL, body=requests.ConnectionError("Connection error")
     )
-    OIDCAuthenticationBackend().post_get_or_create_user(
-        user, {"sub": user.sub, "siret": SIRET}, is_new_user=False
-    )
+    user = login(monkeypatch, sub=stored.sub, email=stored.email, siret=SIRET)
 
     assert user.organization.external_id == SIRET
     assert user.organization.name == ""

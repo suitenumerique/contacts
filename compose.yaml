@@ -42,6 +42,8 @@ services:
       # Keycloak user attribute). Kept out of backend.defaults so the
       # hermetic backend-test service never inherits it.
       - OIDC_USERINFO_ORGANIZATION_CLAIM=siret
+      # The login stores the claim for an entitlements backend that sends it.
+      - OIDC_STORE_CLAIMS=siret
     env_file:
       - env.d/development/backend.defaults
       - env.d/development/backend.local

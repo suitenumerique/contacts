@@ -181,9 +181,8 @@ class OIDCAuthenticationBackend(LaSuiteOIDCAuthenticationBackend):
             ContactLabel.ensure_defaults(user)
         entitlements = {}
         try:
-            entitlements = get_user_entitlements(
-                user, user_info=claims, force_refresh=True
-            )
+            # The claims of this login are already stored on the user.
+            entitlements = get_user_entitlements(user, force_refresh=True)
         except EntitlementsUnavailableError:
             logger.warning(
                 "Entitlements unavailable for %s during login",

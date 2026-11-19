@@ -38,15 +38,19 @@ DeployCenter parameters:
 ```
 ENTITLEMENTS_BACKEND=core.entitlements.backends.deploycenter.DeployCenterEntitlementsBackend
 ENTITLEMENTS_BACKEND_PARAMETERS='{"base_url":"https://deploycenter.example.com/api/v1.0/entitlements/","service_id":12,"api_key":"secret","timeout":10,"oidc_claims":["siret"]}'
+OIDC_STORE_CLAIMS=siret
 OIDC_USERINFO_ORGANIZATION_CLAIM=siret
 ```
 
 `service_id` is the integer identifier of the service in DeployCenter.
 
-DeployCenter refuses a call that has no `siret`. Thus `oidc_claims` must
-contain `siret`, and `OIDC_USERINFO_ORGANIZATION_CLAIM` must be `siret`
-(see [organizations.md](organizations.md)). An organization that comes
-from the email domain has no `siret`: Contacts denies access to its users.
+The backend sends the claims that the login stored on the user.
+DeployCenter refuses a call that has no `siret`. Thus `oidc_claims` and
+`OIDC_STORE_CLAIMS` must both contain `siret`: without a stored `siret`,
+Contacts denies access to the user until their next login. Set
+`OIDC_USERINFO_ORGANIZATION_CLAIM` to `siret` too, so that the organization
+in Contacts is the one that DeployCenter answers for (see
+[organizations.md](organizations.md)).
 
 The DeployCenter backend caches each answer for
 `ENTITLEMENTS_CACHE_TIMEOUT` and keeps a second copy for `stale_timeout`
