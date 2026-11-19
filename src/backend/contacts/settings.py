@@ -836,9 +836,20 @@ class Base(Configuration):
                 "OIDC_ALLOW_DUPLICATE_EMAILS cannot be set to True simultaneously. "
             )
 
-        # The entitlements backend gets only the claims that the login stores.
         # pylint: disable-next=no-member
         claims = cls.ENTITLEMENTS_BACKEND_PARAMETERS.get("oidc_claims") or []
+
+        # DeployCenter refuses a request that has no siret.
+        deploycenter = (
+            "core.entitlements.backends.deploycenter.DeployCenterEntitlementsBackend"
+        )
+        if cls.ENTITLEMENTS_BACKEND == deploycenter and "siret" not in claims:
+            raise ValueError(
+                "ENTITLEMENTS_BACKEND_PARAMETERS must have siret in oidc_claims "
+                "for the DeployCenter backend."
+            )
+
+        # The entitlements backend gets only the claims that the login stores.
         not_stored = [claim for claim in claims if claim not in cls.OIDC_STORE_CLAIMS]
         if not_stored:
             raise ValueError(

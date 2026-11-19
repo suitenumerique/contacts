@@ -4,7 +4,16 @@ Unit tests for the settings validation
 
 import pytest
 
+from core.entitlements.backends.deploycenter import DeployCenterEntitlementsBackend
+
 from contacts.settings import Base
+
+# The path of the real class, so that a move of the class fails these tests.
+DEPLOYCENTER = (
+    f"{DeployCenterEntitlementsBackend.__module__}."
+    f"{DeployCenterEntitlementsBackend.__qualname__}"
+)
+LOCAL = "core.entitlements.backends.local.LocalEntitlementsBackend"
 
 
 def test_invalid_settings_oidc_email_configuration():
@@ -59,22 +68,41 @@ def test_invalid_settings_entitlement_claims(
 
 
 @pytest.mark.parametrize(
-    "parameters, stored_claims, organization_claim",
+    "parameters", [{}, {"oidc_claims": []}, {"oidc_claims": ["email"]}]
+)
+def test_invalid_settings_deploycenter_without_siret(parameters):
+    """The DeployCenter backend must send the siret claim."""
+
+    class TestSettings(Base):
+        """Fake test settings."""
+
+        ENTITLEMENTS_BACKEND = DEPLOYCENTER
+        ENTITLEMENTS_BACKEND_PARAMETERS = parameters
+        OIDC_STORE_CLAIMS = ["email"]
+        OIDC_USERINFO_ORGANIZATION_CLAIM = "email"
+
+    with pytest.raises(ValueError, match="^ENTITLEMENTS_BACKEND_PARAMETERS must"):
+        TestSettings().post_setup()
+
+
+@pytest.mark.parametrize(
+    "backend, parameters, stored_claims, organization_claim",
     [
-        ({"oidc_claims": ["siret"]}, ["siret", "email"], "siret"),
+        (DEPLOYCENTER, {"oidc_claims": ["siret"]}, ["siret", "email"], "siret"),
         # A backend that sends no claim puts no rule on the other settings.
-        ({}, [], ""),
-        ({"oidc_claims": None}, [], "siret"),
+        (LOCAL, {}, [], ""),
+        (LOCAL, {"oidc_claims": None}, [], "siret"),
     ],
 )
 def test_valid_settings_entitlement_claims(
-    parameters, stored_claims, organization_claim
+    backend, parameters, stored_claims, organization_claim
 ):
     """Entitlement settings that agree pass the validation."""
 
     class TestSettings(Base):
         """Fake test settings."""
 
+        ENTITLEMENTS_BACKEND = backend
         ENTITLEMENTS_BACKEND_PARAMETERS = parameters
         OIDC_STORE_CLAIMS = stored_claims
         OIDC_USERINFO_ORGANIZATION_CLAIM = organization_claim
