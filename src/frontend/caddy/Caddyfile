@@ -28,7 +28,7 @@
 	header {
 		-Server
 		X-Frame-Options "DENY"
-		Content-Security-Policy "default-src 'none'; script-src 'self' {$CONTACTS_FRONTEND_CSP_SCRIPT_SRC}; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self'; connect-src 'self' {$CONTACTS_FRONTEND_CSP_CONNECT_SRC}; manifest-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'self'; object-src 'none'"
+		Content-Security-Policy "default-src 'none'; script-src 'self' {$CONTACTS_FRONTEND_CSP_SCRIPT_SRC}; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self'; connect-src 'self' {$CONTACTS_FRONTEND_CSP_CONNECT_SRC}; manifest-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'; object-src 'none'"
 		X-Content-Type-Options "nosniff"
 		Referrer-Policy "same-origin"
 	}
