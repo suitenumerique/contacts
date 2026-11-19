@@ -99,8 +99,8 @@ services:
     command: [ "python", "worker.py", "-v", "2" ]
     environment:
       - DJANGO_CONFIGURATION=Development
-      # The same two values as backend-dev: the settings refuse to load when
-      # they do not agree with the claims of an entitlements backend.
+      # The same two values as backend-dev. The settings do not load when
+      # these values and the claims of an entitlements backend disagree.
       - OIDC_USERINFO_ORGANIZATION_CLAIM=siret
       - OIDC_STORE_CLAIMS=siret
     env_file:

@@ -89,7 +89,8 @@ class UserAdmin(auth_admin.UserAdmin):
         "-updated_at",
         "full_name",
     )
-    # Each login sets the organization from the claims of the identity provider.
+    # The organization is read-only: each login sets it again from the claims
+    # of the identity provider.
     readonly_fields = (
         "id",
         "sub",

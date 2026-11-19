@@ -43,8 +43,8 @@ def test_invalid_settings_entitlement_claims(
     stored_claims, organization_claim, setting_in_error
 ):
     """
-    A claim that the entitlements backend sends must be a stored claim, and the
-    organization claim must be one of the claims that the backend sends.
+    A claim that the entitlements backend sends must be a stored claim.
+    The organization claim must be one of the claims that the backend sends.
     """
 
     class TestSettings(Base):

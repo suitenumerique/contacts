@@ -14,10 +14,9 @@ def get_user_entitlements(user, force_refresh=False):
     OIDC_STORE_CLAIMS).
 
     Args:
-        user: The user that the entitlements are for.
-        force_refresh: If True, do not read the fresh cache entry and
-            call the backend. When the call fails, the backend can still
-            return its last known answer.
+        force_refresh: If True, call the backend and do not read the fresh
+            cache entry. When the call fails, the backend can still return
+            its last known answer.
 
     Returns:
         dict: {"can_access": bool, "is_admin": bool, ...}
