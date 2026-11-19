@@ -137,24 +137,33 @@ def test_contacts_are_filed_under_their_family_name(client, user):
     assert names == ["Zoé Abadie", "Médiathèque", "Alban Siou", "Bruno Siou"]
 
 
-def test_create_requires_email_or_phone(client):
+def test_create_needs_only_a_name(client):
     response = client.post(
         CONTACTS_URL,
         {"given_name": "Jeanne", "family_name": "Martin"},
         format="json",
     )
-    assert response.status_code == 400
-
-    response = client.post(
-        CONTACTS_URL,
-        {
-            "given_name": "Jeanne",
-            "family_name": "Martin",
-            "phones": [{"type": "work", "value": "+33199000405"}],
-        },
-        format="json",
-    )
     assert response.status_code == 201, response.content
+    assert (response.json()["emails"], response.json()["phones"]) == ([], [])
+
+
+def test_update_can_remove_the_last_email_and_phone(client, user):
+    """The states that the API permits do not depend on the stored card."""
+    contact = factories.ContactFactory(
+        owner=user,
+        full_name="Jean Dupont",
+        emails=[],
+        phones=[],
+        addresses=[{"type": "home", "value": "1 rue de la Mairie"}],
+    )
+    url = f"{CONTACTS_URL}{contact.id}/"
+    email = [{"type": "work", "value": "jean@example.org"}]
+    assert client.patch(url, {"emails": email}, format="json").status_code == 200
+
+    response = client.patch(url, {"emails": [], "phones": []}, format="json")
+    assert response.status_code == 200, response.content
+    contact.refresh_from_db()
+    assert (contact.emails, contact.phones) == ([], [])
 
 
 def test_favorite_endpoint_stars_and_unstars(client, user):

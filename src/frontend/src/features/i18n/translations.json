@@ -184,7 +184,6 @@
           "removeRow": "Remove",
           "identity": "Identity",
           "coordinates": "Contact details",
-          "coordinatesHint": "At least an email address or a phone number is required.",
           "organization": "Organization & position",
           "civility": "Title",
           "civilities": {
@@ -316,7 +315,6 @@
             "invalid_url": "“{{value}}” is not a valid website address.",
             "value_too_long": "“{{value}}” is too long.",
             "too_many_values": "too many email addresses, phone numbers, addresses or websites.",
-            "no_email_or_phone": "an email address or a phone number is required.",
             "failed": "could not be saved."
           }
         },
@@ -552,7 +550,6 @@
           "removeRow": "Retirer",
           "identity": "Identité",
           "coordinates": "Coordonnées",
-          "coordinatesHint": "Renseignez au moins un e-mail ou un téléphone.",
           "organization": "Organisation et poste",
           "civility": "Civilité",
           "civilities": {
@@ -684,7 +681,6 @@
             "invalid_url": "« {{value}} » n'est pas une adresse de site web valide.",
             "value_too_long": "« {{value}} » est trop long.",
             "too_many_values": "trop d'e-mails, de téléphones, d'adresses ou de sites web.",
-            "no_email_or_phone": "un e-mail ou un téléphone est requis.",
             "failed": "n'a pas pu être enregistrée."
           }
         },
@@ -920,7 +916,6 @@
           "removeRow": "Verwijderen",
           "identity": "Identiteit",
           "coordinates": "Contactgegevens",
-          "coordinatesHint": "Minstens een e-mailadres of telefoonnummer is vereist.",
           "organization": "Organisatie en functie",
           "civility": "Aanhef",
           "civilities": {
@@ -1052,7 +1047,6 @@
             "invalid_url": "“{{value}}” is geen geldig websiteadres.",
             "value_too_long": "“{{value}}” is te lang.",
             "too_many_values": "te veel e-mailadressen, telefoonnummers, adressen of websites.",
-            "no_email_or_phone": "een e-mailadres of telefoonnummer is vereist.",
             "failed": "kon niet worden opgeslagen."
           }
         },

@@ -12,7 +12,6 @@
  * * `invalid_url` - invalid_url
  * * `value_too_long` - value_too_long
  * * `too_many_values` - too_many_values
- * * `no_email_or_phone` - no_email_or_phone
  * * `failed` - failed
  */
 export type ReasonEnum = (typeof ReasonEnum)[keyof typeof ReasonEnum];
@@ -25,6 +24,5 @@ export const ReasonEnum = {
   invalid_url: "invalid_url",
   value_too_long: "value_too_long",
   too_many_values: "too_many_values",
-  no_email_or_phone: "no_email_or_phone",
   failed: "failed",
 } as const;

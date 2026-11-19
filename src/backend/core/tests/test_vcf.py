@@ -150,14 +150,17 @@ def test_import_rejects_malformed_emails_and_says_which():
 
     result = import_contacts(user, "vcf", INVALID_VCF.encode())
 
-    assert counters(result) == {"imported": 1, "skipped": 0, "errors": 2, "total": 3}
-    assert models.Contact.objects.filter(owner=user).count() == 1
+    assert counters(result) == {"imported": 2, "skipped": 0, "errors": 1, "total": 3}
+    assert set(
+        models.Contact.objects.filter(owner=user).values_list("full_name", flat=True)
+    ) == {"No Way To Reach Me", "Fine Person"}
 
-    by_reason = {detail["reason"]: detail for detail in result["error_details"]}
-    assert by_reason["invalid_email"]["name"] == "Bad Address"
-    assert by_reason["invalid_email"]["value"] == "not-an-email"
-    assert by_reason["invalid_email"]["entry"] == 1
-    assert by_reason["no_email_or_phone"]["name"] == "No Way To Reach Me"
+    assert len(result["error_details"]) == 1
+    detail = result["error_details"][0]
+    assert detail["reason"] == "invalid_email"
+    assert detail["name"] == "Bad Address"
+    assert detail["value"] == "not-an-email"
+    assert detail["entry"] == 1
 
 
 def test_import_error_details_are_capped():
@@ -351,6 +354,67 @@ def test_export_writes_labels_as_categories():
 
     body = client.get("/api/v1.0/contacts/export-vcf/").content.decode()
     assert "\r\nCATEGORIES:Agent\r\n" in body
+
+
+def test_import_reads_an_exported_contact_without_email_and_phone():
+    user = factories.UserFactory()
+    client = APIClient()
+    client.force_login(user)
+    factories.ContactFactory(
+        owner=user,
+        full_name="Jean Dupont",
+        emails=[],
+        phones=[],
+        addresses=[{"type": "home", "value": "1 rue de la Mairie"}],
+    )
+    export = client.get("/api/v1.0/contacts/export-vcf/").content
+
+    other = factories.UserFactory()
+    result = import_contacts(other, "vcf", export)
+    assert counters(result) == {"imported": 1, "skipped": 0, "errors": 0, "total": 1}
+    restored = models.Contact.objects.get(owner=other)
+    assert (restored.full_name, restored.emails, restored.phones) == (
+        "Jean Dupont",
+        [],
+        [],
+    )
+    assert "1 rue de la Mairie" in restored.addresses[0]["value"]
+
+    # The card matches the contact of the first user on its name and its UID.
+    result = import_contacts(user, "vcf", export)
+    assert counters(result) == {"imported": 0, "skipped": 1, "errors": 0, "total": 1}
+
+
+def test_import_keeps_two_exported_contacts_with_the_same_name():
+    """The contacts have no email and no phone. Their UIDs tell them apart."""
+    user = factories.UserFactory()
+    client = APIClient()
+    client.force_login(user)
+    streets = {"1 rue de la Mairie", "2 place du Marché"}
+    for street in streets:
+        factories.ContactFactory(
+            owner=user,
+            full_name="Jean Dupont",
+            emails=[],
+            phones=[],
+            addresses=[{"type": "home", "value": street}],
+        )
+    export = client.get("/api/v1.0/contacts/export-vcf/").content
+
+    other = factories.UserFactory()
+    result = import_contacts(other, "vcf", export)
+    assert counters(result) == {"imported": 2, "skipped": 0, "errors": 0, "total": 2}
+    restored = models.Contact.objects.filter(owner=other)
+    assert {contact.addresses[0]["value"] for contact in restored} == streets
+
+    for target in (other, user):
+        result = import_contacts(target, "vcf", export)
+        assert counters(result) == {
+            "imported": 0,
+            "skipped": 2,
+            "errors": 0,
+            "total": 2,
+        }
 
 
 def test_import_maps_google_system_categories():
