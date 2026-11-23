@@ -922,9 +922,6 @@ def test_cannot_write_org_contact(auth, user):
 @pytest.mark.parametrize(
     "body",
     [
-        pytest.param(
-            VCARD.replace("FN:Ada", f"TITLE:{'x' * 300}\r\nFN:Ada"), id="long"
-        ),
         pytest.param(VCARD.replace("END:VCARD\r\n", ""), id="unterminated"),
         pytest.param(VCARD + VCARD, id="two-cards"),
         pytest.param(NAMELESS_VCARD, id="no-names"),
@@ -969,6 +966,49 @@ def test_put_can_remove_the_last_email_and_phone(auth, user):
     assert put(auth, url, body).status_code == 204
     contact = models.Contact.objects.get(owner=user)
     assert (contact.emails, contact.phones) == ([], [])
+
+
+def served_lines(auth, url):
+    """The unfolded content lines of the card served at *url*."""
+    return get(auth, url).content.decode().replace("\r\n ", "").split("\r\n")
+
+
+LONG = "x" * 300
+LONG_LINES = [
+    f"FN:{LONG}",
+    f"N:{LONG};{LONG};{LONG};{LONG};{LONG}",
+    f"NICKNAME:{LONG}",
+    f"ORG:{LONG};{LONG}",
+    f"TITLE:{LONG}",
+]
+
+
+def test_put_keeps_a_text_longer_than_255_characters(auth, user):
+    url = f"{PERSONAL}{uuid.uuid4()}.vcf"
+    body = "\r\n".join(
+        ["BEGIN:VCARD", "VERSION:3.0", *LONG_LINES, "END:VCARD", ""],
+    )
+    assert put(auth, url, body).status_code == 201
+
+    contact = models.Contact.objects.get(owner=user)
+    for field in (
+        "full_name",
+        "name_prefix",
+        "given_name",
+        "middle_name",
+        "family_name",
+        "name_suffix",
+        "nickname",
+        "company",
+        "department",
+        "job_title",
+    ):
+        assert getattr(contact, field) == LONG, field
+    assert set(LONG_LINES) <= set(served_lines(auth, url))
+
+    before = row(contact)
+    assert put(auth, url, get(auth, url).content).status_code == 204
+    assert row(contact) == before
 
 
 def test_put_cannot_blank_the_required_names(auth, user):
@@ -1324,6 +1364,22 @@ def test_put_on_overlay_records_overrides_and_keeps_inheritance(auth, user):
     parent.company = "ANCT"
     parent.save()
     assert "ANCT" in get(auth, url).content.decode()  # still tracking the source
+
+
+def test_put_on_overlay_keeps_a_text_longer_than_255_characters(auth, user):
+    _parent, overlay = _overlay_of(
+        user,
+        full_name="Directory Name",
+        emails=[{"type": "work", "value": "inherited@example.org"}],
+    )
+    url = f"{PERSONAL}{overlay.id}.vcf"
+    line = f"TITLE:{LONG}"
+    body = get(auth, url).content.decode().replace("END:VCARD", f"{line}\r\nEND:VCARD")
+    assert put(auth, url, body).status_code == 204
+
+    overlay.refresh_from_db()
+    assert overlay.job_title == LONG
+    assert line in served_lines(auth, url)
 
 
 def test_delete_overlay_reverts_to_source(auth, user):

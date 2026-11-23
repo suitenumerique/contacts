@@ -364,7 +364,7 @@ class ContactSerializer(serializers.ModelSerializer):
                     raise serializers.ValidationError(
                         {"full_name": "A name is required."}
                     )
-                attrs["full_name"] = composed[:255]  # the column's max_length
+                attrs["full_name"] = composed
         return self._validate_scope(attrs)
 
     def _validate_scope(self, attrs):

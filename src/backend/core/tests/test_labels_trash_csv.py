@@ -585,6 +585,14 @@ def test_import_does_not_match_a_row_with_only_a_name(user):
     assert models.Contact.objects.filter(owner=user).count() == 4
 
 
+def test_csv_import_keeps_a_text_longer_than_255_characters(user):
+    company = "x" * 300
+    data = f"prenom,nom,organisation\nJean,Dupont,{company}\n"
+
+    assert import_contacts(user, "csv", data.encode())["imported"] == 1
+    assert models.Contact.objects.get(owner=user).company == company
+
+
 def test_csv_import_rejects_a_card_with_a_phone_that_is_too_long(user):
     """The import does not remove a value. It rejects the card and says why."""
     long_phone = "1" * 65

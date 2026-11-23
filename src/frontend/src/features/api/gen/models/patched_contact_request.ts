@@ -11,38 +11,22 @@ import type { TypedValueRequest } from "./typed_value_request";
  */
 export interface PatchedContactRequest {
   civility?: CivilityEnum;
-  /** @maxLength 255 */
   full_name?: string;
-  /**
-   * Title before the name (Dr, Pr, Me), civility aside.
-   * @maxLength 255
-   */
+  /** Title before the name (Dr, Pr, Me), civility aside. */
   name_prefix?: string;
-  /** @maxLength 255 */
   given_name?: string;
-  /** @maxLength 255 */
   middle_name?: string;
-  /** @maxLength 255 */
   family_name?: string;
-  /**
-   * Suffix after the name (Jr., III).
-   * @maxLength 255
-   */
+  /** Suffix after the name (Jr., III). */
   name_suffix?: string;
-  /** @maxLength 255 */
   nickname?: string;
   emails?: TypedValueRequest[];
   phones?: TypedValueRequest[];
   addresses?: TypedValueRequest[];
   urls?: TypedValueRequest[];
-  /** @maxLength 255 */
   company?: string;
-  /**
-   * Direction / service within the organization.
-   * @maxLength 255
-   */
+  /** Direction / service within the organization. */
   department?: string;
-  /** @maxLength 255 */
   job_title?: string;
   notes?: string;
   /** Avatar as a base64 image data: URI or an https URL. */
