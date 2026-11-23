@@ -65,13 +65,16 @@ def dedup_keys(card, uid=""):
 def _rejection(fields):
     """Why this card cannot become a contact, as ``(reason, value)``.
 
-    Returns ``("", "")`` when it can. The rules are the ones the API
-    enforces on create (``ContactSerializer``): a name and the value rules
-    of ``core.validators``. The parsers already
-    fill ``full_name`` from the name parts (and a vCard from its first
-    email, as vCard requires FN), so the name check is on ``full_name``.
-    The parsers give safe types and no blank value, so these two value
-    rules need no check.
+    Checks two of the rules that ``ContactSerializer`` applies to a create:
+    the card has a name, and its emails, phones, addresses and URLs obey
+    the value rules of ``core.validators``. Returns ``("", "")`` when the
+    card breaks neither. The creation of the contact can still fail for
+    another reason.
+
+    The parsers already fill ``full_name`` from the name parts (and a vCard
+    from its first email, as vCard requires FN), so the name check is on
+    ``full_name``. The parsers give safe types and no blank value, so these
+    two value rules need no check.
     """
     if not fields["full_name"].strip():
         return "no_name", ""
@@ -144,7 +147,7 @@ def _create_contact(user, fields, scope=Scope.PERSONAL):
 
 
 def _known_contacts(user, scope=Scope.PERSONAL):
-    """Map each dedup key of the rows in *scope* to the row, for skipping.
+    """Map each dedup key of the contacts in *scope* to the ID of its contact.
 
     Trashed rows are included so a re-imported card restores them rather
     than creating a copy.
