@@ -109,27 +109,6 @@ ENV DB_HOST=postgresql \
 # Run django development server
 CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
 
-# ---- Production image ----
-FROM core AS backend-production
-
-ARG CONTACTS_STATIC_ROOT=/data/static
-
-# Un-privileged user running the application. Group 0 lets the entrypoint
-# register it in /etc/passwd.
-ARG DOCKER_USER=10000:0
-USER ${DOCKER_USER}
-
-# Copy statics
-COPY --from=link-collector ${CONTACTS_STATIC_ROOT} ${CONTACTS_STATIC_ROOT}
-
-# The default command runs gunicorn WSGI server in contacts' main module
-CMD ["gunicorn", "-c", "/app/gunicorn.conf.py", "contacts.wsgi:application"]
-
-# The probe sends the container IP as Host: Production.ALLOWED_HOSTS always
-# holds it.
-HEALTHCHECK --interval=30s --timeout=2s --start-period=30s \
-  CMD ["python", "-c", "import socket; from urllib.request import Request, urlopen; urlopen(Request('http://localhost:8000/__heartbeat__/', headers={'Host': socket.gethostbyname(socket.gethostname())}), timeout=2)"]
-
 # ---- Distroless builder ----
 # Debian, like the distroless image: the alpine stages above link against
 # musl, and their Python and wheels do not run on glibc.
@@ -183,5 +162,28 @@ WORKDIR /app
 
 CMD ["gunicorn", "-c", "/app/gunicorn.conf.py", "contacts.wsgi:application"]
 
+# The same probe as backend-production.
+HEALTHCHECK --interval=30s --timeout=2s --start-period=30s \
+  CMD ["python", "-c", "import socket; from urllib.request import Request, urlopen; urlopen(Request('http://localhost:8000/__heartbeat__/', headers={'Host': socket.gethostbyname(socket.gethostname())}), timeout=2)"]
+
+# ---- Production image ----
+# Keep this stage last. A build without --target produces the last stage.
+FROM core AS backend-production
+
+ARG CONTACTS_STATIC_ROOT=/data/static
+
+# Un-privileged user running the application. Group 0 lets the entrypoint
+# register it in /etc/passwd.
+ARG DOCKER_USER=10000:0
+USER ${DOCKER_USER}
+
+# Copy statics
+COPY --from=link-collector ${CONTACTS_STATIC_ROOT} ${CONTACTS_STATIC_ROOT}
+
+# The default command runs gunicorn WSGI server in contacts' main module
+CMD ["gunicorn", "-c", "/app/gunicorn.conf.py", "contacts.wsgi:application"]
+
+# The probe sends the container IP as Host: Production.ALLOWED_HOSTS always
+# holds it.
 HEALTHCHECK --interval=30s --timeout=2s --start-period=30s \
   CMD ["python", "-c", "import socket; from urllib.request import Request, urlopen; urlopen(Request('http://localhost:8000/__heartbeat__/', headers={'Host': socket.gethostbyname(socket.gethostname())}), timeout=2)"]
