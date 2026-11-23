@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# Smoke-test the distroless backend image without a database: the user, the
+# native modules, the CA store, the collected static files and the Django
+# system checks.
+# Requires: docker.
+set -o errexit -o nounset -o pipefail
+
+IMAGE="${1:-contacts-backend-distroless}"
+
+docker run --rm "$IMAGE" python -c "
+import os, ssl, sys
+from pathlib import Path
+
+import brotli, psycopg
+from cryptography.fernet import Fernet
+
+assert os.getuid() == 65532, f'the uid is {os.getuid()}'
+assert psycopg.pq.__impl__ == 'binary', f'psycopg uses {psycopg.pq.__impl__}'
+Fernet(Fernet.generate_key())
+assert brotli.decompress(brotli.compress(b'contacts')) == b'contacts'
+
+ca_count = ssl.create_default_context().cert_store_stats()['x509_ca']
+assert ca_count, 'the CA store is empty'
+
+# rdfind replaces the duplicated static files with symlinks.
+static = list(Path('/data/static').rglob('*'))
+assert static, 'the static files are missing'
+broken = [str(p) for p in static if not p.exists()]
+assert not broken, f'broken static links: {broken[:5]}'
+
+print(
+    f'OK: Python {sys.version.split()[0]}, {ssl.OPENSSL_VERSION}, '
+    f'{ca_count} CA certificates, {len(static)} static files'
+)
+"
+
+docker run --rm -e DJANGO_CONFIGURATION=Build "$IMAGE" python manage.py check

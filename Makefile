@@ -201,6 +201,15 @@ test-back-parallel: ## run all back-end tests in parallel
 	bin/pytest -n auto $${args:-${1}}
 .PHONY: test-back-parallel
 
+build-back-distroless: ## build the distroless backend image
+	@docker build --target backend-distroless -t contacts-backend-distroless src/backend/
+.PHONY: build-back-distroless
+
+test-back-distroless: ## build and smoke-test the distroless backend image (no database)
+test-back-distroless: build-back-distroless
+	@bin/smoke-test-back-distroless contacts-backend-distroless
+.PHONY: test-back-distroless
+
 test-front: ## run the frontend tests
 	@args="$(filter-out $@,$(MAKECMDGOALS))" && \
 	$(COMPOSE) run --rm frontend-dev sh -c "pnpm test -- $${args:-${1}}"

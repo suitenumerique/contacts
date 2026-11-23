@@ -78,4 +78,9 @@ Differences from `backend-production`:
 - It has the same `HEALTHCHECK`.
 
 The release workflow publishes `backend-production`. It does not publish
-this stage.
+this stage. `backend-production` is the last stage of the Dockerfile, so a
+build without `--target` also produces it.
+
+`make test-back-distroless` builds the image and checks the user, the
+native modules, the CA store, the static files and the Django system
+checks. It needs no database. CI runs it on amd64 and arm64.
