@@ -6,7 +6,7 @@ Contacts asks it two questions:
 | Key | Meaning |
 | --- | ------- |
 | `can_access` | the user may use the app at all |
-| `can_admin` | the user administers their organization |
+| `is_admin` | the user administers their organization |
 
 The answer also carries `organization_name`, which is what names the
 `Organization` row on login (see [organizations.md](organizations.md)).
@@ -26,10 +26,10 @@ core/entitlements/
 | Setting | Default | Meaning |
 | ------- | ------- | ------- |
 | `ENTITLEMENTS_BACKEND` | `core.entitlements.backends.local.LocalEntitlementsBackend` | dotted path to the backend class |
-| `ENTITLEMENTS_BACKEND_PARAMETERS` | `{}` | JSON kwargs passed to it |
+| `ENTITLEMENTS_BACKEND_PARAMETERS` | `{}` | kwargs passed to it, as a Python dict literal |
 | `ENTITLEMENTS_CACHE_TIMEOUT` | `300` | seconds a response stays fresh |
 
-The default backend grants `can_access` to everyone and `can_admin` to no
+The default backend grants `can_access` to everyone and `is_admin` to no
 one: a deployment that does not configure anything lets every user in,
 and has no administrator.
 
@@ -37,8 +37,21 @@ DeployCenter parameters:
 
 ```
 ENTITLEMENTS_BACKEND=core.entitlements.backends.deploycenter.DeployCenterEntitlementsBackend
-ENTITLEMENTS_BACKEND_PARAMETERS='{"base_url":"https://deploycenter.example.com/api/v1.0/entitlements/","service_id":"contacts","api_key":"secret","timeout":10,"oidc_claims":["siret"]}'
+ENTITLEMENTS_BACKEND_PARAMETERS='{"base_url":"https://deploycenter.example.com/api/v1.0/entitlements/","service_id":12,"api_key":"secret","timeout":10,"oidc_claims":["siret"]}'
+OIDC_STORE_CLAIMS=siret
+OIDC_USERINFO_ORGANIZATION_CLAIM=siret
 ```
+
+`service_id` is the integer identifier of the service in DeployCenter.
+
+The backend sends the claims that the login stored on the user.
+DeployCenter refuses a call that has no `siret`. Thus `oidc_claims` and
+`OIDC_STORE_CLAIMS` must both contain `siret`, and
+`OIDC_USERINFO_ORGANIZATION_CLAIM` must be `siret`, so that the organization
+in Contacts is the one that DeployCenter answers for (see
+[organizations.md](organizations.md)). Contacts does not start when one of
+these settings is wrong. A user with no login since `OIDC_STORE_CLAIMS` was
+set has no stored `siret`, and has no access until their next login.
 
 The DeployCenter backend caches each answer for
 `ENTITLEMENTS_CACHE_TIMEOUT` and keeps a second copy for `stale_timeout`
@@ -52,7 +65,7 @@ last known answer is used; past it, the call fails.
    organization name. A failure here is swallowed: login still succeeds
    and the organization name is left as it is.
 2. **`GET /users/me/`** (`UserMeSerializer`): exposes `can_access` and
-   `can_admin` to the SPA.
+   `is_admin` to the SPA.
 3. **The frontend** (`src/routes/index.tsx`): sends a user whose
    `can_access` is false to `/no-access`. This is presentation only; the
    API enforces the same rule on its own (see below).
@@ -66,27 +79,27 @@ gets `403`, not just a redirected SPA.
 
 CardDAV is gated at authentication (`carddav/auth.py`). HTTP Basic Auth with
 a channel password is the only way into CardDAV (sessions are refused), and
-the check runs on every request, so a sync password minted before the
-entitlement was withdrawn stops working too.
+the check runs on every request that reads or writes data, so a sync
+password minted before the entitlement was withdrawn stops working too.
 
 Both paths are **fail-closed**: when the entitlements service is
 unreachable and nothing usable is cached, access is denied rather than
 assumed. With the default local backend this is invisible, since it grants
 access to everyone and never fails.
 
-Organization and global service channels are a separate axis. A request
+Organization and global `api_key` channels are a separate axis. A request
 carrying `contacts:read` passes on its scope, so a service keeps reading
 regardless of any individual's entitlement. The [external API](resource_server.md)
 acts as the token's user, who must pass `can_access` like in the web app. A
 `user`-scoped channel is that user's own credential, so it is checked like
 the user (`core/authentication/channel.py`), fail-closed too.
 
-`can_admin` gates the organization's address book: only an administrator
+`is_admin` gates the organization's address book: only an administrator
 creates, edits, trashes, restores and deletes its contacts and groups,
 imports a file into it, or copies one of their own contacts into it (see
 [architecture.md](architecture.md)); everyone else in the organization
 reads it. The decisions are `Contact.is_writable` and
 `ContactGroup.is_writable`, fail-closed like the rest: an unreachable
-service makes the organization's rows read-only. With the default local
-backend nobody is an administrator, so they can only come from the Django
-admin or a source.
+service makes the organization's rows read-only when no usable cached
+answer exists. With the default local backend nobody is an administrator,
+so they can only come from the Django admin, a source or the demo seed.

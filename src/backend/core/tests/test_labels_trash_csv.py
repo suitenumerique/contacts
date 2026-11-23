@@ -4,6 +4,7 @@
 
 import csv
 import io
+import logging
 from datetime import timedelta
 
 from django.core.cache import cache
@@ -254,6 +255,30 @@ def test_csv_import_endpoint(client, user):
     assert models.Contact.objects.filter(owner=user).count() == 2
 
 
+EXCEL_CSV = (
+    "Prénom;Nom;E-mail;Téléphone\r\nHélène;Lefèvre;helene@example.org;0102030405\r\n"
+)
+
+
+@pytest.mark.parametrize("encoding", ["utf-8", "utf-8-sig", "cp1252"])
+def test_csv_import_reads_utf_8_and_windows_1252(user, encoding):
+    result = import_contacts(user, "csv", EXCEL_CSV.encode(encoding))
+
+    assert (result["imported"], result["errors"]) == (1, 0)
+    contact = models.Contact.objects.get(owner=user)
+    assert (contact.given_name, contact.family_name) == ("Hélène", "Lefèvre")
+    assert contact.emails == [{"type": "work", "value": "helene@example.org"}]
+    assert contact.phones == [{"type": "work", "value": "0102030405"}]
+
+
+def test_parse_csv_reads_latin_1_when_windows_1252_fails():
+    # Windows-1252 has no character for the byte 0x81.
+    (card,), errors = parse_csv(b"nom\nLef\xe8vre\x81\n")
+
+    assert errors == 0
+    assert card["family_name"] == "Lefèvre\x81"
+
+
 def test_csv_export_round_trip(client, user):
     label = models.ContactLabel.objects.create(owner=user, name="Agent")
     contact = factories.ContactFactory(
@@ -496,6 +521,38 @@ def test_csv_oversized_field_is_one_error_not_a_failed_import():
     assert {"Jeanne", "Paul"} <= {card["given_name"] for card in cards}
 
 
+@pytest.fixture
+def csv_log(caplog, monkeypatch):
+    """Capture the log records of the CSV parser.
+
+    The "core" logger does not propagate by default. The fixture enables
+    the propagation, because caplog reads the root logger.
+    """
+    monkeypatch.setattr(logging.getLogger("core"), "propagate", True)
+    caplog.set_level("WARNING", logger="core.services.csv_service")
+    return caplog
+
+
+def test_csv_unreadable_rows_give_one_log_record(csv_log):
+    cards, errors = parse_csv(b"\xff\r\xff\n" * 1000)
+
+    assert not cards
+    assert errors == 1000
+    assert len(csv_log.records) == 1
+
+
+def test_csv_failed_rows_give_one_traceback(csv_log, monkeypatch):
+    def fail(*args):
+        raise ValueError("bad row")
+
+    monkeypatch.setattr("core.services.csv_service._to_fields", fail)
+    cards, errors = parse_csv("prenom,nom\n" + "Ada,Lovelace\n" * 50)
+
+    assert not cards
+    assert errors == 50
+    assert [bool(record.exc_info) for record in csv_log.records] == [True, False]
+
+
 # --- import rules ---------------------------------------------------------------
 
 
@@ -503,20 +560,81 @@ def test_import_applies_the_api_rules(user):
     data = (
         "prenom,nom,email,telephone\n"
         ",,nobody@example.org,\n"  # no name
-        "Paul,Durand,,\n"  # no email nor phone
+        "Paul,Durand,,\n"  # a name alone: fine
         "Anne,Bad,not-an-email,\n"  # invalid email
         "Luc,Phone,,+33199000405\n"  # phone only: fine
         "Jeanne,,jeanne@example.org,\n"  # a first name alone is a name
     )
     result = import_contacts(user, "csv", data.encode())
 
-    assert result["imported"] == 2
-    assert result["errors"] == 3
+    assert result["imported"] == 3
+    assert result["errors"] == 2
     reasons = [detail["reason"] for detail in result["error_details"]]
-    assert reasons == ["no_name", "no_email_or_phone", "invalid_email"]
+    assert reasons == ["no_name", "invalid_email"]
     assert set(
         models.Contact.objects.filter(owner=user).values_list("full_name", flat=True)
-    ) == {"Luc Phone", "Jeanne"}
+    ) == {"Paul Durand", "Luc Phone", "Jeanne"}
+
+
+def test_import_does_not_match_a_row_with_only_a_name(user):
+    """A CSV row has no UID, and a name alone does not tell two persons apart."""
+    data = "prenom,nom\nJean,Dupont\nJean,Dupont\n".encode()
+
+    assert import_contacts(user, "csv", data)["imported"] == 2
+    assert import_contacts(user, "csv", data)["imported"] == 2
+    assert models.Contact.objects.filter(owner=user).count() == 4
+
+
+def test_csv_import_rejects_a_card_with_a_phone_that_is_too_long(user):
+    """The import does not remove a value. It rejects the card and says why."""
+    long_phone = "1" * 65
+    data = (
+        "prenom,nom,email,telephone,phone2\n"
+        f"Jean,Dupont,jean@example.org,{long_phone},+33199000405\n"
+    )
+
+    result = import_contacts(user, "csv", data.encode())
+
+    assert (result["imported"], result["errors"]) == (0, 1)
+    assert result["error_details"] == [
+        {
+            "entry": 1,
+            "name": "Jean Dupont",
+            "reason": "invalid_phone",
+            "value": long_phone,
+        }
+    ]
+    assert not models.Contact.objects.filter(owner=user).exists()
+
+
+@pytest.mark.parametrize(
+    ("cell", "reason"),
+    [
+        ("javascript:alert(1)", "invalid_url"),
+        ("ftp://example.org/x", "invalid_url"),
+        ("https://example.org/" + "x" * 1024, "value_too_long"),
+    ],
+    ids=lambda value: value[:20],
+)
+def test_csv_import_rejects_a_card_with_a_url_that_the_api_refuses(user, cell, reason):
+    data = f"nom,email,website_1\nDupont,jean@example.org,{cell}\n"
+
+    result = import_contacts(user, "csv", data.encode())
+
+    assert (result["imported"], result["errors"]) == (0, 1)
+    assert result["error_details"][0]["reason"] == reason
+    assert not models.Contact.objects.filter(owner=user).exists()
+
+
+def test_csv_import_rejects_a_card_with_too_many_values(user):
+    header = ",".join(f"phone_{index}" for index in range(1, 52))
+    phones = ",".join(f"+3319900{index:04}" for index in range(51))
+
+    result = import_contacts(user, "csv", f"nom,{header}\nDupont,{phones}\n".encode())
+
+    assert (result["imported"], result["errors"]) == (0, 1)
+    assert result["error_details"][0]["reason"] == "too_many_values"
+    assert not models.Contact.objects.filter(owner=user).exists()
 
 
 def test_import_restores_a_trashed_duplicate(user):

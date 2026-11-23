@@ -836,6 +836,35 @@ class Base(Configuration):
                 "OIDC_ALLOW_DUPLICATE_EMAILS cannot be set to True simultaneously. "
             )
 
+        # pylint: disable-next=no-member
+        claims = cls.ENTITLEMENTS_BACKEND_PARAMETERS.get("oidc_claims") or []
+
+        # DeployCenter refuses a request that has no siret. Its answer is for the
+        # organization that has this siret. The is_admin entitlement gives rights
+        # on the organization of the user, so the siret must also identify it.
+        deploycenter = (
+            "core.entitlements.backends.deploycenter.DeployCenterEntitlementsBackend"
+        )
+        if cls.ENTITLEMENTS_BACKEND == deploycenter:
+            if "siret" not in claims:
+                raise ValueError(
+                    "ENTITLEMENTS_BACKEND_PARAMETERS must have siret in oidc_claims "
+                    "for the DeployCenter backend."
+                )
+            if cls.OIDC_USERINFO_ORGANIZATION_CLAIM != "siret":
+                raise ValueError(
+                    "OIDC_USERINFO_ORGANIZATION_CLAIM must be siret for the "
+                    "DeployCenter backend."
+                )
+
+        # The entitlements backend gets only the claims that the login stores.
+        not_stored = [claim for claim in claims if claim not in cls.OIDC_STORE_CLAIMS]
+        if not_stored:
+            raise ValueError(
+                "OIDC_STORE_CLAIMS must contain each claim of oidc_claims in "
+                f"ENTITLEMENTS_BACKEND_PARAMETERS. Missing: {', '.join(not_stored)}."
+            )
+
 
 class Build(Base):
     """Settings used when the application is built.
@@ -922,10 +951,11 @@ class Test(Base):
     DRAMATIQ_BROKER = {
         "BROKER": "core.task_utils.EagerBroker",
         "OPTIONS": {},
-        # Retries and TimeLimit only declare the actor options they own;
-        # the eager broker runs neither.
+        # AgeLimit, Retries and TimeLimit only declare the actor options they
+        # own; the eager broker runs none of them.
         "MIDDLEWARE": [
             "dramatiq.middleware.CurrentMessage",
+            "dramatiq.middleware.AgeLimit",
             "dramatiq.middleware.Retries",
             "dramatiq.middleware.TimeLimit",
         ],

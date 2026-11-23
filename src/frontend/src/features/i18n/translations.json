@@ -9,6 +9,15 @@
         "title": "You don't have the necessary permissions to access this page.",
         "button": "Home"
       },
+      "404": {
+        "title": "This page does not exist.",
+        "button": "Home"
+      },
+      "error_screen": {
+        "title": "Something went wrong.",
+        "description": "An unexpected error occurred. Please reload the page.",
+        "reload": "Reload"
+      },
       "app_title": "Contacts",
       "login": "Log in",
       "no_access": {
@@ -175,7 +184,6 @@
           "removeRow": "Remove",
           "identity": "Identity",
           "coordinates": "Contact details",
-          "coordinatesHint": "At least an email address or a phone number is required.",
           "organization": "Organization & position",
           "civility": "Title",
           "civilities": {
@@ -303,7 +311,10 @@
             "unreadable": "part of the file could not be read.",
             "no_name": "no name.",
             "invalid_email": "“{{value}}” is not a valid email address.",
-            "no_email_or_phone": "an email address or a phone number is required.",
+            "invalid_phone": "“{{value}}” is too long for a phone number.",
+            "invalid_url": "“{{value}}” is not a valid website address.",
+            "value_too_long": "“{{value}}” is too long.",
+            "too_many_values": "too many email addresses, phone numbers, addresses or websites.",
             "failed": "could not be saved."
           }
         },
@@ -363,6 +374,15 @@
       "403": {
         "title": "Vous n'avez pas les permissions nécessaires pour accéder à cette page.",
         "button": "Accueil"
+      },
+      "404": {
+        "title": "Cette page n'existe pas.",
+        "button": "Accueil"
+      },
+      "error_screen": {
+        "title": "Une erreur est survenue.",
+        "description": "Une erreur inattendue s'est produite. Veuillez recharger la page.",
+        "reload": "Recharger"
       },
       "app_title": "Contacts",
       "login": "Connexion",
@@ -530,7 +550,6 @@
           "removeRow": "Retirer",
           "identity": "Identité",
           "coordinates": "Coordonnées",
-          "coordinatesHint": "Renseignez au moins un e-mail ou un téléphone.",
           "organization": "Organisation et poste",
           "civility": "Civilité",
           "civilities": {
@@ -658,7 +677,10 @@
             "unreadable": "une partie du fichier n'a pas pu être lue.",
             "no_name": "aucun nom.",
             "invalid_email": "« {{value}} » n'est pas une adresse e-mail valide.",
-            "no_email_or_phone": "un e-mail ou un téléphone est requis.",
+            "invalid_phone": "« {{value}} » est trop long pour un numéro de téléphone.",
+            "invalid_url": "« {{value}} » n'est pas une adresse de site web valide.",
+            "value_too_long": "« {{value}} » est trop long.",
+            "too_many_values": "trop d'e-mails, de téléphones, d'adresses ou de sites web.",
             "failed": "n'a pas pu être enregistrée."
           }
         },
@@ -718,6 +740,15 @@
       "403": {
         "title": "U beschikt niet over de benodigde rechten om deze pagina te openen.",
         "button": "Home"
+      },
+      "404": {
+        "title": "Deze pagina bestaat niet.",
+        "button": "Home"
+      },
+      "error_screen": {
+        "title": "Er is iets misgegaan.",
+        "description": "Er is een onverwachte fout opgetreden. Laad de pagina opnieuw.",
+        "reload": "Opnieuw laden"
       },
       "app_title": "Contacten",
       "login": "Inloggen",
@@ -885,7 +916,6 @@
           "removeRow": "Verwijderen",
           "identity": "Identiteit",
           "coordinates": "Contactgegevens",
-          "coordinatesHint": "Minstens een e-mailadres of telefoonnummer is vereist.",
           "organization": "Organisatie en functie",
           "civility": "Aanhef",
           "civilities": {
@@ -1013,7 +1043,10 @@
             "unreadable": "een deel van het bestand kon niet worden gelezen.",
             "no_name": "geen naam.",
             "invalid_email": "“{{value}}” is geen geldig e-mailadres.",
-            "no_email_or_phone": "een e-mailadres of telefoonnummer is vereist.",
+            "invalid_phone": "“{{value}}” is te lang voor een telefoonnummer.",
+            "invalid_url": "“{{value}}” is geen geldig websiteadres.",
+            "value_too_long": "“{{value}}” is te lang.",
+            "too_many_values": "te veel e-mailadressen, telefoonnummers, adressen of websites.",
             "failed": "kon niet worden opgeslagen."
           }
         },

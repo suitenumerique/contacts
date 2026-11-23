@@ -10,5 +10,7 @@ export function useApiConfig() {
       return (await response.json()) as ApiConfig;
     },
     staleTime: 1000,
+    // ConfigProvider shows the failure of the first request.
+    meta: { noGlobalError: true },
   });
 }

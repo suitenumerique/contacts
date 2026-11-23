@@ -31,7 +31,9 @@ token in the frontend.
 | `POST /external_api/v1.0/contacts/` | "Add as contact": save an address in the user's contacts |
 
 The OpenAPI schema is served at `/external_api/v1.0/swagger.json` (UI at
-`/external_api/v1.0/swagger/`) when `USE_SWAGGER` is on. It is separate from
+`/external_api/v1.0/swagger/`) when `USE_SWAGGER` or `DEBUG` is on, as in
+the `Development` configuration. `USE_SWAGGER` is a settings attribute, not
+an environment variable. The schema is separate from
 the web app's schema, so the frontend client doesn't list these endpoints.
 
 ## Configuration
@@ -50,22 +52,23 @@ the web app's schema, so the frontend client doesn't list these endpoints.
 | `JSCONTACT_VENDOR_PREFIX` | `numerique.gouv.fr` | domain prefix of the cards' vendor properties (`numerique.gouv.fr:isOrg`); part of the contract, see [Cards](#cards-jscontact) |
 | `EXTERNAL_API` | all enabled | endpoints served, and the interaction kinds each app may report (see below) |
 | `INTERACTION_KINDS` | see [Interaction kinds](#interaction-kinds) | weight of each kind |
-| `INTERACTION_MASS_THRESHOLD` | `10` | past this many people, an interaction weighs `threshold / n` per person |
+| `INTERACTION_MASS_THRESHOLD` | `10` | past this many people, an interaction adds its kind's weight times `threshold / n` per person |
 | `INTERACTION_HALF_LIFE_DAYS` | `30` | ranking decay, see below |
-| `SEARCH_STATEMENT_TIMEOUT_MS` | `300` | database budget of one search request |
+| `SEARCH_STATEMENT_TIMEOUT_MS` | `300` | time limit of each SQL statement of a search, in milliseconds |
 | `API_EXTERNAL_SEARCH_THROTTLE_RATE` | `300/minute` | per user |
 | `API_EXTERNAL_INTERACTIONS_THROTTLE_RATE` | `60/minute` | per user |
 | `API_EXTERNAL_INTERACTIONS_CHANNEL_THROTTLE_RATE` | `1200/minute` | per service channel |
 | `API_EXTERNAL_GROUP_MEMBERS_THROTTLE_RATE` | `120/minute` | per user |
 | `API_EXTERNAL_CONTACTS_THROTTLE_RATE` | `30/minute` | per user |
 
-`EXTERNAL_API` replaces the whole default when set, so give every key:
+`EXTERNAL_API` replaces the whole default when set, so give every key. The
+value is a Python dict literal (`True`, not `true`):
 
-```json
+```python
 {
-  "search": {"enabled": true},
+  "search": {"enabled": True},
   "interactions": {
-    "enabled": true,
+    "enabled": True,
     "kinds": {
       "drive": ["share"],
       "docs": ["share", "mention"],
@@ -74,8 +77,8 @@ the web app's schema, so the frontend client doesn't list these endpoints.
     },
     "channel_kinds": ["email_sent", "email_received", "event_invite"]
   },
-  "group_members": {"enabled": true},
-  "contacts": {"enabled": true}
+  "group_members": {"enabled": True},
+  "contacts": {"enabled": True}
 }
 ```
 
@@ -113,7 +116,9 @@ A share modal searches on every keystroke; without a cache each one would
 wait for the authorization server first. A successful introspection is kept
 in the Django cache (Redis) for `OIDC_RS_INTROSPECTION_CACHE_TIMEOUT`
 seconds, under a SHA-256 of the token (never the token itself), and never
-past the token's own `exp`. Refused tokens are never cached.
+past the token's own `exp`. Contacts does not cache a token that the
+introspection rejects. The subsequent checks (the user, the app, the
+entitlement) run on each request, with or without the cache.
 
 Trade-off: a token revoked at the authorization server keeps working here
 until its entry expires (60 s by default).
@@ -157,7 +162,7 @@ with nothing to say are left out.
 | prefix, given, middle, family name, suffix | `name.components`: `title`, `given`, `given2`, `surname`, `credential` |
 | nickname | `nicknames.k1.name` |
 | civility M. / Mme | `speakToAs.grammaticalGender`: `masculine` / `feminine` |
-| emails | `emails` by id (`e1`…): type `work` → `contexts.work`, `home` → `contexts.private`, other text → `label`; the first one has `pref: 1` |
+| emails | `emails` by id (`e1`…): type `work` → `contexts.work`, `home` or `private` → `contexts.private`, `other` or none → neither, any other text → `label`; the first one has `pref: 1` |
 | company, department | `organizations.o1.name`, `.units[0].name` |
 | job title | `titles.t1` |
 | photo (https only; inline photos are left out) | `media.m1.uri` |
@@ -263,12 +268,17 @@ its members.
 | `email_received` | 0.2 | Messages, server side (a channel) |
 | `added_as_contact` | 2 | Contacts itself, see `POST /contacts/` |
 
-Writing to someone says more than receiving mail from them. An event with
-more than `INTERACTION_MASS_THRESHOLD` people (10) weighs `threshold / n`
-per person: a message to 200 people says little about any of them.
-Addresses matching nothing still count as people in the event. Weights are
-set with `INTERACTION_KINDS`, e.g. `{"email_received": {"weight": 0}}` to
-ignore received mail; an unknown kind answers **400**.
+Writing to someone says more than receiving mail from them. In an event
+with more than `INTERACTION_MASS_THRESHOLD` people (10), each person gets
+the kind's weight times `threshold / n`. A message to 200 people says little
+about any of them. Addresses matching nothing still count as people in the
+event.
+
+`INTERACTION_KINDS` sets the weights. Like `EXTERNAL_API`, it is a Python
+dict literal, and it replaces the whole default. Thus the value must list
+each kind. A kind that is not in the value answers **400**. A weight of `0`
+adds nothing to the score. But Contacts still records the interaction, and
+the card stays in the recent picks of the user.
 
 #### Events without a user (service channels)
 
@@ -377,13 +387,14 @@ How the search holds it:
   still missing, and stop as soon as the response is full. Personal and
   organization books are queried apart, so each walks the
   `(organization, owner, sort_key)` index in order.
-- **Rank computed in SQL**, only for the user's 1000 most recent picks, and
-  only the rows the response needs are loaded, with only the columns it
-  shows.
+- **Rank computed in SQL**, only for the user's 1000 most recent picks of
+  each kind (contacts, groups), and only the rows the response needs are
+  loaded, with only the columns it shows.
 - The member count (`membersCount`) is computed for the returned groups only, from each
   group's own memberships.
-- `SEARCH_STATEMENT_TIMEOUT_MS` cancels a search over its budget (**503**),
-  so one bad plan can't pile up on the database.
+- `SEARCH_STATEMENT_TIMEOUT_MS` limits each SQL statement of a search. If
+  a statement goes over the limit, the search stops with **503**, so one
+  bad plan can't pile up on the database.
 
 ### Benchmark
 

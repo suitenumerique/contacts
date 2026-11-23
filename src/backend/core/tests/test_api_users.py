@@ -60,7 +60,7 @@ def test_api_users_retrieve_me_authenticated():
         "full_name": user.full_name,
         "language": user.language,
         "can_access": True,
-        "can_admin": False,
+        "is_admin": False,
         "organization": {
             "id": str(user.organization.id),
             "name": user.organization.name,

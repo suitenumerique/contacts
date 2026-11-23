@@ -8,7 +8,10 @@
  * * `unreadable` - unreadable
  * * `no_name` - no_name
  * * `invalid_email` - invalid_email
- * * `no_email_or_phone` - no_email_or_phone
+ * * `invalid_phone` - invalid_phone
+ * * `invalid_url` - invalid_url
+ * * `value_too_long` - value_too_long
+ * * `too_many_values` - too_many_values
  * * `failed` - failed
  */
 export type ReasonEnum = (typeof ReasonEnum)[keyof typeof ReasonEnum];
@@ -17,6 +20,9 @@ export const ReasonEnum = {
   unreadable: "unreadable",
   no_name: "no_name",
   invalid_email: "invalid_email",
-  no_email_or_phone: "no_email_or_phone",
+  invalid_phone: "invalid_phone",
+  invalid_url: "invalid_url",
+  value_too_long: "value_too_long",
+  too_many_values: "too_many_values",
   failed: "failed",
 } as const;

@@ -29,9 +29,10 @@ from rest_framework.permissions import AllowAny
 
 from core import models
 from core.authentication.channel import resolve_acting_user
-from core.entitlements import user_can_admin
+from core.entitlements import user_is_admin
 from core.enums import ChannelScope, Scope
 from core.phones import phone_query_digits
+from core.services.import_validation import validate_import_file
 from core.utils import strip_diacritics
 
 from . import permissions, serializers
@@ -215,7 +216,7 @@ def visible_contacts(user):
     """
     groups = serializers.visible_groups(user).only("id", "name")
     rows = models.Contact.objects.visible_to(user)
-    if not user_can_admin(user):
+    if not user_is_admin(user):
         rows = rows.exclude(scope=Scope.ORGANIZATION, deleted_at__isnull=False)
     return (
         rows.select_related("overlay_of")
@@ -431,7 +432,7 @@ class ContactViewSet(ActingUserMixin, SerializerPerActionMixin, viewsets.ModelVi
     # or not at all.
 
     def perform_create(self, serializer):
-        if serializer.validated_data.get("is_org_contact") and not user_can_admin(
+        if serializer.validated_data.get("is_org_contact") and not user_is_admin(
             self.acting_user
         ):
             self.permission_denied(
@@ -461,7 +462,7 @@ class ContactViewSet(ActingUserMixin, SerializerPerActionMixin, viewsets.ModelVi
         """
         user = self.acting_user
         contact = self.get_object()
-        if not user_can_admin(user):
+        if not user_is_admin(user):
             self.permission_denied(
                 request, message="Only an administrator can share a contact."
             )
@@ -532,7 +533,7 @@ class ContactViewSet(ActingUserMixin, SerializerPerActionMixin, viewsets.ModelVi
                 {"scope": f"Unknown scope: {scope}"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        if scope == Scope.ORGANIZATION and not user_can_admin(request.user):
+        if scope == Scope.ORGANIZATION and not user_is_admin(request.user):
             self.permission_denied(
                 request,
                 message="Only an administrator can import into the organization.",
@@ -549,8 +550,11 @@ class ContactViewSet(ActingUserMixin, SerializerPerActionMixin, viewsets.ModelVi
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        data = uploaded_file.read()
+        validate_import_file(file_format, data)
+
         file_key = f"import_file:{uuid.uuid4()}"
-        cache.set(file_key, uploaded_file.read(), timeout=IMPORT_FILE_TTL)
+        cache.set(file_key, data, timeout=IMPORT_FILE_TTL)
         task = import_contacts_task.delay(
             str(request.user.id), file_format, file_key, scope
         )
@@ -737,7 +741,7 @@ class ContactGroupViewSet(ActingUserMixin, viewsets.ModelViewSet):
             self.permission_denied(self.request, message="This group is read-only.")
 
     def perform_create(self, serializer):
-        if serializer.validated_data.get("is_org_group") and not user_can_admin(
+        if serializer.validated_data.get("is_org_group") and not user_is_admin(
             self.acting_user
         ):
             self.permission_denied(

@@ -12,7 +12,7 @@ recently the user picked them.
 
 ```
    Drive / Docs / Messages backends ──▶ /external_api/v1.0/
-   (user's access token, introspected)   search · interactions · group members
+   (user's access token, introspected)   search · interactions · add contact · group members
                                                    │
                  ┌─────────────────────────────────▼───┐
    Contacts UI ─▶│  contacts app                       │
@@ -26,10 +26,13 @@ recently the user picked them.
 ## Components
 
 - **Backend** (`src/backend/`): Django 5 + DRF, PostgreSQL, Redis,
-  dramatiq worker (async vCard/CSV imports). Three ways in: OIDC login for
+  dramatiq worker (async vCard/CSV imports). Four ways in: OIDC login for
   people (Keycloak in dev, via `django-lasuite` / `mozilla-django-oidc`),
-  [channel](channels.md) API keys for services, and HTTP Basic Auth with a
-  channel password for [CardDAV](carddav.md) clients.
+  the user's access token for other Suite apps on the
+  [external API](resource_server.md), [channel](channels.md) API keys for
+  services, and HTTP Basic Auth with a channel password for
+  [CardDAV](carddav.md) clients. The Django admin has its own password
+  login for staff.
 - **Frontend** (`src/frontend/`): React 19 + Vite + TanStack Router/Query +
   `@gouvfr-lasuite/ui-components`; pnpm via corepack; oxlint/oxfmt. Three
   panes (sidebar, list, detail); the open contact or group, the search and
@@ -42,9 +45,9 @@ recently the user picked them.
 | ------------------------- | ------- |
 | `Organization`            | Tenant; `external_id` from a configurable OIDC claim (`siret`) or the email domain, see [organizations.md](organizations.md). |
 | `User`                    | OIDC-provisioned account, belongs to one organization. |
-| `Contact`                 | vCard-ish card. `scope` says whose it is: `personal` (its `owner`'s) or `organization` (the organization's curated address book, no `owner`; a database constraint ties the two). Who sees a row is `Contact.objects.visible_to(user)`, who writes it `Contact.is_writable`: its owner, or for an organization row the organization's administrators (`can_admin`); a row from a `source` is read-only. `created_by` / `updated_by` record who wrote it. `overlay_of` + `overridden_fields` hold a user's local **overlay** merged on top of a contact they cannot edit (created via `POST /contacts/{id}/fork/`); deleting that contact for good detaches the overlays into personal contacts. Multi-valued props (emails, phones, ...) are JSONB `{type, value}` lists; unmodeled vCard props survive in `vcard_extra`. Names follow vCard: `full_name` is `FN` (the only name required, filled from the parts when blank), the `N` parts and `nickname` are optional; the list is sorted by family name, or by full name when there is none. |
+| `Contact`                 | vCard-ish card. `scope` says whose it is: `personal` (its `owner`'s) or `organization` (the organization's curated address book, no `owner`; a database constraint ties the two). Who sees a row is `Contact.objects.visible_to(user)`, who writes it `Contact.is_writable`: its owner, or for an organization row the organization's administrators (`is_admin`); a row from a `source` is read-only. `created_by` / `updated_by` record who wrote it. `overlay_of` + `overridden_fields` hold a user's local **overlay** merged on top of a contact they cannot edit (created via `POST /contacts/{id}/fork/`); deleting that contact for good detaches the overlays into personal contacts. Multi-valued props (emails, phones, ...) are JSONB `{type, value}` lists; unmodeled vCard props survive in `vcard_extra`. Names follow vCard: `full_name` is `FN` (the only name required, filled from the parts when blank), the `N` parts and `nickname` are optional; the list is sorted by family name, or by full name when there is none. |
 | `ContactLabel`            | Per-user colored labels (libellés); a predefined set is seeded when the user is created. |
-| `ContactGroup` (+membership) | Named sets of contacts, scoped like contacts. A personal group is its owner's; an organization group is visible to the whole organization and edited by its administrators (`can_admin`, see [entitlements.md](entitlements.md)), and only holds contacts the whole organization sees; one from a `source` is read-only. Groups are never overlaid. |
+| `ContactGroup` (+membership) | Named sets of contacts, scoped like contacts. A personal group is its owner's; an organization group is visible to the whole organization and edited by its administrators (`is_admin`, see [entitlements.md](entitlements.md)), and only holds contacts the whole organization sees; one from a `source` is read-only. Groups are never overlaid. |
 | `Channel`                 | Service API keys, see [channels.md](channels.md): how services and CardDAV clients authenticate to this app. |
 | `Interaction`             | How often and how recently a user interacted with a contact or a group in another Suite app (shares, emails sent and received, invitations, each kind with its weight; a count, and a score halving every `INTERACTION_HALF_LIFE_DAYS`); ranks [external search](resource_server.md) results. |
 
@@ -71,6 +74,8 @@ so a client's delta cannot silently miss one).
 
 ## Key flows
 
+The REST paths on this page are relative to `/api/v1.0/`.
+
 - **Search**: `GET /contacts/?q=` over the denormalized `search_text`,
   serving the header search. Other Suite apps search through
   `GET /external_api/v1.0/search/` instead: contacts and groups in one
@@ -91,24 +96,35 @@ so a client's delta cannot silently miss one).
   `deleted_at`, `GET /contacts/?trash=true` lists the user's trashed rows
   (plus the organization's, for an administrator),
   `POST /contacts/{id}/restore/` brings one back, a second `DELETE` is
-  permanent. A trashed contact carries its `deleted_at` in the payload.
+  permanent. `GET /contacts/{id}/` gives the `deleted_at` of a trashed
+  contact. The rows of a list do not have this field.
   `PATCH` and `PUT` reject updates to a trashed contact (400) until it is
   restored. `purge_trashed_contacts` hard-deletes rows trashed for longer
   than `TRASHBIN_CUTOFF_DAYS` (default 30), and `purge_carddav_changes`
   drops the sync tombstones that outlived them. Both have to be scheduled,
   see [Scheduled jobs](#scheduled-jobs).
 - **Import/export**: `POST /contacts/import-vcf/` or `import-csv/` queues a
-  dramatiq task, polled with `GET /tasks/{id}/`. A card matching one of the
-  user's own contacts is skipped: the match is on any email address, or for
-  a card without email, on first + last name (or the full name when there
-  is neither) and the digits of the first phone. Trashed contacts count as
-  matches, and a matched trashed contact is restored, so re-importing a
-  file creates nothing new. vCard `CATEGORIES` become labels, except the
+  dramatiq task, polled with `GET /tasks/{id}/`. The view answers
+  400 for an empty file and for a file that contains a NUL byte. It also
+  answers 400 for a vCard upload that contains no vCard. The import
+  skips a card that matches a contact of the target address book. The
+  target is the user's own contacts, or the organization's contacts with
+  `scope=organization`. Overlays are not part of the match. The match is
+  on any email address, or for a card without email, on first + last name
+  (or the full name when there is neither) and the digits of the first
+  phone that has digits. A card without an email and a phone matches on
+  its name and its UID. Without a UID (a CSV row), such a card matches
+  nothing, and each import adds it. Trashed contacts count as matches, and
+  a matched trashed contact is restored. The import rejects a card that
+  breaks a rule of a REST create: a name and valid values. The result
+  of the task gives the reason. vCard `CATEGORIES` become labels, except the
   system groups of a Google Contacts export (`myContacts` is dropped,
   `starred` makes a favorite; same for the CSV `Labels` column), and group
   cards (Apple's `X-ADDRESSBOOKSERVER-KIND:group`, or vCard 4 `KIND:group`)
-  become groups, merged into a personal group of the same name, with the
-  members their UIDs name in the file or among the user's contacts. Export via
+  become groups, merged into a group of the same name in the target address
+  book, with the members their UIDs name in the file or among that book's
+  contacts. An import into the organization's address book drops the labels
+  and the star. Export via
   `GET /contacts/export-vcf/` or `export-csv/` (`core/services/csv_service.py`
   documents the CSV columns).
 

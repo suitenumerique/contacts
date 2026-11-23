@@ -4,11 +4,13 @@
 
 import io
 
+from django.core.files.base import ContentFile
+
 import pytest
 from rest_framework.test import APIClient
 
 from core import factories, models, tasks
-from core.services.vcf_service import parse_vcf, serialize_contacts
+from core.services.vcf_service import parse_vcf, parse_vcf_file, serialize_contacts
 from core.tasks import import_contacts
 
 pytestmark = pytest.mark.django_db
@@ -148,14 +150,17 @@ def test_import_rejects_malformed_emails_and_says_which():
 
     result = import_contacts(user, "vcf", INVALID_VCF.encode())
 
-    assert counters(result) == {"imported": 1, "skipped": 0, "errors": 2, "total": 3}
-    assert models.Contact.objects.filter(owner=user).count() == 1
+    assert counters(result) == {"imported": 2, "skipped": 0, "errors": 1, "total": 3}
+    assert set(
+        models.Contact.objects.filter(owner=user).values_list("full_name", flat=True)
+    ) == {"No Way To Reach Me", "Fine Person"}
 
-    by_reason = {detail["reason"]: detail for detail in result["error_details"]}
-    assert by_reason["invalid_email"]["name"] == "Bad Address"
-    assert by_reason["invalid_email"]["value"] == "not-an-email"
-    assert by_reason["invalid_email"]["entry"] == 1
-    assert by_reason["no_email_or_phone"]["name"] == "No Way To Reach Me"
+    assert len(result["error_details"]) == 1
+    detail = result["error_details"][0]
+    assert detail["reason"] == "invalid_email"
+    assert detail["name"] == "Bad Address"
+    assert detail["value"] == "not-an-email"
+    assert detail["entry"] == 1
 
 
 def test_import_error_details_are_capped():
@@ -168,6 +173,62 @@ def test_import_error_details_are_capped():
 
     assert result["errors"] == 40
     assert len(result["error_details"]) == tasks.MAX_ERROR_DETAILS
+
+
+REFUSED_VALUE_VCF = (
+    "BEGIN:VCARD\r\nVERSION:3.0\r\nFN:Jean Dupont\r\n"
+    "EMAIL:jean@example.org\r\nTEL:+33199000405\r\n{line}\r\nEND:VCARD\r\n"
+)
+
+
+@pytest.mark.parametrize(
+    ("line", "reason", "value"),
+    [
+        (f"TEL;TYPE=CELL:{'1' * 65}", "invalid_phone", "1" * 65),
+        ("URL:javascript:alert(1)", "invalid_url", "javascript:alert(1)"),
+        (
+            "item1.URL;TYPE=WORK,pref:ftp://example.org/x",
+            "invalid_url",
+            "ftp://example.org/x",
+        ),
+    ],
+    ids=["phone", "url-script", "url-ftp"],
+)
+def test_import_rejects_a_card_with_a_value_that_the_api_refuses(line, reason, value):
+    """The import does not remove a value. It rejects the card and says why."""
+    user = factories.UserFactory()
+
+    result = import_contacts(user, "vcf", REFUSED_VALUE_VCF.format(line=line).encode())
+
+    assert counters(result) == {"imported": 0, "skipped": 0, "errors": 1, "total": 1}
+    assert result["error_details"] == [
+        {"entry": 1, "name": "Jean Dupont", "reason": reason, "value": value}
+    ]
+    assert not models.Contact.objects.filter(owner=user).exists()
+
+
+def test_import_rejects_a_card_with_too_many_values():
+    user = factories.UserFactory()
+    phones = "\r\n".join(f"TEL:+3319900{index:04}" for index in range(51))
+
+    result = import_contacts(
+        user, "vcf", REFUSED_VALUE_VCF.format(line=phones).encode()
+    )
+
+    assert counters(result) == {"imported": 0, "skipped": 0, "errors": 1, "total": 1}
+    assert result["error_details"][0]["reason"] == "too_many_values"
+
+
+def test_import_error_detail_quotes_the_start_of_a_long_value():
+    """A long value must not fill the result."""
+    user = factories.UserFactory()
+    line = f"ADR;TYPE=HOME:;;{'x' * 1025};;;;"
+
+    result = import_contacts(user, "vcf", REFUSED_VALUE_VCF.format(line=line).encode())
+
+    detail = result["error_details"][0]
+    assert detail["reason"] == "value_too_long"
+    assert detail["value"] == "x" * tasks.MAX_QUOTED_VALUE_LENGTH + "…"
 
 
 def test_import_turns_categories_into_labels():
@@ -295,6 +356,67 @@ def test_export_writes_labels_as_categories():
     assert "\r\nCATEGORIES:Agent\r\n" in body
 
 
+def test_import_reads_an_exported_contact_without_email_and_phone():
+    user = factories.UserFactory()
+    client = APIClient()
+    client.force_login(user)
+    factories.ContactFactory(
+        owner=user,
+        full_name="Jean Dupont",
+        emails=[],
+        phones=[],
+        addresses=[{"type": "home", "value": "1 rue de la Mairie"}],
+    )
+    export = client.get("/api/v1.0/contacts/export-vcf/").content
+
+    other = factories.UserFactory()
+    result = import_contacts(other, "vcf", export)
+    assert counters(result) == {"imported": 1, "skipped": 0, "errors": 0, "total": 1}
+    restored = models.Contact.objects.get(owner=other)
+    assert (restored.full_name, restored.emails, restored.phones) == (
+        "Jean Dupont",
+        [],
+        [],
+    )
+    assert "1 rue de la Mairie" in restored.addresses[0]["value"]
+
+    # The card matches the contact of the first user on its name and its UID.
+    result = import_contacts(user, "vcf", export)
+    assert counters(result) == {"imported": 0, "skipped": 1, "errors": 0, "total": 1}
+
+
+def test_import_keeps_two_exported_contacts_with_the_same_name():
+    """The contacts have no email and no phone. Their UIDs tell them apart."""
+    user = factories.UserFactory()
+    client = APIClient()
+    client.force_login(user)
+    streets = {"1 rue de la Mairie", "2 place du Marché"}
+    for street in streets:
+        factories.ContactFactory(
+            owner=user,
+            full_name="Jean Dupont",
+            emails=[],
+            phones=[],
+            addresses=[{"type": "home", "value": street}],
+        )
+    export = client.get("/api/v1.0/contacts/export-vcf/").content
+
+    other = factories.UserFactory()
+    result = import_contacts(other, "vcf", export)
+    assert counters(result) == {"imported": 2, "skipped": 0, "errors": 0, "total": 2}
+    restored = models.Contact.objects.filter(owner=other)
+    assert {contact.addresses[0]["value"] for contact in restored} == streets
+
+    for target in (other, user):
+        result = import_contacts(target, "vcf", export)
+        assert counters(result) == {
+            "imported": 0,
+            "skipped": 2,
+            "errors": 0,
+            "total": 2,
+        }
+
+
 def test_import_maps_google_system_categories():
     """A Google Contacts export lists its system groups in CATEGORIES."""
     user = factories.UserFactory()
@@ -344,6 +466,62 @@ def test_import_endpoint_rejects_large_file(settings):
         format="multipart",
     )
     assert response.status_code == 400
+
+
+@pytest.mark.parametrize(
+    ("endpoint", "name", "content", "error"),
+    [
+        ("import-vcf", "contacts.vcf", b" \r\n", "empty"),
+        ("import-csv", "contacts.csv", b"", "empty"),
+        ("import-vcf", "photo.vcf", b"\x89PNG\r\n\x1a\n\0\0\0\rIHDR", "not a text"),
+        ("import-csv", "sheet.csv", b"PK\x03\x04\x14\0\x06\0", "not a text file"),
+        ("import-csv", "utf16.csv", "Email\na@example.org\n".encode("utf-16"), "text"),
+        ("import-vcf", "contacts.vcf", b"Email\na@example.org\n", "no vCard"),
+        ("import-vcf", "note.vcf", b"NOTE:BEGIN:VCARD\r\n", "no vCard"),
+    ],
+)
+def test_import_endpoint_rejects_a_file_of_another_type(endpoint, name, content, error):
+    user = factories.UserFactory()
+    client = APIClient()
+    client.force_login(user)
+
+    response = client.post(
+        f"/api/v1.0/contacts/{endpoint}/",
+        {"file": ContentFile(content, name=name)},
+        format="multipart",
+    )
+
+    assert response.status_code == 400
+    assert error in response.json()["errors"][0]["detail"]
+    assert not models.Contact.objects.filter(owner=user).exists()
+
+
+@pytest.mark.parametrize(
+    ("name", "content"),
+    [
+        ("CONTACTS.VCF", SAMPLE_VCF.encode()),
+        ("contacts.vcard", SAMPLE_VCF.encode()),
+        ("contacts.txt", SAMPLE_VCF.encode()),
+        ("bom.vcf", b"\xef\xbb\xbf\r\n" + SAMPLE_VCF.encode()),
+        ("latin.vcf", SAMPLE_VCF.replace("Jeanne", "Ren\xe9e").encode("cp1252")),
+        ("lower.vcf", SAMPLE_VCF.replace("BEGIN:VCARD", "begin: vcard").encode()),
+        ("folded.vcf", SAMPLE_VCF.replace("BEGIN:VCARD", "BEGIN:VC\r\n ARD").encode()),
+        # This card has no END. The import reports it as an error.
+        ("truncated.vcf", b"BEGIN:VCARD\r\nVERSION:3.0\r\nFN:Alice\r\n"),
+    ],
+)
+def test_import_endpoint_accepts_vcard_variants(name, content):
+    user = factories.UserFactory()
+    client = APIClient()
+    client.force_login(user)
+
+    response = client.post(
+        "/api/v1.0/contacts/import-vcf/",
+        {"file": ContentFile(content, name=name)},
+        format="multipart",
+    )
+
+    assert response.status_code == 202, response.content
 
 
 def test_round_trip_preserves_fields():
@@ -671,3 +849,53 @@ def test_truncated_file_keeps_the_cards_before_it():
     cards, errors = parse_vcf(data)
     assert len(cards) == 2
     assert errors == 1
+
+
+def test_parsed_fields_hold_no_nul_character():
+    """A NUL is the literal character or a quoted-printable ``=00``."""
+    data = (
+        "BEGIN:VCARD\r\nVERSION:3.0\r\nFN:A\0da\r\nN:Love\0lace;Ada;;;\r\n"
+        "EMAIL;TYPE=WORK;X-BAR=a\0b:ada@exam\0ple.org\r\n"
+        "ADR;ENCODING=QUOTED-PRINTABLE:;;1 rue X=00;Paris;;75001;France\r\n"
+        "NOTE;ENCODING=QUOTED-PRINTABLE:first=00\r\nNOTE:second\0\r\n"
+        "CATEGORIES:fri\0ends\r\nX-FOO;X-BAR=a\0b:c\0d\r\nEND:VCARD\r\n"
+        "BEGIN:VCARD\r\nVERSION:3.0\r\nFN;ENCODING=QUOTED-PRINTABLE:Te=00am\r\n"
+        "X-ADDRESSBOOKSERVER-KIND:group\r\n"
+        "X-ADDRESSBOOKSERVER-MEMBER:urn:uuid:a\0da-uid\r\n"
+        "X-FOO:a\0b\r\nEND:VCARD\r\n"
+    )
+    without_nul = data.replace("\0", "").replace("=00", "")
+
+    cards, groups, errors = parse_vcf_file(data)
+
+    assert (len(cards), len(groups), errors) == (1, 1, 0)
+    assert (cards, groups, errors) == parse_vcf_file(without_nul)
+
+
+NUL_VCF = (
+    "BEGIN:VCARD\r\nVERSION:3.0\r\nFN:Ada\r\nEMAIL;TYPE=WORK:ada@example.org\r\n"
+    "NOTE;ENCODING=QUOTED-PRINTABLE:a=00b\r\n"
+    "X-FOO;ENCODING=QUOTED-PRINTABLE:a=00b\r\nEND:VCARD\r\n"
+    "BEGIN:VCARD\r\nVERSION:3.0\r\nFN;ENCODING=QUOTED-PRINTABLE:Te=00am\r\n"
+    "X-ADDRESSBOOKSERVER-KIND:group\r\n"
+    "X-FOO;ENCODING=QUOTED-PRINTABLE:a=00b\r\nEND:VCARD\r\n"
+)
+
+
+def test_import_stores_the_cards_without_their_nul_characters():
+    """PostgreSQL cannot store a NUL character in a text or JSON column."""
+    user = factories.UserFactory()
+    client = APIClient()
+    client.force_login(user)
+
+    response = client.post(
+        "/api/v1.0/contacts/import-vcf/",
+        {"file": ContentFile(NUL_VCF.encode(), name="contacts.vcf")},
+        format="multipart",
+    )
+
+    assert response.status_code == 202, response.content
+    contact = models.Contact.objects.get(owner=user)
+    assert (contact.notes, contact.vcard_extra) == ("ab", {"X-FOO": ["X-FOO:ab"]})
+    group = models.ContactGroup.objects.get(owner=user)
+    assert (group.name, group.vcard_extra) == ("Team", {"X-FOO": ["X-FOO:ab"]})

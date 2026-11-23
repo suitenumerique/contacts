@@ -94,7 +94,7 @@ def _check_entitled(user):
     like the REST permission classes.
     """
     try:
-        entitlements = get_user_entitlements(user.sub, user.email)
+        entitlements = get_user_entitlements(user)
     except EntitlementsUnavailableError as exc:
         raise ForbiddenError("entitlements unavailable") from exc
     if not entitlements.get("can_access", False):

@@ -1,22 +1,13 @@
 """Client serializers for the contacts core app."""
 
-import re
-
 from django.core.exceptions import ValidationError as DjangoValidationError
-from django.core.validators import URLValidator, validate_email
 
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
-from core import models
+from core import models, validators
 from core.entitlements import EntitlementsUnavailableError, get_user_entitlements
 from core.enums import ChannelScope, ChannelScopeLevel, ChannelType, Scope
-
-# Upper bound of entries in each multi-valued contact field.
-MAX_TYPED_VALUES = 50
-
-_URL_SCHEME = re.compile(r"^[a-z][a-z0-9+.-]*:", re.IGNORECASE)
-_http_url = URLValidator(schemes=["http", "https"])
 
 
 def _acting_user(context):
@@ -70,7 +61,7 @@ class UserMeSerializer(UserSerializer):
     """Serialize users for me endpoint."""
 
     can_access = serializers.SerializerMethodField(read_only=True)
-    can_admin = serializers.SerializerMethodField(read_only=True)
+    is_admin = serializers.SerializerMethodField(read_only=True)
     organization = OrganizationSerializer(read_only=True)
 
     def __init__(self, *args, **kwargs):
@@ -82,13 +73,13 @@ class UserMeSerializer(UserSerializer):
         fields = [
             *UserSerializer.Meta.fields,
             "can_access",
-            "can_admin",
+            "is_admin",
             "organization",
         ]
         read_only_fields = [
             *UserSerializer.Meta.read_only_fields,
             "can_access",
-            "can_admin",
+            "is_admin",
             "organization",
         ]
 
@@ -96,13 +87,11 @@ class UserMeSerializer(UserSerializer):
         """Get cached entitlements for the user, keyed by user.sub.
 
         Cache is per-serializer-instance (request-scoped) to avoid
-        duplicate calls when both can_access and can_admin are serialized.
+        duplicate calls when both can_access and is_admin are serialized.
         """
         if user.sub not in self._entitlements_cache:
             try:
-                self._entitlements_cache[user.sub] = get_user_entitlements(
-                    user.sub, user.email
-                )
+                self._entitlements_cache[user.sub] = get_user_entitlements(user)
             except EntitlementsUnavailableError:
                 self._entitlements_cache[user.sub] = None
         return self._entitlements_cache[user.sub]
@@ -114,29 +103,31 @@ class UserMeSerializer(UserSerializer):
             return False  # fail-closed
         return entitlements.get("can_access", False)
 
-    def get_can_admin(self, user) -> bool:
+    def get_is_admin(self, user) -> bool:
         """Check admin entitlement for the current user."""
         entitlements = self._get_entitlements(user)
         if entitlements is None:
             return False  # fail-closed
-        return entitlements.get("can_admin", False)
+        return entitlements.get("is_admin", False)
 
 
 class TypedValueSerializer(serializers.Serializer):  # pylint: disable=abstract-method
     """A {"type": ..., "value": ...} entry (emails, phones, addresses, urls)."""
 
     type = serializers.RegexField(
-        r"^[A-Za-z0-9-]{0,32}$",
-        max_length=32,
+        validators.TYPE_PATTERN,
+        max_length=validators.TYPE_MAX_LENGTH,
         required=False,
         allow_blank=True,
         default="",
     )
-    value = serializers.CharField(max_length=1024)
+    value = serializers.CharField(max_length=validators.VALUE_MAX_LENGTH)
 
 
 def _typed_values():
-    return TypedValueSerializer(many=True, required=False, max_length=MAX_TYPED_VALUES)
+    return TypedValueSerializer(
+        many=True, required=False, max_length=validators.MAX_TYPED_VALUES
+    )
 
 
 class ContactLabelSerializer(serializers.ModelSerializer):
@@ -323,50 +314,32 @@ class ContactSerializer(serializers.ModelSerializer):
     def validate_emails(self, value):
         """Every address must be a valid email."""
         for item in value:
-            try:
-                validate_email(item["value"])
-            except DjangoValidationError as exc:
-                raise serializers.ValidationError(
-                    f"Enter a valid email address: {item['value']}"
-                ) from exc
+            validators.validate_email_value(item["value"])
         return value
 
     def validate_phones(self, value):
         """Phone numbers are short; anything longer is not a phone number."""
         for item in value:
-            if len(item["value"]) > 64:
-                raise serializers.ValidationError(
-                    "Phone numbers are 64 characters max."
-                )
+            validators.validate_phone_value(item["value"])
         return value
 
     def validate_urls(self, value):
-        """Accept http(s) URLs and scheme-less ones ("example.com").
-
-        The frontend prefixes scheme-less values with https://, so those are
-        validated as such; every other scheme (javascript:, data:, ...) is
-        refused.
-        """
+        """Accept http(s) URLs and scheme-less ones ("example.com")."""
         for item in value:
-            url = item["value"].strip()
-            candidate = url if _URL_SCHEME.match(url) else f"https://{url}"
-            try:
-                _http_url(candidate)
-            except DjangoValidationError as exc:
-                raise serializers.ValidationError(f"Enter a valid URL: {url}") from exc
-            item["value"] = url
+            validators.validate_url_value(item["value"])
         return value
 
     def validate(self, attrs):
-        """Enforce the core-field rules (user-facing writes only).
+        """Enforce the name rule (user-facing writes only).
 
-        - a name is required: ``full_name`` or any structured part. A blank
-          ``full_name`` is filled from the parts, like a vCard FN;
-        - at least one of email / phone must be filled.
+        A name is required: the full name, the given name, the middle name,
+        the family name or the suffix. A blank ``full_name`` is filled from
+        the other four, like a vCard FN. Neither an email nor a phone is
+        required.
 
-        On partial updates the rules apply to the merged result of the
+        On partial updates the rule applies to the merged result of the
         fields being modified, so updating one field never demands the
-        whole card again, but a field cannot be blanked below the rules.
+        whole card again, but the name cannot be blanked.
         """
 
         def effective(field):
@@ -375,7 +348,8 @@ class ContactSerializer(serializers.ModelSerializer):
             if self.instance is None:
                 return ""
             if self.instance.overlay_of_id:
-                # Unspecified fields of an overlay come from its parent.
+                # An overlay stores only its overrides. The parent gives the
+                # other fields.
                 return self.instance.merged_value(field)
             return getattr(self.instance, field, "")
 
@@ -391,11 +365,6 @@ class ContactSerializer(serializers.ModelSerializer):
                         {"full_name": "A name is required."}
                     )
                 attrs["full_name"] = composed[:255]  # the column's max_length
-        if creating or "emails" in attrs or "phones" in attrs:
-            if not (effective("emails") or effective("phones")):
-                raise serializers.ValidationError(
-                    "At least an email address or a phone number is required."
-                )
         return self._validate_scope(attrs)
 
     def _validate_scope(self, attrs):
@@ -733,7 +702,10 @@ class ImportErrorDetailSerializer(serializers.Serializer):  # pylint: disable=ab
             "unreadable",
             "no_name",
             "invalid_email",
-            "no_email_or_phone",
+            "invalid_phone",
+            "invalid_url",
+            "value_too_long",
+            "too_many_values",
             "failed",
         ]
     )

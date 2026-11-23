@@ -3042,11 +3042,14 @@
                     "unreadable",
                     "no_name",
                     "invalid_email",
-                    "no_email_or_phone",
+                    "invalid_phone",
+                    "invalid_url",
+                    "value_too_long",
+                    "too_many_values",
                     "failed"
                 ],
                 "type": "string",
-                "description": "* `unreadable` - unreadable\n* `no_name` - no_name\n* `invalid_email` - invalid_email\n* `no_email_or_phone` - no_email_or_phone\n* `failed` - failed"
+                "description": "* `unreadable` - unreadable\n* `no_name` - no_name\n* `invalid_email` - invalid_email\n* `invalid_phone` - invalid_phone\n* `invalid_url` - invalid_url\n* `value_too_long` - value_too_long\n* `too_many_values` - too_many_values\n* `failed` - failed"
             },
             "ScopeEnum": {
                 "enum": [
@@ -3256,7 +3259,7 @@
                         "description": "Check entitlements for the current user.",
                         "readOnly": true
                     },
-                    "can_admin": {
+                    "is_admin": {
                         "type": "boolean",
                         "description": "Check admin entitlement for the current user.",
                         "readOnly": true
@@ -3272,10 +3275,10 @@
                 },
                 "required": [
                     "can_access",
-                    "can_admin",
                     "email",
                     "full_name",
                     "id",
+                    "is_admin",
                     "organization"
                 ]
             },

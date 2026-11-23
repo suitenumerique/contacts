@@ -1,9 +1,8 @@
 # Contacts
 
 A modern, open-source contacts application for La Suite. It manages personal
-and organization-wide address books, and serves them to the standalone
-directory service, one of the sources behind the people/group suggestions
-you get across every La Suite app (Docs, Messages, Calendars, ...).
+and organization-wide address books. It also serves the people and group
+suggestions that you get in every La Suite app (Docs, Messages, Calendars, ...).
 
 ## Why use Contacts ❓
 
@@ -14,8 +13,11 @@ you get across every La Suite app (Docs, Messages, Calendars, ...).
 - 🏢 Organization-wide directory entries next to personal contacts
 
 ### Feed the whole Suite
-- 🔎 Read-only, per-user access to contacts and groups for the Suite's
-  directory service, through scoped [channel API keys](docs/channels.md)
+- 🔎 People and group suggestions for the other apps, through an
+  [external API](docs/resource_server.md) that uses the access token of
+  the user
+- 🔑 Read-only access to contacts and groups for services, through scoped
+  [channel API keys](docs/channels.md)
 - 📇 [CardDAV](docs/carddav.md) read/write sync, so phones and desktop
   address books talk to Contacts directly
 - 🔗 Read-only rows provisioned from an external source, with personal
@@ -91,6 +93,7 @@ $ make update-api-front
 - [Channels / service API keys](docs/channels.md)
 - [Deployment (frontend proxy, admin allowlist)](docs/deployment.md)
 - [Entitlements](docs/entitlements.md)
+- [External API for Suite apps (resource server)](docs/resource_server.md)
 - [Messages integration](docs/messages-integration.md)
 - [Organizations](docs/organizations.md)
 

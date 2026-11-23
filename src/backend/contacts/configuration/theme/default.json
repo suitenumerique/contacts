@@ -64,6 +64,29 @@
           "href": "https://github.com/etalab/licence-ouverte/blob/master/LO.md"
         }
       }
+    },
+    "nl": {
+      "legalLinks": [
+        {
+          "label": "Juridische kennisgeving",
+          "href": "#"
+        },
+        {
+          "label": "Persoonsgegevens en cookies",
+          "href": "#"
+        },
+        {
+          "label": "Toegankelijkheid: niet conform",
+          "href": "#"
+        }
+      ],
+      "license": {
+        "label": "Tenzij anders vermeld, valt alle inhoud van deze site onder",
+        "link": {
+          "label": "licence etalab-2.0",
+          "href": "https://github.com/etalab/licence-ouverte/blob/master/LO.md"
+        }
+      }
     }
   }
 }

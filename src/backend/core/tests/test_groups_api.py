@@ -89,11 +89,11 @@ def test_cannot_add_foreign_contact(client, user):
 
 @pytest.fixture
 def admins(monkeypatch):
-    """The subs of the users ``can_admin`` grants; everyone else is not."""
+    """The subs of the users ``is_admin`` grants; everyone else is not."""
     subs = set()
 
     def entitlements(self, user_sub, user_email, user_info=None, force_refresh=False):  # pylint: disable=unused-argument
-        return {"can_access": True, "can_admin": user_sub in subs}
+        return {"can_access": True, "is_admin": user_sub in subs}
 
     monkeypatch.setattr(LocalEntitlementsBackend, "get_user_entitlements", entitlements)
     return subs

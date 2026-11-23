@@ -929,7 +929,7 @@ def test_cannot_write_org_contact(auth, user):
         pytest.param(VCARD + VCARD, id="two-cards"),
         pytest.param(NAMELESS_VCARD, id="no-names"),
         pytest.param(
-            VCARD.replace("EMAIL;TYPE=WORK:ada@example.org\r\n", ""), id="no-contact"
+            VCARD.replace("FN:Ada", f"TEL:{'1' * 65}\r\nFN:Ada"), id="long-phone"
         ),
         pytest.param("not a vcard at all", id="garbage"),
     ],
@@ -940,6 +940,35 @@ def test_put_refuses_an_invalid_card(auth, user, body):
     assert response.status_code == 403
     assert conditions(response) == [CARD("valid-address-data")]
     assert not models.Contact.objects.filter(owner=user).exists()
+
+
+BARE_VCARD = (
+    "BEGIN:VCARD\r\nVERSION:3.0\r\nFN:Jean Dupont\r\nN:Dupont;Jean;;;\r\n"
+    "ADR;TYPE=HOME:;;1 rue de la Mairie;Brigny;;01000;France\r\nEND:VCARD\r\n"
+)
+
+
+def test_put_creates_a_card_without_email_and_phone(auth, user):
+    response = put(auth, f"{PERSONAL}{uuid.uuid4()}.vcf", BARE_VCARD)
+    assert response.status_code == 201, response.content
+    contact = models.Contact.objects.get(owner=user)
+    assert (contact.full_name, contact.emails, contact.phones) == (
+        "Jean Dupont",
+        [],
+        [],
+    )
+    assert contact.addresses == [
+        {"type": "home", "value": "1 rue de la Mairie\n01000 Brigny\nFrance"}
+    ]
+
+
+def test_put_can_remove_the_last_email_and_phone(auth, user):
+    url = f"{PERSONAL}{uuid.uuid4()}.vcf"
+    assert put(auth, url, VCARD).status_code == 201
+    body = VCARD.replace("EMAIL;TYPE=WORK:ada@example.org\r\n", "")
+    assert put(auth, url, body).status_code == 204
+    contact = models.Contact.objects.get(owner=user)
+    assert (contact.emails, contact.phones) == ([], [])
 
 
 def test_put_cannot_blank_the_required_names(auth, user):
@@ -1007,6 +1036,51 @@ def test_put_etag_only_when_the_stored_card_is_the_body(auth, user):
     again = put(auth, url, served.content)
     assert again.status_code == 204
     assert again["ETag"] == served["ETag"]
+
+
+@pytest.mark.parametrize(
+    ("line", "notes", "extra"),
+    [
+        pytest.param(
+            "NOTE;ENCODING=QUOTED-PRINTABLE:a=00b", "ab", {}, id="column-encoded"
+        ),
+        pytest.param(
+            "X-FOO;ENCODING=QUOTED-PRINTABLE:a=00b",
+            "",
+            {"X-FOO": ["X-FOO:ab"]},
+            id="extra-encoded",
+        ),
+        pytest.param("NOTE:a\0b", "ab", {}, id="column-literal"),
+        pytest.param(
+            "X-FOO;X-BAR=a\0b:c\0d",
+            "",
+            {"X-FOO": ["X-FOO;X-BAR=ab:cd"]},
+            id="extra-literal",
+        ),
+    ],
+)
+def test_put_stores_a_card_without_its_nul_characters(auth, user, line, notes, extra):
+    """PostgreSQL cannot store a NUL character in a text or JSON column."""
+    body = VCARD.replace("END:VCARD", f"{line}\r\nEND:VCARD")
+
+    response = put(auth, f"{PERSONAL}{uuid.uuid4()}.vcf", body)
+
+    assert response.status_code == 201, response.content
+    contact = models.Contact.objects.get(owner=user)
+    assert (contact.notes, contact.vcard_extra) == (notes, extra)
+
+
+def test_put_with_a_nul_character_gets_no_etag(auth, user):
+    """The stored card is not the body, thus the client must read it back."""
+    url = f"{PERSONAL}{uuid.uuid4()}.vcf"
+    put(auth, url, VCARD)
+    served = get(auth, url).content
+
+    response = put(auth, url, served.replace(b"FN:Ada", b"FN:A\0da"))
+
+    assert response.status_code == 204
+    assert not response.has_header("ETag")
+    assert get(auth, url).content == served
 
 
 def test_get_then_unchanged_put_is_a_no_op(auth, user):

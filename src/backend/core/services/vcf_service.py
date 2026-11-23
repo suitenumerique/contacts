@@ -38,6 +38,7 @@ import vobject
 from vobject.base import VObjectError
 
 from core.models import NAME_PARTS, Civility, compose_name
+from core.utils import decode_text
 from core.validators import validate_photo
 
 logger = logging.getLogger(__name__)
@@ -101,18 +102,6 @@ class InvalidVCardError(ValueError):
 
 
 # --- text encoding ----------------------------------------------------
-
-
-def _decode_bytes(data):
-    """Decode a file: UTF-8 when it is, else Windows-1252, else Latin-1."""
-    if isinstance(data, str):
-        return data
-    for encoding in ("utf-8-sig", "cp1252"):
-        try:
-            return data.decode(encoding)
-        except UnicodeDecodeError:
-            continue
-    return data.decode("latin-1")
 
 
 def _unescape(raw):
@@ -367,15 +356,30 @@ def _default_full_name(name_parts, emails):
 # --- parsing ----------------------------------------------------------
 
 
+def _remove_nul(line):
+    """Remove the NUL characters from the value and the parameters of *line*.
+
+    PostgreSQL cannot store a NUL character in a text or JSON column. The
+    names in a line hold none: vobject does not parse a line with such a name.
+    """
+    line.value = line.value.replace("\0", "")
+    line.params = {
+        key: [value.replace("\0", "") for value in values]
+        for key, values in line.params.items()
+    }
+
+
 def _read_components(data):
     """Yield ``(name, lines)`` for each top-level component in *data*.
 
     Lines keep their encoded values (only quoted-printable is decoded, by
     ``ContentLine``). Unparseable lines are skipped; an unbalanced
     BEGIN/END raises :class:`InvalidVCardError`.
+
+    The value and the parameters of a line hold no NUL character.
     """
     stack, lines = [], []
-    stream = io.StringIO(_decode_bytes(data))
+    stream = io.StringIO(decode_text(data))
     for text, number in vobject.base.getLogicalLines(stream):
         if not text.strip():
             continue
@@ -383,6 +387,9 @@ def _read_components(data):
             line = vobject.base.textLineToContentLine(text, number)
         except VObjectError, LookupError, ValueError:
             continue
+        # The quoted-printable decoding can make a NUL character from "=00".
+        # Thus the removal comes after the decoding, not before.
+        _remove_nul(line)
         name, value = line.name.upper(), str(line.value).strip().upper()
         if name == "BEGIN":
             stack.append(value)
@@ -397,6 +404,18 @@ def _read_components(data):
             lines.append(line)
     if stack:
         raise InvalidVCardError(f"BEGIN:{stack[0]} is never closed")
+
+
+def contains_vcard(data):
+    """Return True if *data* contains a vCard component.
+
+    Also return True if a BEGIN has no END. The import reports this file
+    as an error.
+    """
+    try:
+        return any(name == "VCARD" for name, _lines in _read_components(data))
+    except InvalidVCardError:
+        return True
 
 
 def parse_vcf(data):
@@ -560,9 +579,10 @@ def _set_aside(name, line, fields, seen):
     if name in _SKIPPED:
         return True
     if name == "CATEGORIES":
+        label_names = fields.setdefault("label_names", [])
         for label_name in _values(line.value):
-            if label_name not in fields["label_names"]:
-                fields["label_names"].append(label_name)
+            if label_name not in label_names:
+                label_names.append(label_name)
         return True
     if name in _SINGLE and name in seen:
         if name in _REPEATABLE:
@@ -577,7 +597,11 @@ def _set_aside(name, line, fields, seen):
 
 
 def _parse_card(lines):
-    """Convert the content lines of one VCARD into Contact kwargs."""
+    """Convert the content lines of one VCARD into contact fields and label names.
+
+    ``label_names`` holds the CATEGORIES values. A card without a
+    CATEGORIES property has no ``label_names`` key.
+    """
     fields = {
         "full_name": "",
         "civility": "",
@@ -596,7 +620,6 @@ def _parse_card(lines):
         "job_title": "",
         "notes": "",
         "photo": "",
-        "label_names": [],
         "vcard_extra": {},
     }
     extra = fields["vcard_extra"]

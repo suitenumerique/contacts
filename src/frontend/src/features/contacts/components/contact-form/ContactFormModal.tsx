@@ -1,7 +1,6 @@
 /**
  * Create or edit a contact: identity (a name required, in whatever parts
- * are known), coordinates (an email or a phone required), organization,
- * labels, notes.
+ * are known), coordinates, organization, labels, notes.
  */
 
 import { useRef, useState } from "react";
@@ -319,7 +318,7 @@ export const ContactFormModal = ({
     >
       <div className="contact-form">
         {error && <Alert type={VariantType.ERROR}>{error}</Alert>}
-        {!isEdit && !forkSourceId && user?.can_admin && (
+        {!isEdit && !forkSourceId && user?.is_admin && (
           <Checkbox
             label={t("contacts.form.shareWithOrg")}
             text={t("contacts.form.shareWithOrgHint")}
@@ -447,7 +446,6 @@ export const ContactFormModal = ({
         />
 
         <h3 className="contact-form__section">{t("contacts.form.coordinates")}</h3>
-        <p className="contact-form__hint">{t("contacts.form.coordinatesHint")}</p>
         <TypedValueRows
           label={t("contacts.form.email")}
           rows={emails}

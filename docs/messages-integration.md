@@ -23,7 +23,7 @@ logged in with. Contacts must list `messages` in
 their audience. See [resource_server.md](resource_server.md).
 
 It reports what happens to mail with `POST /external_api/v1.0/interactions/`,
-by address (`{"type": "email", "value": …}`), so people rank higher next
+by address (`{"email": …}`), so people rank higher next
 time:
 
 - **Sent** (`email_sent`, each To / Cc recipient), with the user's token;
@@ -57,12 +57,13 @@ python manage.py create_channel \
   --name "Messages" --type carddav --scopes carddav:write
 ```
 
-It prints a single password string. Messages then authenticates with HTTP
-Basic on every request:
+It prints the channel and its password. The password is one opaque string.
+The command shows it only once. Messages then authenticates with HTTP Basic
+on every request:
 
 ```
 username = the requesting user's OIDC identity email
-password = the printed string (channel id + key, one opaque token)
+password = the printed password (channel id + key, one opaque token)
 ```
 
 against `https://<contacts host>/carddav/`.
@@ -90,7 +91,8 @@ for one organization; the acting user is then required to belong to it.
 ### The flow
 
 Examples use the dev stack (`http://localhost:8971`, demo user
-`user1@example.local`). `$P` is the printed password.
+`user1@example.local`). `$P` is the printed password. The `PROPFIND`
+outputs show only the relevant part of each answer.
 
 Discovery is RFC 6764, so a bare host name is enough:
 
@@ -133,6 +135,7 @@ unrelated card:
 ```console
 $ curl -u "user1@example.local:$P" -X PUT -H "If-None-Match: *" \
     -H "Content-Type: text/vcard" --data-binary @card.vcf \
+    -o /dev/null -w "%{http_code}\n" \
     http://localhost:8971/carddav/addressbooks/personal/<uuid>.vcf
 201
 
@@ -141,9 +144,10 @@ $ # same request again
 ```
 
 To keep a local cache in step, use `sync-collection` rather than re-reading
-the whole book. Its token expires with the trash retention window; the
-server answers `403 valid-sync-token` when a client must resync from
-scratch. See [carddav.md](carddav.md) for the reports and their limits.
+the whole book. A token becomes invalid when `purge_carddav_changes`
+drops a deletion that the token has not seen. The server then answers
+`403 valid-sync-token`, and the client must sync again from scratch. See
+[carddav.md](carddav.md) for the reports and their limits.
 
 ## 3. "Send a message" deep link
 
@@ -179,6 +183,9 @@ The widget needs all four of:
 | `FRONTEND_FEEDBACK_MESSAGES_WIDGET_API_URL` | Messages API origin |
 | `FRONTEND_FEEDBACK_MESSAGES_WIDGET_CHANNEL` | the public widget channel id on the Messages side |
 | `FRONTEND_FEEDBACK_MESSAGES_WIDGET_PATH` | base URL of the widget scripts, with a trailing slash (the frontend loads `<path>feedback.js`) |
+
+The frontend proxy must also allow the two origins: see
+[Content-Security-Policy](deployment.md#content-security-policy).
 
 ## 5. When there is no service credential
 

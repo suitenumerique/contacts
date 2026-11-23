@@ -54,6 +54,14 @@ def test_changelist_renders(admin_client, model):
     assert admin_client.get(url).status_code == 200
 
 
+def test_user_change_page_does_not_edit_the_organization(admin_client):
+    user = factories.UserFactory()
+    url = reverse("admin:core_user_change", args=[user.pk])
+    response = admin_client.get(url)
+    assert response.status_code == 200
+    assert 'name="organization"' not in response.content.decode()
+
+
 def test_contact_changelist_query_count_does_not_grow(
     admin_client, django_assert_max_num_queries
 ):
@@ -85,9 +93,10 @@ def test_channel_change_page_renders(admin_client):
     response = admin_client.get(url)
 
     assert response.status_code == 200
-    assert reverse("admin:core_channel_rotate_token", args=[channel.pk]) in (
-        response.content.decode()
-    )
+    content = response.content.decode()
+    assert reverse("admin:core_channel_rotate_token", args=[channel.pk]) in content
+    assert "core/admin/confirm_submit.js" in content
+    assert "onsubmit=" not in content
 
 
 def test_contact_change_page_renders(admin_client):
