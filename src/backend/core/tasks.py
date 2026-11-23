@@ -28,45 +28,53 @@ IMPORT_FILE_TTL = 60 * 60
 IMPORT_TIME_LIMIT = 15 * 60 * 1000
 
 
-def dedup_keys(emails, given_name, family_name, full_name, phones):
+def dedup_keys(card, uid=""):
     """Keys identifying a card, used to spot one that is already there.
 
-    Every email address is a key. A card without any email falls back to
-    its name plus the digits of its first phone: matching on email alone
-    would never match it, so every re-import would create another copy.
-    The name is the given/family pair when there is one, so that "Dr Jean
-    Dupont" in FN still matches the "Jean Dupont" the API derives; the
-    full name otherwise.
+    *card* holds the emails, the phones, the given, family and full name.
+    The first rule that applies gives the keys:
+
+    1. Each email address is a key.
+    2. The name and the digits of the first phone that has digits.
+    3. The name and *uid*, for a card that has both. A name alone does not
+       tell two persons apart.
+    4. No key. The card matches nothing.
+
+    The name is the given and family names, or the full name when the card
+    has neither. Then "Dr Jean Dupont" in FN matches the "Jean Dupont" that
+    the API derives. Case and extra spaces in the name are ignored.
     """
     keys = {
         f"email:{(entry.get('value') or '').strip().lower()}"
-        for entry in emails or []
+        for entry in card["emails"] or []
         if (entry.get("value") or "").strip()
     }
     if keys:
         return keys
-    name = " ".join(f"{given_name} {family_name}".split()) or " ".join(
-        (full_name or "").split()
+    name = " ".join(f"{card['given_name']} {card['family_name']}".split()) or " ".join(
+        (card["full_name"] or "").split()
     )
     name = name.casefold()
-    digits = ""
-    for entry in phones or []:
+    for entry in card["phones"] or []:
         digits = "".join(ch for ch in (entry.get("value") or "") if ch.isdigit())
         if digits:
-            break
-    return {f"name:{name}|{digits}"} if name or digits else set()
+            return {f"name:{name}|{digits}"}
+    return {f"name:{name}|uid:{uid}"} if name and uid else set()
 
 
 def _rejection(fields):
     """Why this card cannot become a contact, as ``(reason, value)``.
 
-    Returns ``("", "")`` when it can. The rules are the ones the API
-    enforces on create (``ContactSerializer``): a name, the value rules of
-    ``core.validators``, at least an email or a phone. The parsers already
-    fill ``full_name`` from the name parts (and a vCard from its first
-    email, as vCard requires FN), so the name check is on ``full_name``.
-    The parsers give safe types and no blank value, so these two value
-    rules need no check.
+    Checks two of the rules that ``ContactSerializer`` applies to a create:
+    the card has a name, and its emails, phones, addresses and URLs obey
+    the value rules of ``core.validators``. Returns ``("", "")`` when the
+    card breaks neither. The creation of the contact can still fail for
+    another reason.
+
+    The parsers already fill ``full_name`` from the name parts (and a vCard
+    from its first email, as vCard requires FN), so the name check is on
+    ``full_name``. The parsers give safe types and no blank value, so these
+    two value rules need no check.
     """
     if not fields["full_name"].strip():
         return "no_name", ""
@@ -74,10 +82,6 @@ def _rejection(fields):
         reason, value = broken_value_rule(field, fields.get(field, []))
         if reason:
             return reason, value
-    has_email = any((entry.get("value") or "").strip() for entry in fields["emails"])
-    has_phone = any((entry.get("value") or "").strip() for entry in fields["phones"])
-    if not has_email and not has_phone:
-        return "no_email_or_phone", ""
     return "", ""
 
 
@@ -143,22 +147,33 @@ def _create_contact(user, fields, scope=Scope.PERSONAL):
 
 
 def _known_contacts(user, scope=Scope.PERSONAL):
-    """Map each dedup key of the rows in *scope* to the row, for skipping.
+    """Map each dedup key of the contacts in *scope* to the ID of its contact.
 
     Trashed rows are included so a re-imported card restores them rather
     than creating a copy.
     """
     from core.models import Contact  # noqa: PLC0415
+    from core.services.vcf_service import stored_uid  # noqa: PLC0415
 
     known = {}
     rows = (
         _in_scope(Contact, user, scope)
         .filter(overlay_of__isnull=True)
-        .values_list("pk", "emails", "given_name", "family_name", "full_name", "phones")
+        .values(
+            "pk",
+            "emails",
+            "given_name",
+            "family_name",
+            "full_name",
+            "phones",
+            "vcard_extra__UID",
+        )
     )
-    for pk, emails, given_name, family_name, full_name, phones in rows:
-        for key in dedup_keys(emails, given_name, family_name, full_name, phones):
-            known.setdefault(key, pk)
+    for row in rows:
+        # The UID that an export writes on the card of the row.
+        uid = stored_uid({"UID": row["vcard_extra__UID"] or []}) or str(row["pk"])
+        for key in dedup_keys(row, uid):
+            known.setdefault(key, row["pk"])
     return known
 
 
@@ -182,9 +197,8 @@ def import_contacts(user, file_format, data, scope=Scope.PERSONAL):  # pylint: d
     their organization's (the caller checks the user administers it).
 
     A card matching one of the contacts already there (see
-    ``dedup_keys``) is skipped, so re-importing a file creates nothing new.
-    When the match is in the corbeille, the contact is restored instead and
-    counted as imported.
+    ``dedup_keys``) is skipped. When the match is in the corbeille, the
+    contact is restored instead and counted as imported.
 
     The group cards of a vCard file are imported after the contacts (see
     ``_import_groups``).
@@ -221,7 +235,9 @@ def import_contacts(user, file_format, data, scope=Scope.PERSONAL):  # pylint: d
 
     for index, fields in enumerate(cards):
         uid = stored_uid(fields.get("vcard_extra") or {})
-        outcome, contact_id, reason, value = _import_card(user, fields, known, scope)
+        outcome, contact_id, reason, value = _import_card(
+            user, fields, uid, known, scope
+        )
         counts[outcome] += 1
         if outcome == "rejected":
             if len(details) < MAX_ERROR_DETAILS:
@@ -254,20 +270,15 @@ def import_contacts(user, file_format, data, scope=Scope.PERSONAL):  # pylint: d
     return result
 
 
-def _import_card(user, fields, known, scope):
+def _import_card(user, fields, uid, known, scope):
     """Import one parsed card: ``(outcome, contact id, reason, value)``.
 
     *outcome* is "imported" (created, or restored from the corbeille),
     "skipped" (already there: the id is the match's) or "rejected", with
     the reason and the offending value. *known* gains the created card.
+    *uid* is the UID of the card, or "".
     """
-    card_keys = dedup_keys(
-        fields["emails"],
-        fields["given_name"],
-        fields["family_name"],
-        fields["full_name"],
-        fields["phones"],
-    )
+    card_keys = dedup_keys(fields, uid)
     reason, value = _rejection(fields)
     if reason:
         return "rejected", None, reason, value

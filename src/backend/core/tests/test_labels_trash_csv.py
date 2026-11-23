@@ -560,20 +560,29 @@ def test_import_applies_the_api_rules(user):
     data = (
         "prenom,nom,email,telephone\n"
         ",,nobody@example.org,\n"  # no name
-        "Paul,Durand,,\n"  # no email nor phone
+        "Paul,Durand,,\n"  # a name alone: fine
         "Anne,Bad,not-an-email,\n"  # invalid email
         "Luc,Phone,,+33199000405\n"  # phone only: fine
         "Jeanne,,jeanne@example.org,\n"  # a first name alone is a name
     )
     result = import_contacts(user, "csv", data.encode())
 
-    assert result["imported"] == 2
-    assert result["errors"] == 3
+    assert result["imported"] == 3
+    assert result["errors"] == 2
     reasons = [detail["reason"] for detail in result["error_details"]]
-    assert reasons == ["no_name", "no_email_or_phone", "invalid_email"]
+    assert reasons == ["no_name", "invalid_email"]
     assert set(
         models.Contact.objects.filter(owner=user).values_list("full_name", flat=True)
-    ) == {"Luc Phone", "Jeanne"}
+    ) == {"Paul Durand", "Luc Phone", "Jeanne"}
+
+
+def test_import_does_not_match_a_row_with_only_a_name(user):
+    """A CSV row has no UID, and a name alone does not tell two persons apart."""
+    data = "prenom,nom\nJean,Dupont\nJean,Dupont\n".encode()
+
+    assert import_contacts(user, "csv", data)["imported"] == 2
+    assert import_contacts(user, "csv", data)["imported"] == 2
+    assert models.Contact.objects.filter(owner=user).count() == 4
 
 
 def test_csv_import_rejects_a_card_with_a_phone_that_is_too_long(user):
