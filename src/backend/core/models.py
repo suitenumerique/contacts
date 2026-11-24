@@ -30,7 +30,7 @@ from core.enums import (
     Scope,
 )
 from core.phones import phone_search_forms
-from core.utils import build_search_text
+from core.utils import build_search_text, strip_bidi_controls
 from core.validators import validate_photo
 
 logger = getLogger(__name__)
@@ -527,6 +527,15 @@ class Contact(BaseModel):
         "photo",
     )
     TYPED_LIST_FIELDS = frozenset({"emails", "phones", "addresses", "urls"})
+    BIDI_STRIPPED_FIELDS = (
+        "full_name",
+        "name_prefix",
+        *NAME_PARTS,
+        "nickname",
+        "company",
+        "department",
+        "job_title",
+    )
 
     def __str__(self):
         return self.display_name
@@ -749,6 +758,8 @@ class Contact(BaseModel):
 
     def clean(self):
         """Validate JSON list fields and refresh denormalized search fields."""
+        for field in self.BIDI_STRIPPED_FIELDS:
+            setattr(self, field, strip_bidi_controls(getattr(self, field)))
         if not self.scope:
             self.scope = Scope.PERSONAL if self.owner_id else Scope.ORGANIZATION
         for field in ("emails", "phones", "addresses", "urls"):
@@ -848,13 +859,18 @@ class ContactLabel(BaseModel):
     def __str__(self):
         return self.name
 
+    def clean(self):
+        """Remove the bidi control characters from the name."""
+        self.name = strip_bidi_controls(self.name)
+
     @classmethod
     def for_names(cls, user, names):
         """*user*'s labels called *names*, created when missing.
 
         Matched case-insensitively, so "amis" from a phone finds "Amis".
         """
-        names = [name.strip()[:100] for name in names if name.strip()]
+        names = [strip_bidi_controls(name).strip()[:100] for name in names]
+        names = [name for name in names if name]
         existing = {
             label.name.casefold(): label
             for label in cls.objects.filter(owner=user).order_by("created_at")
@@ -1022,6 +1038,8 @@ class ContactGroup(BaseModel):
 
     def clean(self):
         """Fill ``scope`` from ``owner`` and refresh ``search_text``."""
+        self.name = strip_bidi_controls(self.name)
+        self.description = strip_bidi_controls(self.description)
         if not self.scope:
             self.scope = Scope.PERSONAL if self.owner_id else Scope.ORGANIZATION
         self.search_text = build_search_text(self.name, self.email, self.description)
