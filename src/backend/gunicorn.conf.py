@@ -9,6 +9,10 @@ python_path = "/app"
 graceful_timeout = 90
 timeout = 90
 workers = 3
+# Gunicorn creates its control socket (for gunicornc) in the working
+# directory. The container user cannot write to /app, so gunicorn logs an
+# error at each start. We do not use gunicornc.
+control_socket_disable = True
 
 # Logging
 # Using '-' for the access log file makes gunicorn log accesses to stdout
