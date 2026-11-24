@@ -357,23 +357,21 @@ class Contact(BaseModel):
     civility = models.CharField(
         max_length=8, choices=Civility.choices, blank=True, default=""
     )
-    full_name = models.CharField(max_length=255, blank=True, default="")
+    full_name = models.CharField(blank=True, default="")
     name_prefix = models.CharField(
-        max_length=255,
         blank=True,
         default="",
         help_text="Title before the name (Dr, Pr, Me), civility aside.",
     )
-    given_name = models.CharField(max_length=255, blank=True, default="")
-    middle_name = models.CharField(max_length=255, blank=True, default="")
-    family_name = models.CharField(max_length=255, blank=True, default="")
+    given_name = models.CharField(blank=True, default="")
+    middle_name = models.CharField(blank=True, default="")
+    family_name = models.CharField(blank=True, default="")
     name_suffix = models.CharField(
-        max_length=255,
         blank=True,
         default="",
         help_text="Suffix after the name (Jr., III).",
     )
-    nickname = models.CharField(max_length=255, blank=True, default="")
+    nickname = models.CharField(blank=True, default="")
 
     emails = models.JSONField(
         default=list,
@@ -396,14 +394,13 @@ class Contact(BaseModel):
         help_text='List of {"type": ..., "value": "https://..."}.',
     )
 
-    company = models.CharField(max_length=255, blank=True, default="")
+    company = models.CharField(blank=True, default="")
     department = models.CharField(
-        max_length=255,
         blank=True,
         default="",
         help_text="Direction / service within the organization.",
     )
-    job_title = models.CharField(max_length=255, blank=True, default="")
+    job_title = models.CharField(blank=True, default="")
     notes = models.TextField(blank=True, default="")
     photo = models.TextField(
         blank=True,

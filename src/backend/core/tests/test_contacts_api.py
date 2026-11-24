@@ -452,20 +452,21 @@ def test_unknown_sort_value_falls_back_to_ascending(client, user):
 
 
 def test_very_long_names_do_not_break_saving(client):
-    """given + family can exceed the 255 characters of full_name and sort_key."""
+    """A name has no length limit. Only ``sort_key`` holds 255 characters."""
     response = client.post(
         CONTACTS_URL,
         {
-            "given_name": "G" * 255,
-            "family_name": "F" * 255,
+            "given_name": "G" * 300,
+            "family_name": "F" * 300,
             "emails": [{"value": "long@example.org"}],
         },
         format="json",
     )
     assert response.status_code == 201, response.content
+    assert response.json()["full_name"] == "G" * 300 + " " + "F" * 300
     contact = models.Contact.objects.get(pk=response.json()["id"])
-    assert contact.full_name == ("G" * 255 + " " + "F" * 255)[:255]
-    assert contact.sort_key == ("f" * 255 + " " + "g" * 255)[:255]
+    assert (contact.given_name, contact.family_name) == ("G" * 300, "F" * 300)
+    assert contact.sort_key == "f" * 255
 
 
 # --- visibility of groups and labels ------------------------------------------

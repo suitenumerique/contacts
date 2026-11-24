@@ -2180,34 +2180,27 @@
                         "$ref": "#/components/schemas/CivilityEnum"
                     },
                     "full_name": {
-                        "type": "string",
-                        "maxLength": 255
+                        "type": "string"
                     },
                     "name_prefix": {
                         "type": "string",
-                        "description": "Title before the name (Dr, Pr, Me), civility aside.",
-                        "maxLength": 255
+                        "description": "Title before the name (Dr, Pr, Me), civility aside."
                     },
                     "given_name": {
-                        "type": "string",
-                        "maxLength": 255
+                        "type": "string"
                     },
                     "middle_name": {
-                        "type": "string",
-                        "maxLength": 255
+                        "type": "string"
                     },
                     "family_name": {
-                        "type": "string",
-                        "maxLength": 255
+                        "type": "string"
                     },
                     "name_suffix": {
                         "type": "string",
-                        "description": "Suffix after the name (Jr., III).",
-                        "maxLength": 255
+                        "description": "Suffix after the name (Jr., III)."
                     },
                     "nickname": {
-                        "type": "string",
-                        "maxLength": 255
+                        "type": "string"
                     },
                     "emails": {
                         "type": "array",
@@ -2234,17 +2227,14 @@
                         }
                     },
                     "company": {
-                        "type": "string",
-                        "maxLength": 255
+                        "type": "string"
                     },
                     "department": {
                         "type": "string",
-                        "description": "Direction / service within the organization.",
-                        "maxLength": 255
+                        "description": "Direction / service within the organization."
                     },
                     "job_title": {
-                        "type": "string",
-                        "maxLength": 255
+                        "type": "string"
                     },
                     "notes": {
                         "type": "string"
@@ -2620,34 +2610,27 @@
                         "$ref": "#/components/schemas/CivilityEnum"
                     },
                     "full_name": {
-                        "type": "string",
-                        "maxLength": 255
+                        "type": "string"
                     },
                     "name_prefix": {
                         "type": "string",
-                        "description": "Title before the name (Dr, Pr, Me), civility aside.",
-                        "maxLength": 255
+                        "description": "Title before the name (Dr, Pr, Me), civility aside."
                     },
                     "given_name": {
-                        "type": "string",
-                        "maxLength": 255
+                        "type": "string"
                     },
                     "middle_name": {
-                        "type": "string",
-                        "maxLength": 255
+                        "type": "string"
                     },
                     "family_name": {
-                        "type": "string",
-                        "maxLength": 255
+                        "type": "string"
                     },
                     "name_suffix": {
                         "type": "string",
-                        "description": "Suffix after the name (Jr., III).",
-                        "maxLength": 255
+                        "description": "Suffix after the name (Jr., III)."
                     },
                     "nickname": {
-                        "type": "string",
-                        "maxLength": 255
+                        "type": "string"
                     },
                     "emails": {
                         "type": "array",
@@ -2674,17 +2657,14 @@
                         }
                     },
                     "company": {
-                        "type": "string",
-                        "maxLength": 255
+                        "type": "string"
                     },
                     "department": {
                         "type": "string",
-                        "description": "Direction / service within the organization.",
-                        "maxLength": 255
+                        "description": "Direction / service within the organization."
                     },
                     "job_title": {
-                        "type": "string",
-                        "maxLength": 255
+                        "type": "string"
                     },
                     "notes": {
                         "type": "string"
@@ -2934,34 +2914,27 @@
                         "$ref": "#/components/schemas/CivilityEnum"
                     },
                     "full_name": {
-                        "type": "string",
-                        "maxLength": 255
+                        "type": "string"
                     },
                     "name_prefix": {
                         "type": "string",
-                        "description": "Title before the name (Dr, Pr, Me), civility aside.",
-                        "maxLength": 255
+                        "description": "Title before the name (Dr, Pr, Me), civility aside."
                     },
                     "given_name": {
-                        "type": "string",
-                        "maxLength": 255
+                        "type": "string"
                     },
                     "middle_name": {
-                        "type": "string",
-                        "maxLength": 255
+                        "type": "string"
                     },
                     "family_name": {
-                        "type": "string",
-                        "maxLength": 255
+                        "type": "string"
                     },
                     "name_suffix": {
                         "type": "string",
-                        "description": "Suffix after the name (Jr., III).",
-                        "maxLength": 255
+                        "description": "Suffix after the name (Jr., III)."
                     },
                     "nickname": {
-                        "type": "string",
-                        "maxLength": 255
+                        "type": "string"
                     },
                     "emails": {
                         "type": "array",
@@ -2988,17 +2961,14 @@
                         }
                     },
                     "company": {
-                        "type": "string",
-                        "maxLength": 255
+                        "type": "string"
                     },
                     "department": {
                         "type": "string",
-                        "description": "Direction / service within the organization.",
-                        "maxLength": 255
+                        "description": "Direction / service within the organization."
                     },
                     "job_title": {
-                        "type": "string",
-                        "maxLength": 255
+                        "type": "string"
                     },
                     "notes": {
                         "type": "string"

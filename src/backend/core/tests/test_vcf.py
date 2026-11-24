@@ -417,6 +417,24 @@ def test_import_keeps_two_exported_contacts_with_the_same_name():
         }
 
 
+def test_import_reads_an_exported_contact_with_a_long_text():
+    user = factories.UserFactory()
+    client = APIClient()
+    client.force_login(user)
+    title = "x" * 300
+    line = f"TITLE:{title}"
+    import_contacts(user, "vcf", REFUSED_VALUE_VCF.format(line=line).encode())
+    assert models.Contact.objects.get(owner=user).job_title == title
+    export = client.get("/api/v1.0/contacts/export-vcf/").content
+    assert line in export.decode().replace("\r\n ", "").split("\r\n")
+
+    other = factories.UserFactory()
+    result = import_contacts(other, "vcf", export)
+
+    assert counters(result) == {"imported": 1, "skipped": 0, "errors": 0, "total": 1}
+    assert models.Contact.objects.get(owner=other).job_title == title
+
+
 def test_import_maps_google_system_categories():
     """A Google Contacts export lists its system groups in CATEGORIES."""
     user = factories.UserFactory()
