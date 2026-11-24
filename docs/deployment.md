@@ -65,7 +65,7 @@ allowlist with spoofed and trusted `X-Forwarded-For`. CI runs it.
 
 ## Backend image
 
-The backend production image (`backend-production` stage of
+The backend production image (`backend-distroless` stage of
 `src/backend/Dockerfile`) runs gunicorn on port `8000`. Its `HEALTHCHECK`
 requests `/__heartbeat__/` on `localhost:8000`, so the container is
 unhealthy when Django does not answer or when the database is unreachable.
@@ -98,30 +98,30 @@ failed probe does not mark the container unhealthy.
 
 ### Distroless image
 
-The `backend-distroless` stage builds the same application on
-`gcr.io/distroless/cc-debian13:nonroot`: no shell, no package manager. It
-holds a standalone Python installed by uv, the virtual environment, the
-application and the collected static files.
+The image is built on `gcr.io/distroless/cc-debian13:nonroot`: no shell, no
+package manager. It holds a standalone Python installed by uv, the virtual
+environment, the application and the collected static files.
 
-```bash
-docker build --target backend-distroless -t contacts-backend-distroless src/backend
-```
-
-Differences from `backend-production`:
-
-- It runs as the image's `nonroot` user (uid 65532) and does not use the
-  `entrypoint` script.
+- It runs as the image's `nonroot` user (uid 65532).
 - Commands are given in exec form, for example
   `python manage.py migrate`. A command that needs `sh` does not run.
-- It has the same `HEALTHCHECK`.
 
-The release workflow publishes `backend-production`. It does not publish
-this stage. `backend-production` is the last stage of the Dockerfile, so a
-build without `--target` also produces it.
+The release workflow publishes this stage. It is the last stage of the
+Dockerfile, so a build without `--target` also produces it.
 
 `make test-back-distroless` builds the image and checks the user, the
 native modules, the CA store, the static files and the Django system
 checks. It needs no database. CI runs it on amd64 and arm64.
+
+### Image with a shell
+
+The `backend-production` stage builds the same application on alpine, with
+a shell and the `entrypoint` script. It runs as uid 10000 and has the same
+`HEALTHCHECK`. The release workflow does not publish it.
+
+```bash
+docker build --target backend-production -t contacts-backend-production src/backend
+```
 
 ## Legal pages
 
