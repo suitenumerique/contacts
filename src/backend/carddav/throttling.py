@@ -23,53 +23,15 @@ The client address comes from DRF's ``get_ident``: ``REMOTE_ADDR``, or the
 ``NUM_PROXIES`` setting says how many there are.
 """
 
-import math
-
 from rest_framework.throttling import SimpleRateThrottle
 
-
-def retry_after(throttle):
-    """Seconds to announce in ``Retry-After`` for a refused *throttle*."""
-    wait = throttle.wait()
-    if wait is None:
-        wait = throttle.duration
-    return str(max(1, math.ceil(wait)))
+from core.throttling import AuthFailureThrottle
 
 
-class CardDAVAuthFailureThrottle(SimpleRateThrottle):
+class CardDAVAuthFailureThrottle(AuthFailureThrottle):
     """Throttle repeated authentication failures from one address."""
 
     scope = "carddav_auth"
-
-    def __init__(self):
-        super().__init__()
-        # Set by exhausted() / allow_request(), read by wait().
-        self.key = None
-        self.now = None
-        self.history = []
-
-    def get_cache_key(self, request, view):
-        return self.cache_format % {
-            "scope": self.scope,
-            "ident": self.get_ident(request),
-        }
-
-    def exhausted(self, request, view):
-        """Whether the failure budget is spent, without recording a hit."""
-        if self.rate is None:
-            return False
-        self.key = self.get_cache_key(request, view)
-        self.now = self.timer()
-        self.history = [
-            stamp
-            for stamp in self.cache.get(self.key, [])
-            if stamp > self.now - self.duration
-        ]
-        return len(self.history) >= self.num_requests
-
-    def record_failure(self, request, view):
-        """Count one failed authentication against the client address."""
-        self.allow_request(request, view)
 
 
 class CardDAVRequestThrottle(SimpleRateThrottle):

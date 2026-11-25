@@ -43,11 +43,25 @@ blocks the widget. A frontend built with `API_ORIGIN` needs that origin in
 
 ### Client address in Django
 
-Django reads the client address (CardDAV login throttling) from
+Django reads the client address (CardDAV and admin login throttling) from
 `REMOTE_ADDR`, or from `X-Forwarded-For` when `NUM_PROXIES` says how many
 trusted proxies sit in front of it. Behind this Caddy, set
 `NUM_PROXIES=1`. The default, `0`, ignores the header, which any client can
 write when no proxy sets it.
+
+### Admin login limit
+
+Django limits the failed password logins on the admin. When a budget is
+spent, the login form answers `429` with `Retry-After`, also for a correct
+password.
+
+| Variable | Default | Description |
+| -------- | ------- | ----------- |
+| `ADMIN_LOGIN_THROTTLE_RATE` | `20/hour` | Failed admin logins allowed per client address. |
+| `ADMIN_LOGIN_USERNAME_THROTTLE_RATE` | `10/hour` | Failed admin logins allowed per submitted username, from any address. |
+
+Somebody who knows an admin username can spend its budget and block that
+account. Set `DJANGO_ADMIN_IP_ALLOWLIST` to prevent this.
 
 ### Scalingo
 

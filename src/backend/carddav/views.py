@@ -39,16 +39,13 @@ from core.services.vcf_service import (
     InvalidVCardError,
     parse_one_card,
 )
+from core.throttling import retry_after
 
 from carddav import groups, storage
 from carddav.auth import AuthError, ForbiddenError, authenticate, check_scope
 from carddav.models import CardName
 from carddav.query import UnsupportedFilterError, compile_filter
-from carddav.throttling import (
-    CardDAVAuthFailureThrottle,
-    CardDAVRequestThrottle,
-    retry_after,
-)
+from carddav.throttling import CardDAVAuthFailureThrottle, CardDAVRequestThrottle
 from carddav.xml import (
     CARD,
     CS,
