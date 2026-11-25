@@ -58,9 +58,14 @@ def budgets(monkeypatch):
 
 
 def login(username, password, **extra):
-    return Client().post(
-        reverse("admin:login"), {"username": username, "password": password}, **extra
-    )
+    data = {
+        "username": username,
+        "password": password,
+        # The admin form sends this field. Without it, a successful login
+        # redirects to LOGIN_REDIRECT_URL, which can be unset.
+        "next": reverse("admin:index"),
+    }
+    return Client().post(reverse("admin:login"), data, **extra)
 
 
 def test_the_admin_site_has_the_login_limit():
