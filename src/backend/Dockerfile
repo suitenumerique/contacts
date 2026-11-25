@@ -133,8 +133,14 @@ HEALTHCHECK --interval=30s --timeout=2s --start-period=30s \
 
 # ---- Distroless builder ----
 # Debian, like the distroless image: the alpine stages above link against
-# musl, and their Python and wheels do not run on glibc.
+# musl, and their Python and wheels do not run on glibc. This stage also
+# collects the static files, so the distroless image needs no alpine stage.
 FROM debian:trixie-slim@sha256:a72b4433de1cf7d6bae0c4cee74d0547f58601a643b3375f070c51600d63b6b2 AS distroless-builder
+ARG CONTACTS_STATIC_ROOT=/data/static
+
+RUN apt-get update && \
+  apt-get install -y --no-install-recommends rdfind && \
+  rm -rf /var/lib/apt/lists/*
 
 ENV UV_COMPILE_BYTECODE=1
 ENV UV_LINK_MODE=copy
@@ -162,6 +168,10 @@ RUN chmod -R a+rX /app
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked --no-dev
 
+RUN DJANGO_CONFIGURATION=Build \
+    /venv/bin/python manage.py collectstatic --noinput
+RUN rdfind -makesymlinks true -followsymlinks true -makeresultsfile false ${CONTACTS_STATIC_ROOT}
+
 # ---- Distroless production image ----
 # The release workflow publishes this stage. Keep it last: a build without
 # --target produces the last stage.
@@ -180,7 +190,7 @@ ENV VIRTUAL_ENV=/venv
 COPY --from=distroless-builder /opt/python /opt/python
 COPY --from=distroless-builder /venv /venv
 COPY --from=distroless-builder /app /app
-COPY --from=link-collector ${CONTACTS_STATIC_ROOT} ${CONTACTS_STATIC_ROOT}
+COPY --from=distroless-builder ${CONTACTS_STATIC_ROOT} ${CONTACTS_STATIC_ROOT}
 
 WORKDIR /app
 
