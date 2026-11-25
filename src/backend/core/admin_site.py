@@ -29,8 +29,9 @@ class AdminLoginUsernameThrottle(AuthFailureThrottle):
     scope = "admin_login_username"
 
     def get_cache_key(self, request: HttpRequest, view: object) -> str | None:
-        # The login form applies NFKC to the username. Do the same, or
-        # equivalent spellings of one account get separate budgets.
+        # The login form reads the username in NFKC, without outer spaces.
+        # The key uses the same form, in lower case, so that each spelling
+        # of one username counts against the same budget.
         username = unicodedata.normalize(
             "NFKC", request.POST.get("username", "").strip()
         ).lower()
