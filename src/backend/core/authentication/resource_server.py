@@ -18,7 +18,7 @@ from django.db import IntegrityError
 from joserfc.errors import JoseError
 from lasuite.oidc_resource_server.backend import ResourceServerBackend
 from requests.exceptions import ConnectionError as RequestsConnectionError
-from requests.exceptions import Timeout
+from requests.exceptions import HTTPError, Timeout
 from rest_framework import status
 from rest_framework.exceptions import APIException, AuthenticationFailed
 
@@ -33,6 +33,13 @@ class AuthorizationServerUnavailable(APIException):
     status_code = status.HTTP_503_SERVICE_UNAVAILABLE
     default_detail = "The authorization server is unavailable. Try again later."
     default_code = "authorization_server_unavailable"
+
+
+def _is_server_error(exc):
+    """Tell if *exc* is an HTTP error answer of status 5xx."""
+    if not isinstance(exc, HTTPError) or exc.response is None:
+        return False
+    return exc.response.status_code >= 500
 
 
 def introspection_cache_key(access_token):
@@ -86,13 +93,23 @@ class ContactsResourceServerBackend(ResourceServerBackend):
         try:
             return super().get_or_create_user(access_token, id_token, payload)
         except (IntegrityError, ValidationError) as exc:
-            # The usual cause is a concurrent call of the same person that
-            # created the user first. The user model validates the unique sub
-            # before the insert, thus the two errors are possible.
-            logger.info("User creation failed, new lookup: %s", exc)
-            return self.get_user(access_token, id_token, payload)
+            # Usually a concurrent call of the same person created the user
+            # first. The model validates the unique sub before the insert, so
+            # either error can occur.
+            user = self.get_user(access_token, id_token, payload)
+            if user is None:
+                raise
+            logger.info("User created by a concurrent call: %s", exc)
+            return user
         except (RequestsConnectionError, Timeout) as exc:
             logger.warning("Userinfo failed: %s", exc)
+            raise AuthorizationServerUnavailable() from exc
+        except SuspiciousOperation as exc:
+            # lasuite turns an HTTP error of the userinfo into this error. An
+            # error of the server is not the token's fault.
+            if not _is_server_error(exc.__cause__):
+                raise
+            logger.warning("Userinfo failed: %s", exc.__cause__)
             raise AuthorizationServerUnavailable() from exc
 
     def _introspect_or_401(self, access_token):

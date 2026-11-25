@@ -96,6 +96,49 @@ def test_an_unreachable_userinfo_gets_503():
     assert not models.User.objects.filter(sub=SUB).exists()
 
 
+@pytest.mark.parametrize("status", [500, 502, 503])
+@responses.activate
+def test_a_userinfo_server_error_gets_503(status):
+    """A userinfo server error gets 503."""
+    _mock_token()
+    responses.add(responses.GET, USERINFO_URL, status=status)
+
+    assert _client().get(URL).status_code == 503
+    assert not models.User.objects.filter(sub=SUB).exists()
+
+
+@responses.activate
+def test_a_token_that_userinfo_refuses_gets_401():
+    """A token that userinfo refuses gets 401."""
+    _mock_token()
+    responses.add(responses.GET, USERINFO_URL, status=401)
+
+    assert _client().get(URL).status_code == 401
+
+
+@responses.activate
+def test_a_concurrent_first_call_of_the_same_organization_is_served():
+    """A concurrent first call of the same organization is served."""
+    factories.OrganizationFactory(external_id="brigny.example")
+    _mock_token()
+    responses.add(responses.GET, USERINFO_URL, json={"sub": SUB, "email": EMAIL})
+
+    def create_after_a_missed_lookup(external_id, defaults):
+        # The other call created the organization after the lookup of this
+        # call: the model validation finds it and refuses the creation.
+        return models.Organization.objects.create(external_id=external_id, **defaults)
+
+    with mock.patch.object(
+        models.Organization.objects,
+        "get_or_create",
+        side_effect=create_after_a_missed_lookup,
+    ):
+        assert _client().get(URL).status_code == 200
+
+    user = models.User.objects.get(sub=SUB)
+    assert user.organization.external_id == "brigny.example"
+
+
 @pytest.mark.parametrize(
     "error",
     [ValidationError("User with this Sub already exists."), IntegrityError("sub")],
@@ -115,3 +158,17 @@ def test_a_concurrent_first_call_is_served(user, error):
         ResourceServerBackend, "get_or_create_user", side_effect=error
     ):
         assert _client().get(URL).status_code == 200
+
+
+@responses.activate
+def test_a_creation_error_without_a_concurrent_user_is_not_hidden():
+    """A creation error without a concurrent user is not hidden."""
+    _mock_token()
+
+    with mock.patch.object(
+        ResourceServerBackend,
+        "get_or_create_user",
+        side_effect=ValidationError("Some invalid value."),
+    ):
+        assert _client().get(URL).status_code == 400
+    assert not models.User.objects.filter(sub=SUB).exists()

@@ -691,9 +691,8 @@ class Base(Configuration):
     OIDC_RS_SIGNING_ALGO = values.Value(
         "ES256", environ_name="OIDC_RS_SIGNING_ALGO", environ_prefix=None
     )
-    # A person who never logged in to Contacts gets a user at the first call
-    # of an allowed app. The login backend creates the user from the userinfo
-    # endpoint, with the rules of a login.
+    # Create the user of an unknown sub at the first call of an allowed app,
+    # from the userinfo endpoint, with the rules of a login.
     OIDC_RS_CREATE_USER = values.BooleanValue(
         default=False, environ_name="OIDC_RS_CREATE_USER", environ_prefix=None
     )

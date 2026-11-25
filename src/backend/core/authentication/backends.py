@@ -3,7 +3,7 @@
 import logging
 
 from django.conf import settings
-from django.core.exceptions import SuspiciousOperation
+from django.core.exceptions import SuspiciousOperation, ValidationError
 from django.db import transaction
 
 from lasuite.oidc_login.backends import (
@@ -42,6 +42,25 @@ def _resolve_org_external_id(claims, email=None):
         return claims.get(claim_key) or None
     email = email or claims.get("email")
     return email.split("@")[-1].lower() if email and "@" in email else None
+
+
+def get_or_create_organization(external_id, name=""):
+    """Return the organization of *external_id* and if it is new.
+
+    Two first logins of the same organization can run at the same time. The
+    model validates the unique external_id before the insert, so the second
+    creation raises ``ValidationError``, not the ``IntegrityError`` that
+    ``get_or_create`` handles. Then the organization of the other login is used.
+    """
+    try:
+        return Organization.objects.get_or_create(
+            external_id=external_id, defaults={"name": name}
+        )
+    except ValidationError:
+        org = Organization.objects.filter(external_id=external_id).first()
+        if org is None:
+            raise
+        return org, False
 
 
 def _move_user_data(user, old_org_id, new_org):
@@ -90,10 +109,7 @@ def resolve_organization(user, claims, entitlements=None):
 
     org_name = entitlements.get("organization_name") or ""
 
-    org, created = Organization.objects.get_or_create(
-        external_id=external_id,
-        defaults={"name": org_name},
-    )
+    org, created = get_or_create_organization(external_id, org_name)
     if not created and org_name and org.name != org_name:
         org.name = org_name
         org.save(update_fields=["name", "updated_at"])
@@ -164,9 +180,7 @@ class OIDCAuthenticationBackend(LaSuiteOIDCAuthenticationBackend):
 
         org_claim = settings.OIDC_USERINFO_ORGANIZATION_CLAIM
         user_claims = {key: value for key, value in claims.items() if key != org_claim}
-        user_claims["organization"], _ = Organization.objects.get_or_create(
-            external_id=external_id
-        )
+        user_claims["organization"], _ = get_or_create_organization(external_id)
         return super().create_user(user_claims)
 
     def post_get_or_create_user(self, user, claims, is_new_user):

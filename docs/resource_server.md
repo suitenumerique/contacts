@@ -122,7 +122,8 @@ With `OIDC_RS_CREATE_USER`, the first call for such a person creates the
 user. Contacts sends the token to the userinfo endpoint of the authorization
 server. Then it applies the rules of a first login: the
 [organization](organizations.md), the predefined labels and the
-entitlements. The answer is **401** if the userinfo gives no organization.
+entitlements. The answer is **401** if the userinfo gives no organization,
+and **503** if the userinfo endpoint fails or does not answer.
 Only an app in `OIDC_RS_ALLOWED_AUDIENCES` can create a user.
 
 ### Introspection cache
@@ -459,9 +460,9 @@ favorites the user doesn't have (now skipped).
 
 `env.d/development/backend.defaults` turns the resource server on against
 the dev Keycloak, with `drive` as the allowed app and `OIDC_RS_CREATE_USER`
-on. The dev realm
-(`docker/auth/realm.json`) has a `drive` client with the audience mapper and
-direct access grants, so a token can be fetched with curl:
+on. The dev realm (`docker/auth/realm.json`) has a `drive` client with the
+audience mapper and direct access grants, so a token can be fetched with
+curl:
 
 ```bash
 curl -s http://localhost:8975/realms/contacts/protocol/openid-connect/token \
