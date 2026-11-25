@@ -12,7 +12,8 @@ import time
 
 from django.conf import settings
 from django.core.cache import cache
-from django.core.exceptions import SuspiciousOperation
+from django.core.exceptions import SuspiciousOperation, ValidationError
+from django.db import IntegrityError
 
 from joserfc.errors import JoseError
 from lasuite.oidc_resource_server.backend import ResourceServerBackend
@@ -72,6 +73,27 @@ class ContactsResourceServerBackend(ResourceServerBackend):
         if ttl > 0:
             cache.set(key, user_info, ttl)
         return user_info
+
+    def get_or_create_user(self, access_token, id_token, payload):
+        """Return the user of the token. Create the user for an allowed app only.
+
+        With ``OIDC_RS_CREATE_USER``, lasuite creates a user that it does not
+        know. The call of an app that is not in ``OIDC_RS_ALLOWED_AUDIENCES``
+        is refused after the authentication, and a refused call must not write.
+        """
+        if self.token_origin_audience not in settings.OIDC_RS_ALLOWED_AUDIENCES:
+            return self.get_user(access_token, id_token, payload)
+        try:
+            return super().get_or_create_user(access_token, id_token, payload)
+        except (IntegrityError, ValidationError) as exc:
+            # The usual cause is a concurrent call of the same person that
+            # created the user first. The user model validates the unique sub
+            # before the insert, thus the two errors are possible.
+            logger.info("User creation failed, new lookup: %s", exc)
+            return self.get_user(access_token, id_token, payload)
+        except (RequestsConnectionError, Timeout) as exc:
+            logger.warning("Userinfo failed: %s", exc)
+            raise AuthorizationServerUnavailable() from exc
 
     def _introspect_or_401(self, access_token):
         """Introspect: 401 for a rejected token, 503 if the server is down.

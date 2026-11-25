@@ -47,6 +47,7 @@ the web app's schema, so the frontend client doesn't list these endpoints.
 | `OIDC_RS_ALLOWED_AUDIENCES` | `[]` | apps allowed to call, e.g. `drive,docs` |
 | `OIDC_RS_AUDIENCE_CLAIM` | `client_id` | introspection claim naming the app a token was issued to |
 | `OIDC_RS_SCOPES` | `openid` | a token must carry at least one of them |
+| `OIDC_RS_CREATE_USER` | `False` | create a user for a person who never logged in to Contacts, see [People who never logged in](#people-who-never-logged-in) |
 | `OIDC_RS_INTROSPECTION_CACHE_TIMEOUT` | `60` | seconds an introspection is reused; `0` turns the cache off |
 | `OIDC_RS_BACKEND_CLASS` | `core.authentication.resource_server.ContactsResourceServerBackend` | |
 | `JSCONTACT_VENDOR_PREFIX` | `numerique.gouv.fr` | domain prefix of the cards' vendor properties (`numerique.gouv.fr:isOrg`); part of the contract, see [Cards](#cards-jscontact) |
@@ -92,6 +93,10 @@ value is a Python dict literal (`True`, not `true`):
   included client audience `contacts`) to each consumer client, as the dev
   realm does for `drive`.
 - Return `sub` (matched to the Contacts user) and the audience claim.
+- With `OIDC_RS_CREATE_USER`: answer a userinfo request that has the token
+  of a consumer app, with the claims that a login to Contacts needs (`email`
+  and the [organization claim](organizations.md)). The consumer app must
+  ask for the scopes of these claims.
 
 ### Who may call
 
@@ -100,9 +105,8 @@ A request is served when all of these hold, in order:
 1. A `Bearer` token is present and the authorization server says it is
    active, with one of `OIDC_RS_SCOPES`: else **401**.
 2. Its `sub` is an active Contacts user: else **401**. A person who never
-   logged in to Contacts is not a user here. (django-lasuite can create
-   such a user with `OIDC_RS_CREATE_USER`. Contacts does not use this
-   setting.)
+   logged in to Contacts is not a user, unless `OIDC_RS_CREATE_USER` is on
+   (see [People who never logged in](#people-who-never-logged-in)).
 3. The app it was issued to is in `OIDC_RS_ALLOWED_AUDIENCES`: else **403**.
 4. The user passes the `can_access` entitlement: else **403**.
 
@@ -111,6 +115,15 @@ only on `POST /interactions/` (see
 [Events without a user](#events-without-a-user-service-channels)). If the
 authorization server is unreachable, the answer is **503**: the caller
 should retry, not refresh its token.
+
+### People who never logged in
+
+With `OIDC_RS_CREATE_USER`, the first call for such a person creates the
+user. Contacts sends the token to the userinfo endpoint of the authorization
+server. Then it applies the rules of a first login: the
+[organization](organizations.md), the predefined labels and the
+entitlements. The answer is **401** if the userinfo gives no organization.
+Only an app in `OIDC_RS_ALLOWED_AUDIENCES` can create a user.
 
 ### Introspection cache
 
@@ -445,7 +458,8 @@ favorites the user doesn't have (now skipped).
 ## Local development
 
 `env.d/development/backend.defaults` turns the resource server on against
-the dev Keycloak, with `drive` as the allowed app. The dev realm
+the dev Keycloak, with `drive` as the allowed app and `OIDC_RS_CREATE_USER`
+on. The dev realm
 (`docker/auth/realm.json`) has a `drive` client with the audience mapper and
 direct access grants, so a token can be fetched with curl:
 

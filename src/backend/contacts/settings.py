@@ -691,6 +691,15 @@ class Base(Configuration):
     OIDC_RS_SIGNING_ALGO = values.Value(
         "ES256", environ_name="OIDC_RS_SIGNING_ALGO", environ_prefix=None
     )
+    # A person who never logged in to Contacts gets a user at the first call
+    # of an allowed app. The login backend creates the user from the userinfo
+    # endpoint, with the rules of a login.
+    OIDC_RS_CREATE_USER = values.BooleanValue(
+        default=False, environ_name="OIDC_RS_CREATE_USER", environ_prefix=None
+    )
+    OIDC_RS_USER_CREATION_BACKEND_CLASS = (
+        "core.authentication.backends.OIDCAuthenticationBackend"
+    )
     # Seconds a successful introspection is reused for the same token (never
     # past the token's own expiry). A share modal searches on every
     # keystroke; 0 introspects every request.
@@ -978,6 +987,7 @@ class Test(Base):
     OIDC_RS_CLIENT_SECRET = "rs-secret"  # noqa: S105  # fake test server
     OIDC_RS_ALLOWED_AUDIENCES = ["drive", "messages"]
     OIDC_RS_SCOPES = ["openid"]
+    OIDC_RS_CREATE_USER = False
     OIDC_RS_INTROSPECTION_CACHE_TIMEOUT = 60
 
     def __init__(self):
