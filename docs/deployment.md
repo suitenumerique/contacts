@@ -72,6 +72,10 @@ unhealthy when Django does not answer or when the database is unreachable.
 The probe sends the container IP as the `Host` header:
 `Production.ALLOWED_HOSTS` always holds it.
 
+The image is distroless: it has no shell and runs as uid 65532. Give its
+commands in exec form, for example
+`command: ["python", "manage.py", "migrate"]` in Compose.
+
 ### Worker healthcheck
 
 A worker container runs the same image with `python worker.py`. It has no
@@ -95,24 +99,6 @@ in the middle of an import fails when the import needs more than 5 seconds
 to end. Docker marks the container unhealthy only after `retries` failed
 probes in a row (3 by default). With the default retry count, one isolated
 failed probe does not mark the container unhealthy.
-
-### Distroless image
-
-The published image is built on `gcr.io/distroless/cc-debian13:nonroot`. It
-runs as uid 65532. It has no shell, so give commands in exec form: a list
-of arguments, not a string. For example, in a Compose service:
-
-```yaml
-command: ["python", "manage.py", "migrate"]
-```
-
-`make shell-back-distroless` opens a busybox shell in a copy of the image.
-
-For an image with a shell, build the `backend-production` stage (Debian,
-uid 10000). The release workflow does not publish it.
-
-`make test-back-distroless` builds the image and checks it without a
-database. CI runs it.
 
 ## Legal pages
 
