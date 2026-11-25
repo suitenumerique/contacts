@@ -98,30 +98,15 @@ failed probe does not mark the container unhealthy.
 
 ### Distroless image
 
-The image is built on `gcr.io/distroless/cc-debian13:nonroot`: no shell, no
-package manager. It holds a standalone Python installed by uv, the virtual
-environment, the application and the collected static files.
+The published image is built on `gcr.io/distroless/cc-debian13:nonroot`. It
+has no shell, so give commands in exec form, for example
+`python manage.py migrate`. It runs as uid 65532.
 
-- It runs as the image's `nonroot` user (uid 65532).
-- Commands are given in exec form, for example
-  `python manage.py migrate`. A command that needs `sh` does not run.
+For an image with a shell, build the `backend-production` stage (alpine,
+uid 10000). The release workflow does not publish it.
 
-The release workflow publishes this stage. It is the last stage of the
-Dockerfile, so a build without `--target` also produces it.
-
-`make test-back-distroless` builds the image and checks the user, the
-native modules, the CA store, the static files and the Django system
-checks. It needs no database. CI runs it on amd64 and arm64.
-
-### Image with a shell
-
-The `backend-production` stage builds the same application on alpine, with
-a shell and the `entrypoint` script. It runs as uid 10000 and has the same
-`HEALTHCHECK`. The release workflow does not publish it.
-
-```bash
-docker build --target backend-production -t contacts-backend-production src/backend
-```
+`make test-back-distroless` builds the image and checks it without a
+database. CI runs it.
 
 ## Legal pages
 
