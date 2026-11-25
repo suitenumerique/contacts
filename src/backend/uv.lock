@@ -172,7 +172,7 @@ dependencies = [
     { name = "django-cors-headers" },
     { name = "django-dramatiq" },
     { name = "django-fernet-encrypted-fields" },
-    { name = "django-lasuite" },
+    { name = "django-lasuite", extra = ["configuration", "oidc-login", "oidc-resource-server"] },
     { name = "django-redis" },
     { name = "djangorestframework" },
     { name = "dramatiq", extra = ["redis"] },
@@ -226,7 +226,7 @@ requires-dist = [
     { name = "django-dramatiq", specifier = "==0.12.0" },
     { name = "django-extensions", marker = "extra == 'dev'", specifier = "==4.1" },
     { name = "django-fernet-encrypted-fields", specifier = ">=0.2" },
-    { name = "django-lasuite", specifier = "==0.0.27" },
+    { name = "django-lasuite", extras = ["configuration", "oidc-login", "oidc-resource-server"], specifier = "==1.1.0" },
     { name = "django-redis", specifier = "==6.0.0" },
     { name = "djangorestframework", specifier = "==3.17.2" },
     { name = "dramatiq", extras = ["redis"], specifier = "==1.17.1" },
@@ -492,20 +492,32 @@ wheels = [
 
 [[package]]
 name = "django-lasuite"
-version = "0.0.27"
+version = "1.1.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "django" },
-    { name = "djangorestframework" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/0c/9e/4699048a1c9d0c91f5955b0606b9a4e0625461f354665064ff64179988a4/django_lasuite-1.1.0.tar.gz", hash = "sha256:c2476d94000b5803fbbfb9d5733aec3c5b438a14da703dd57b1924afa95cba53", size = 46548, upload-time = "2026-11-24T16:32:33.644Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/37/ba/82a1c7b17fa832e9b9c599d0e3c57b0a258b66e85360b4f261d8c2c6d7a8/django_lasuite-1.1.0-py3-none-any.whl", hash = "sha256:76abe5926a1e40d78db2475e1e1a5ff04304d5f1cd21bdcdbfe849addb6a23a2", size = 69262, upload-time = "2026-11-24T16:32:32.37Z" },
+]
+
+[package.optional-dependencies]
+configuration = [
+    { name = "django-configurations" },
+]
+oidc-login = [
+    { name = "cryptography" },
     { name = "joserfc" },
     { name = "mozilla-django-oidc" },
     { name = "pyjwt" },
     { name = "requests" },
-    { name = "requests-toolbelt" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/b7/91/3b434673d79bfdd1248c11d51bff902db465fc441330d3c8477de95d4501/django_lasuite-0.0.27.tar.gz", hash = "sha256:a3d23b97307b1615d689eb15b6c22c6f3bfda6745775c82f1d07c292e3b871a2", size = 35076, upload-time = "2026-06-23T07:18:42.164Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/58/b7/693a018e87814674023332bf4babc6137ddfdbc3989489fbb236ad6b85f6/django_lasuite-0.0.27-py3-none-any.whl", hash = "sha256:bbbb841a9c19237e056b63a5f8641f841984bb231d048f02e564d4e8e3fc661e", size = 54276, upload-time = "2026-06-23T07:18:40.934Z" },
+oidc-resource-server = [
+    { name = "djangorestframework" },
+    { name = "joserfc" },
+    { name = "mozilla-django-oidc" },
+    { name = "requests" },
 ]
 
 [[package]]
@@ -1386,18 +1398,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/ac/c3/e2a2b89f2d3e2179abd6d00ebd70bff6273f37fb3e0cc209f48b39d00cbf/requests-2.34.2.tar.gz", hash = "sha256:f288924cae4e29463698d6d60bc6a4da69c89185ad1e0bcc4104f584e960b9ed", size = 142856, upload-time = "2026-05-14T19:25:27.735Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/a0/f4/c67b0b3f1b9245e8d266f0f112c500d50e5b4e83cb6f3b71b6528104182a/requests-2.34.2-py3-none-any.whl", hash = "sha256:2a0d60c172f83ac6ab31e4554906c0f3b3588d37b5cb939b1c061f4907e278e0", size = 73075, upload-time = "2026-05-14T19:25:26.443Z" },
-]
-
-[[package]]
-name = "requests-toolbelt"
-version = "1.0.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "requests" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/f3/61/d7545dafb7ac2230c70d38d31cbfe4cc64f7144dc41f6e4e4b78ecd9f5bb/requests-toolbelt-1.0.0.tar.gz", hash = "sha256:7681a0a3d047012b5bdc0ee37d7f8f07ebe76ab08caeccfc3921ce23c88d5bc6", size = 206888, upload-time = "2023-05-01T04:11:33.229Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/3f/51/d4db610ef29373b879047326cbf6fa98b6c1969d6f6dc423279de2b1be2c/requests_toolbelt-1.0.0-py2.py3-none-any.whl", hash = "sha256:cccfdd665f0a24fcf4726e690f65639d272bb0637b9b92dfd91a5568ccf6bd06", size = 54481, upload-time = "2023-05-01T04:11:28.427Z" },
 ]
 
 [[package]]

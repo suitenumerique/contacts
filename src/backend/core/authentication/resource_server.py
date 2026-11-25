@@ -76,14 +76,16 @@ class ContactsResourceServerBackend(ResourceServerBackend):
     def _introspect_or_401(self, access_token):
         """Introspect: 401 for a rejected token, 503 if the server is down.
 
-        lasuite raises ``SuspiciousOperation`` for an inactive, unscoped or
+        lasuite raises ``SuspiciousOperation`` for an unscoped or
         audience-less token (and joserfc errors for invalid claims), which
         Django answers with a 400 HTML page; API clients expect a 401
-        telling them to get a new token.
+        telling them to get a new token. For an inactive token, lasuite
+        raises a 401 with its own message. Each cause gets the same message
+        here.
         """
         try:
             return super().get_user_info_with_introspection(access_token)
-        except (SuspiciousOperation, JoseError) as exc:
+        except (SuspiciousOperation, JoseError, AuthenticationFailed) as exc:
             # JoseError: claims that fail validation, e.g. a past ``exp``.
             logger.info("Resource server token refused: %s", exc)
             raise AuthenticationFailed("Invalid or expired access token.") from exc

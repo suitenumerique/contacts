@@ -107,6 +107,18 @@ def test_an_unknown_user_is_refused():
 
 
 @responses.activate
+def test_an_inactive_user_is_refused():
+    """An inactive user is refused."""
+    responses.add(
+        responses.POST,
+        settings.OIDC_OP_INTROSPECTION_ENDPOINT,
+        json=introspection(factories.UserFactory(is_active=False)),
+    )
+
+    assert _client().get(URL).status_code == 401
+
+
+@responses.activate
 def test_an_unentitled_user_is_refused(user, monkeypatch):
     """An unentitled user is refused."""
     responses.add(
