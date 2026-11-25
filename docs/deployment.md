@@ -102,7 +102,7 @@ The published image is built on `gcr.io/distroless/cc-debian13:nonroot`. It
 has no shell, so give commands in exec form, for example
 `python manage.py migrate`. It runs as uid 65532.
 
-For an image with a shell, build the `backend-production` stage (alpine,
+For an image with a shell, build the `backend-production` stage (Debian,
 uid 10000). The release workflow does not publish it.
 
 `make test-back-distroless` builds the image and checks it without a

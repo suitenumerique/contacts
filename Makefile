@@ -34,7 +34,7 @@ COMPOSE_RUN_APP_NO_DEPS = $(COMPOSE_RUN) --no-deps backend-dev
 # -- Backend
 MANAGE              = $(COMPOSE_RUN_APP) python manage.py
 MANAGE_EXEC         = $(COMPOSE_EXEC_APP) python manage.py
-UV_IMAGE            = ghcr.io/astral-sh/uv:0.12.13-python3.14-alpine@sha256:eb47c391d3a252d9d912270dd2b5e234af5493e92039fedb483f1dd1cb5659ce
+UV_IMAGE            = ghcr.io/astral-sh/uv:0.13.8-python3.14-trixie-slim@sha256:81a1340fea1e72ad4a8e9a016128b0c61041cf182ea49fd788023e52842bc147
 
 # ==============================================================================
 # RULES
@@ -270,13 +270,6 @@ back-lock: ## regenerate the uv.lock file
 	@docker run --rm -u $(DOCKER_USER) -e UV_CACHE_DIR=/tmp/uv-cache \
 		-v $(PWD)/src/backend:/app -w /app $(UV_IMAGE) uv lock
 .PHONY: back-lock
-
-clean-back: ## reset the backend .venv volumes (run after a dep or Python bump)
-# The venv lives in an anonymous volume, so a rebuilt image keeps being
-# shadowed by the previous one until the volume goes. Symptom: the app
-# dies on ModuleNotFoundError for a package that is installed.
-	@$(COMPOSE) rm -sfv backend-dev worker-dev backend-test
-.PHONY: clean-back
 
 # -- Database
 

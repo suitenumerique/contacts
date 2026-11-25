@@ -52,7 +52,6 @@ services:
     volumes:
       - ./src/backend:/app
       - ./data/static:/data/static
-      - /app/.venv
     extra_hosts:
       - "host.docker.internal:host-gateway"
     networks:
@@ -79,7 +78,6 @@ services:
     volumes:
       - ./src/backend:/app
       - ./data/static:/data/static
-      - /app/.venv
     extra_hosts:
       - "host.docker.internal:host-gateway"
     networks:
@@ -109,7 +107,6 @@ services:
     volumes:
       - ./src/backend:/app
       - ./data/static:/data/static
-      - /app/.venv
     depends_on:
       postgresql:
         condition: service_healthy
