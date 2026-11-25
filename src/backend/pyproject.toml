@@ -32,7 +32,7 @@ dependencies = [
     "django-configurations==2.5.1",
     "django-fernet-encrypted-fields>=0.2",
     "django-cors-headers==4.9.0",
-    "django-lasuite==0.0.27",
+    "django-lasuite[configuration,oidc-login,oidc-resource-server]==1.1.0",
     "django-redis==6.0.0",
     "djangorestframework==3.17.2",
     "drf_spectacular==0.29.0",

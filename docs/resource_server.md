@@ -99,8 +99,10 @@ A request is served when all of these hold, in order:
 
 1. A `Bearer` token is present and the authorization server says it is
    active, with one of `OIDC_RS_SCOPES`: else **401**.
-2. Its `sub` is a Contacts user: else **401**. (Creating users met for the
-   first time this way is being added to django-lasuite.)
+2. Its `sub` is an active Contacts user: else **401**. A person who never
+   logged in to Contacts is not a user here. (django-lasuite can create
+   such a user with `OIDC_RS_CREATE_USER`. Contacts does not use this
+   setting.)
 3. The app it was issued to is in `OIDC_RS_ALLOWED_AUDIENCES`: else **403**.
 4. The user passes the `can_access` entitlement: else **403**.
 
