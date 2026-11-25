@@ -99,8 +99,14 @@ failed probe does not mark the container unhealthy.
 ### Distroless image
 
 The published image is built on `gcr.io/distroless/cc-debian13:nonroot`. It
-has no shell, so give commands in exec form, for example
-`python manage.py migrate`. It runs as uid 65532.
+runs as uid 65532. It has no shell, so give commands in exec form: a list
+of arguments, not a string. For example, in a Compose service:
+
+```yaml
+command: ["python", "manage.py", "migrate"]
+```
+
+`make shell-back-distroless` opens a busybox shell in a copy of the image.
 
 For an image with a shell, build the `backend-production` stage (Debian,
 uid 10000). The release workflow does not publish it.

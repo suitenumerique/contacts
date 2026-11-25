@@ -210,6 +210,16 @@ test-back-distroless: build-back-distroless
 	@bin/smoke-test-back-distroless contacts-backend-distroless
 .PHONY: test-back-distroless
 
+shell-back-distroless: ## open a busybox shell in the distroless backend image
+shell-back-distroless: build-back-distroless
+	@printf '%s\n' \
+		'FROM contacts-backend-distroless' \
+		'COPY --from=gcr.io/distroless/cc-debian13:debug-nonroot@sha256:bdb634669ffbf44cdfef9495238b03ce33a02e9ef631fc718b7dd6d2531f4325 /busybox /busybox' \
+		'ENV PATH="$$PATH:/busybox"' \
+		| docker build -q -t contacts-backend-distroless-debug - >/dev/null
+	@docker run --rm -it --entrypoint /busybox/sh contacts-backend-distroless-debug
+.PHONY: shell-back-distroless
+
 test-front: ## run the frontend tests
 	@args="$(filter-out $@,$(MAKECMDGOALS))" && \
 	$(COMPOSE) run --rm frontend-dev sh -c "pnpm test -- $${args:-${1}}"

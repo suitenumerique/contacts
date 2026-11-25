@@ -73,7 +73,9 @@ RUN rdfind -makesymlinks true -followsymlinks true -makeresultsfile false ${CONT
 
 # ---- Production Python ----
 # Remove what the application does not use: pip, idle, tkinter, tcl/tk,
-# headers and the test modules of the standard library.
+# headers and the test modules of the standard library. The virtual
+# environment has its own site-packages, so the application does not read
+# the site-packages of this Python.
 FROM uv AS python-runtime
 
 RUN PYDIR=$(dirname "$(dirname "$(uv python find --no-project)")") && \
@@ -86,6 +88,7 @@ RUN PYDIR=$(dirname "$(dirname "$(uv python find --no-project)")") && \
     "$PYLIB"/idlelib "$PYLIB"/ensurepip "$PYLIB"/tkinter "$PYLIB"/turtledemo \
     "$PYLIB"/test "$PYLIB"/lib-dynload/_tkinter* "$PYLIB"/lib-dynload/_ctypes_test* \
     "$PYLIB"/lib-dynload/_test* "$PYLIB"/lib-dynload/xxlimited* \
+    "$PYLIB"/site-packages/pip "$PYLIB"/site-packages/pip-*.dist-info \
     /opt/python/.gitignore /opt/python/.lock /opt/python/.temp
 
 # ---- Production application source ----
@@ -176,7 +179,8 @@ HEALTHCHECK --interval=30s --timeout=2s --start-period=30s \
 # --target produces the last stage.
 # No shell and no package manager. The image has its own "nonroot" user, so
 # it does not use the entrypoint.
-# Debug with: docker run --entrypoint='' gcr.io/distroless/cc-debian13:debug-nonroot sh
+# To debug, use "make shell-back-distroless". It adds the busybox shell of the
+# debug-nonroot image to this image and starts the shell.
 FROM gcr.io/distroless/cc-debian13:nonroot@sha256:cb87acc574abe719b6e5c547384defa2f7b1f24af9605d3f618cf852495d8be2 AS backend-distroless
 
 ARG CONTACTS_STATIC_ROOT=/data/static
