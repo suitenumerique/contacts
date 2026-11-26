@@ -114,3 +114,43 @@ def test_restore_waits_for_a_permanent_delete(monkeypatch):
     assert not models.Contact.objects.filter(pk=contact.pk).exists()
 
     models.User.objects.all().delete()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_restore_returns_the_contact_before_a_delete_can_remove_it(monkeypatch):
+    """A delete that starts during a restore waits until the restore responds."""
+    user = factories.UserFactory()
+    contact = factories.ContactFactory(owner=user, deleted_at=timezone.now())
+    url = f"{CONTACTS_URL}{contact.id}/"
+    original = ContactViewSet.get_queryset
+    calls = []
+    results = {}
+
+    def delete_after_the_first_read(view):
+        if view.action == "restore":
+            calls.append(view)
+            if len(calls) == 2:
+                calls.append(
+                    in_thread(
+                        lambda: results.update(
+                            trashed=client_for(user).delete(url).status_code,
+                            deleted=client_for(user)
+                            .delete(f"{url}?permanent=true")
+                            .status_code,
+                        )
+                    )
+                )
+                # The delete waits for the lock of the restore.
+                calls[-1].join(1)
+        return original(view)
+
+    monkeypatch.setattr(ContactViewSet, "get_queryset", delete_after_the_first_read)
+
+    response = client_for(user).post(f"{url}restore/")
+    calls[-1].join(10)
+
+    assert response.status_code == 200
+    assert response.json()["deleted_at"] is None
+    assert results == {"trashed": 204, "deleted": 204}
+
+    models.User.objects.all().delete()

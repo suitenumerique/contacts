@@ -552,9 +552,9 @@ class ContactViewSet(ActingUserMixin, SerializerPerActionMixin, viewsets.ModelVi
             if locked.deleted_at is not None:
                 locked.deleted_at = None
                 locked.save(update_fields=["deleted_at", "updated_at"])
-        return response.Response(
-            self._serialize(self.get_queryset().get(pk=contact.pk))
-        )
+            # The lock keeps the row until the response has it.
+            restored = self._serialize(self.get_queryset().get(pk=contact.pk))
+        return response.Response(restored)
 
     def _queue_import(self, request, file_format):
         """Validate the uploaded file and queue the import task.
