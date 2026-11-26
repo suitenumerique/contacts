@@ -12,6 +12,8 @@ import {
   Input,
   Modal,
   ModalSize,
+  Radio,
+  RadioGroup,
   Select,
   TextArea,
   VariantType,
@@ -26,7 +28,7 @@ import {
   useLabels,
   useUpdateContact,
 } from "../../hooks/useContactsQueries";
-import { composedNameOf } from "../../utils";
+import { composedNameOf, isOrganization } from "../../utils";
 import { ContactAvatar } from "../avatar/ContactAvatar";
 import type { Contact, ContactPayload, TypedValue } from "../../types";
 
@@ -191,6 +193,8 @@ export const ContactFormModal = ({
   const photoInputRef = useRef<HTMLInputElement>(null);
 
   const initial: Partial<Contact> = contact ?? {};
+  const [kind, setKind] = useState<string>(initial.kind ?? "");
+  const isOrg = isOrganization({ kind });
   const [grammaticalGender, setGrammaticalGender] = useState<string>(
     initial.grammatical_gender ?? "",
   );
@@ -215,8 +219,24 @@ export const ContactFormModal = ({
     family_name: familyName,
     name_suffix: nameSuffix,
   });
-  // An emptied custom name falls back to the parts, as the server does.
-  const displayedName = (isFullNameCustom ? fullName.trim() : "") || composedName;
+  // An emptied custom name falls back to the parts, as the server does. An
+  // organization has no name parts: its name is the displayed name.
+  const displayedName = isOrg
+    ? fullName.trim()
+    : (isFullNameCustom ? fullName.trim() : "") || composedName;
+
+  const chooseKind = (organization: boolean) => {
+    if (organization === isOrg) return;
+    if (organization) {
+      // Keep the name the user sees as the organization's name.
+      setFullName(displayedName);
+      setIsFullNameCustom(true);
+      setKind("org");
+    } else {
+      // An empty kind already reads as a person: state it only on a change.
+      setKind(initial.kind === "org" ? "individual" : (initial.kind ?? ""));
+    }
+  };
   const [company, setCompany] = useState(contact?.company ?? "");
   const [department, setDepartment] = useState(contact?.department ?? "");
   const [jobTitle, setJobTitle] = useState(contact?.job_title ?? "");
@@ -260,13 +280,15 @@ export const ContactFormModal = ({
       // An organization contact carries no labels (they are per user).
       ...(isOrgContact ? {} : { label_ids: labelIds }),
       ...(isEdit || forkSourceId ? {} : { is_org_contact: isOrgContact }),
-      grammatical_gender: (grammaticalGender || "") as ContactPayload["grammatical_gender"],
-      name_prefix: namePrefix.trim(),
-      given_name: givenName.trim(),
-      middle_name: middleName.trim(),
-      family_name: familyName.trim(),
-      name_suffix: nameSuffix.trim(),
-      nickname: nickname.trim(),
+      kind: kind as ContactPayload["kind"],
+      // An organization has no person name parts: the hidden fields are emptied.
+      grammatical_gender: (isOrg ? "" : grammaticalGender) as ContactPayload["grammatical_gender"],
+      name_prefix: isOrg ? "" : namePrefix.trim(),
+      given_name: isOrg ? "" : givenName.trim(),
+      middle_name: isOrg ? "" : middleName.trim(),
+      family_name: isOrg ? "" : familyName.trim(),
+      name_suffix: isOrg ? "" : nameSuffix.trim(),
+      nickname: isOrg ? "" : nickname.trim(),
       full_name: displayedName,
       company: company.trim(),
       department: department.trim(),
@@ -336,10 +358,11 @@ export const ContactFormModal = ({
         <div className="contact-form__photo">
           <ContactAvatar
             name={displayedName || "?"}
-            givenName={givenName}
-            familyName={familyName}
+            givenName={isOrg ? "" : givenName}
+            familyName={isOrg ? "" : familyName}
             photo={photo}
             size="lg"
+            organization={isOrg}
           />
           <input
             ref={photoInputRef}
@@ -368,86 +391,114 @@ export const ContactFormModal = ({
         </div>
 
         <h3 className="contact-form__section">{t("contacts.form.identity")}</h3>
-        <div className="contact-form__names">
-          <Select
-            className="contact-form__grammatical-gender"
-            label={t("contacts.form.grammaticalGender")}
-            options={grammaticalGenderOptions}
-            value={grammaticalGender || undefined}
-            onChange={(event) =>
-              setGrammaticalGender(event.target.value ? String(event.target.value) : "")
-            }
+        <RadioGroup className="contact-form__kind">
+          <Radio
+            name="contact-kind"
+            label={t("contacts.form.kinds.individual")}
+            checked={!isOrg}
+            data-testid="contact-kind-individual"
+            onChange={() => chooseKind(false)}
           />
+          <Radio
+            name="contact-kind"
+            label={t("contacts.form.kinds.org")}
+            checked={isOrg}
+            data-testid="contact-kind-org"
+            onChange={() => chooseKind(true)}
+          />
+        </RadioGroup>
+        {isOrg ? (
           <Input
-            label={t("contacts.form.givenName")}
-            value={givenName}
-            data-testid="contact-given-name"
-            onChange={(event) => setGivenName(event.target.value)}
+            label={`${t("contacts.form.orgName")} *`}
+            value={fullName}
+            fullWidth
+            data-testid="contact-full-name"
+            onChange={(event) => setFullName(event.target.value)}
           />
-          <Input
-            label={t("contacts.form.familyName")}
-            value={familyName}
-            data-testid="contact-family-name"
-            onChange={(event) => setFamilyName(event.target.value)}
-          />
-        </div>
-        {showMoreNames ? (
+        ) : (
           <>
             <div className="contact-form__names">
-              <Input
-                label={t("contacts.form.namePrefix")}
-                value={namePrefix}
-                data-testid="contact-name-prefix"
-                onChange={(event) => setNamePrefix(event.target.value)}
+              <Select
+                className="contact-form__grammatical-gender"
+                label={t("contacts.form.grammaticalGender")}
+                options={grammaticalGenderOptions}
+                value={grammaticalGender || undefined}
+                onChange={(event) =>
+                  setGrammaticalGender(event.target.value ? String(event.target.value) : "")
+                }
               />
               <Input
-                label={t("contacts.form.middleName")}
-                value={middleName}
-                data-testid="contact-middle-name"
-                onChange={(event) => setMiddleName(event.target.value)}
+                label={t("contacts.form.givenName")}
+                value={givenName}
+                data-testid="contact-given-name"
+                onChange={(event) => setGivenName(event.target.value)}
               />
               <Input
-                label={t("contacts.form.nameSuffix")}
-                value={nameSuffix}
-                data-testid="contact-name-suffix"
-                onChange={(event) => setNameSuffix(event.target.value)}
+                label={t("contacts.form.familyName")}
+                value={familyName}
+                data-testid="contact-family-name"
+                onChange={(event) => setFamilyName(event.target.value)}
               />
             </div>
+            {showMoreNames ? (
+              <>
+                <div className="contact-form__names">
+                  <Input
+                    label={t("contacts.form.namePrefix")}
+                    value={namePrefix}
+                    data-testid="contact-name-prefix"
+                    onChange={(event) => setNamePrefix(event.target.value)}
+                  />
+                  <Input
+                    label={t("contacts.form.middleName")}
+                    value={middleName}
+                    data-testid="contact-middle-name"
+                    onChange={(event) => setMiddleName(event.target.value)}
+                  />
+                  <Input
+                    label={t("contacts.form.nameSuffix")}
+                    value={nameSuffix}
+                    data-testid="contact-name-suffix"
+                    onChange={(event) => setNameSuffix(event.target.value)}
+                  />
+                </div>
+                <Input
+                  label={t("contacts.form.nickname")}
+                  value={nickname}
+                  fullWidth
+                  data-testid="contact-nickname"
+                  onChange={(event) => setNickname(event.target.value)}
+                />
+              </>
+            ) : (
+              <div>
+                <Button
+                  size="small"
+                  color="neutral"
+                  variant="tertiary"
+                  icon={<Plus />}
+                  onClick={() => setShowMoreNames(true)}
+                  data-testid="contact-more-names"
+                >
+                  {t("contacts.form.moreNames")}
+                </Button>
+              </div>
+            )}
             <Input
-              label={t("contacts.form.nickname")}
-              value={nickname}
+              label={`${t("contacts.form.fullName")} *`}
+              text={t("contacts.form.fullNameHint")}
+              value={isFullNameCustom ? fullName : composedName}
               fullWidth
-              data-testid="contact-nickname"
-              onChange={(event) => setNickname(event.target.value)}
+              data-testid="contact-full-name"
+              onChange={(event) => {
+                setFullName(event.target.value);
+                setIsFullNameCustom(true);
+              }}
+              // Left empty: follow the parts again.
+              onBlur={() => setIsFullNameCustom(!!fullName.trim())}
             />
           </>
-        ) : (
-          <div>
-            <Button
-              size="small"
-              color="neutral"
-              variant="tertiary"
-              icon={<Plus />}
-              onClick={() => setShowMoreNames(true)}
-              data-testid="contact-more-names"
-            >
-              {t("contacts.form.moreNames")}
-            </Button>
-          </div>
         )}
-        <Input
-          label={`${t("contacts.form.fullName")} *`}
-          text={t("contacts.form.fullNameHint")}
-          value={isFullNameCustom ? fullName : composedName}
-          fullWidth
-          data-testid="contact-full-name"
-          onChange={(event) => {
-            setFullName(event.target.value);
-            setIsFullNameCustom(true);
-          }}
-          // Left empty: follow the parts again.
-          onBlur={() => setIsFullNameCustom(!!fullName.trim())}
-        />
 
         <h3 className="contact-form__section">{t("contacts.form.coordinates")}</h3>
         <TypedValueRows

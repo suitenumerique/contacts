@@ -1,9 +1,11 @@
 /**
- * Initials avatar with a deterministic color per name, or the contact's
- * photo when one is set (data: URI or https URL).
+ * Initials avatar with a deterministic color per name, a building for an
+ * organization, or the contact's photo when one is set (data: URI or https
+ * URL).
  */
 
 import clsx from "clsx";
+import { Building } from "@gouvfr-lasuite/ui-components/icons";
 
 const AVATAR_COLORS = [
   "#4B6BF0",
@@ -45,6 +47,8 @@ export const colorOf = (name: string) => {
 
 export type AvatarSize = "xs" | "sm" | "lg";
 
+const ICON_SIZES: Record<AvatarSize, number> = { xs: 0, sm: 14, lg: 32 };
+
 interface ContactAvatarProps {
   name: string;
   givenName?: string;
@@ -53,6 +57,8 @@ interface ContactAvatarProps {
   size?: AvatarSize;
   /** Use the brand color instead of the per-name one (the open card). */
   brand?: boolean;
+  /** Show a building instead of the initials. */
+  organization?: boolean;
 }
 
 export const ContactAvatar = ({
@@ -62,6 +68,7 @@ export const ContactAvatar = ({
   photo,
   size = "sm",
   brand = false,
+  organization = false,
 }: ContactAvatarProps) => {
   const className = clsx("contact-avatar", `contact-avatar--${size}`);
   if (photo) {
@@ -73,7 +80,12 @@ export const ContactAvatar = ({
       style={brand ? undefined : { backgroundColor: colorOf(name) }}
       aria-hidden="true"
     >
-      {size !== "xs" && initialsOf(name, givenName, familyName)}
+      {size !== "xs" &&
+        (organization ? (
+          <Building size={ICON_SIZES[size]} />
+        ) : (
+          initialsOf(name, givenName, familyName)
+        ))}
     </span>
   );
 };

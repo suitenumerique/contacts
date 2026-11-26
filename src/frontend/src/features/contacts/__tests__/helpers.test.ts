@@ -157,6 +157,7 @@ describe("honorificOf", () => {
       "contacts.form.grammaticalGenders.feminine",
     );
     expect(honorificOf(t, { grammatical_gender: "neuter" })).toBe("");
+    expect(honorificOf(t, { kind: "org", grammatical_gender: "feminine" })).toBe("");
     expect(honorificOf(t, { grammatical_gender: "" })).toBe("");
     expect(honorificOf(t, {})).toBe("");
   });

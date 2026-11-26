@@ -51,7 +51,13 @@ import {
 } from "../../hooks/useContactsQueries";
 import { useContactsModals } from "../../modals";
 import type { Contact, TypedValue } from "../../types";
-import { canJoinGroup, honorificOf, structuredNameOf, websiteHref } from "../../utils";
+import {
+  canJoinGroup,
+  honorificOf,
+  isOrganization,
+  structuredNameOf,
+  websiteHref,
+} from "../../utils";
 import { ContactAvatar } from "../avatar/ContactAvatar";
 import { LabelBadge } from "../labels/LabelBadge";
 
@@ -351,6 +357,7 @@ const ContactCard = ({ contact }: { contact: Contact }) => {
           photo={contact.photo}
           size="lg"
           brand
+          organization={isOrganization(contact)}
         />
         <h2 id="contact-card-name" className="contact-card__name">
           {name}

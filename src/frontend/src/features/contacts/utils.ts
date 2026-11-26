@@ -4,16 +4,24 @@
 
 import type { TFunction } from "i18next";
 
+/** Whether a contact stands for an organization, not a person. */
+export const isOrganization = (contact: { kind?: string | null }) => contact.kind === "org";
+
 /**
  * Localized honorific ("Mr" / "M." / "Dhr.") for the grammatical gender of
  * a contact. Only the masculine and feminine genders have one.
  */
-export const honorificOf = (t: TFunction, contact: { grammatical_gender?: string | null }) =>
-  contact.grammatical_gender === "masculine"
-    ? t("contacts.form.grammaticalGenders.masculine")
-    : contact.grammatical_gender === "feminine"
-      ? t("contacts.form.grammaticalGenders.feminine")
-      : "";
+export const honorificOf = (
+  t: TFunction,
+  contact: { kind?: string | null; grammatical_gender?: string | null },
+) =>
+  isOrganization(contact)
+    ? ""
+    : contact.grammatical_gender === "masculine"
+      ? t("contacts.form.grammaticalGenders.masculine")
+      : contact.grammatical_gender === "feminine"
+        ? t("contacts.form.grammaticalGenders.feminine")
+        : "";
 
 /**
  * Whether a contact may join a group: a shared group only takes contacts
