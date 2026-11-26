@@ -106,7 +106,8 @@ class ContactsResourceServerBackend(ResourceServerBackend):
             raise AuthorizationServerUnavailable() from exc
         except SuspiciousOperation as exc:
             # lasuite turns an HTTP error of the userinfo into this error. An
-            # error of the server is not the token's fault.
+            # error of the server is not the token's fault. The 503 handling
+            # can go when lasuite includes suitenumerique/django-lasuite#117.
             if not _is_server_error(exc.__cause__):
                 raise
             logger.warning("Userinfo failed: %s", exc.__cause__)
