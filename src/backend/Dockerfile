@@ -102,7 +102,6 @@ RUN rm -rf \
     /app/Dockerfile \
     /app/.dockerignore \
     /app/.pylintrc \
-    /app/pyproject.toml \
     /app/uv.lock \
     /app/MANIFEST.in \
     /app/entrypoint

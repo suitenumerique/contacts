@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Smoke-test the distroless backend image without a database: the user, the
-# native modules, the CA store, the collected static files and the Django
-# system checks.
+# native modules, the CA store, the collected static files, the release and
+# the Django system checks.
 # Requires: docker.
 set -o errexit -o nounset -o pipefail
 
@@ -35,3 +35,10 @@ print(
 "
 
 docker run --rm -e DJANGO_CONFIGURATION=Build "$IMAGE" python manage.py check
+
+docker run --rm -e DJANGO_CONFIGURATION=Build "$IMAGE" python manage.py shell -c "
+from django.conf import settings
+
+assert settings.RELEASE != 'NA', 'the release is missing'
+print(f'OK: release {settings.RELEASE}')
+"
