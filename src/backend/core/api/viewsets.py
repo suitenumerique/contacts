@@ -272,7 +272,19 @@ class ActingUserMixin:
                 description="Alphabetical direction (default asc).",
             ),
         ]
-    )
+    ),
+    destroy=extend_schema(
+        parameters=[
+            OpenApiParameter(
+                "permanent",
+                bool,
+                description=(
+                    "Delete a contact in the trash permanently. Without it, a "
+                    "delete moves the contact to the trash."
+                ),
+            ),
+        ]
+    ),
 )
 class ContactViewSet(ActingUserMixin, SerializerPerActionMixin, viewsets.ModelViewSet):
     """CRUD for contacts: the user's own, and their organization's.
@@ -366,6 +378,21 @@ class ContactViewSet(ActingUserMixin, SerializerPerActionMixin, viewsets.ModelVi
                 self.request,
                 message="This contact is read-only; edit a local copy instead.",
             )
+
+    @staticmethod
+    def _lock(contact):
+        """Read the contact again and lock its row until the transaction ends.
+
+        The row that ``get_object`` read can be stale. A concurrent delete or
+        restore of the same contact waits for the lock. The caller then
+        checks the current state of the row.
+        """
+        locked = (
+            models.Contact.objects.select_for_update().filter(pk=contact.pk).first()
+        )
+        if locked is None:
+            raise drf_exceptions.NotFound("Contact not found.")
+        return locked
 
     def _serialize(self, contact):
         return serializers.ContactSerializer(
@@ -484,21 +511,35 @@ class ContactViewSet(ActingUserMixin, SerializerPerActionMixin, viewsets.ModelVi
 
     @transaction.atomic
     def perform_destroy(self, instance):
-        """First delete moves to the corbeille; second one is permanent.
+        """Move a contact to the corbeille, or with ``permanent``, delete it.
+
+        The client states the intent. The server does not infer it from
+        ``deleted_at``: with stale data, a "move to trash" could then
+        delete a contact that another tab has already trashed. So a plain
+        delete of a trashed contact changes nothing, and a permanent
+        delete of a live contact is refused.
 
         Deleting an overlay just drops the local edits (revert to source),
         so it is removed outright rather than sent to the corbeille.
         """
         self._check_writable(instance)
+        instance = self._lock(instance)
         if instance.overlay_of_id is not None:
             instance.delete()
-        elif instance.deleted_at is None:
-            instance.deleted_at = timezone.now()
-            instance.updated_by = self.acting_user
-            instance.save(update_fields=["deleted_at", "updated_by", "updated_at"])
-        else:
-            # Contact.delete detaches the users' overlays of the row.
-            instance.delete()
+            return
+        if self.request.query_params.get("permanent") != "true":
+            if instance.deleted_at is None:
+                instance.deleted_at = timezone.now()
+                instance.updated_by = self.acting_user
+                instance.save(update_fields=["deleted_at", "updated_by", "updated_at"])
+            return
+        if instance.deleted_at is None:
+            raise drf_exceptions.ValidationError(
+                "This contact is not in the trash; move it there before you "
+                "delete it permanently."
+            )
+        # Contact.delete detaches the users' overlays of the row.
+        instance.delete()
 
     @extend_schema(request=None, responses=serializers.ContactSerializer)
     @action(detail=True, methods=["post"], url_path="restore")
@@ -506,11 +547,14 @@ class ContactViewSet(ActingUserMixin, SerializerPerActionMixin, viewsets.ModelVi
         """Restore a contact from the corbeille."""
         contact = self.get_object()
         self._check_writable(contact)
-        if contact.deleted_at is not None:
-            contact.deleted_at = None
-            with transaction.atomic():
-                contact.save(update_fields=["deleted_at", "updated_at"])
-        return response.Response(self._serialize(contact))
+        with transaction.atomic():
+            locked = self._lock(contact)
+            if locked.deleted_at is not None:
+                locked.deleted_at = None
+                locked.save(update_fields=["deleted_at", "updated_at"])
+            # The lock keeps the row until the response has it.
+            restored = self._serialize(self.get_queryset().get(pk=contact.pk))
+        return response.Response(restored)
 
     def _queue_import(self, request, file_format):
         """Validate the uploaded file and queue the import task.

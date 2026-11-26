@@ -565,6 +565,14 @@
                             "description": "primary key for the record as UUID"
                         },
                         "required": true
+                    },
+                    {
+                        "in": "query",
+                        "name": "permanent",
+                        "schema": {
+                            "type": "boolean"
+                        },
+                        "description": "Delete a contact in the trash permanently. Without it, a delete moves the contact to the trash."
                     }
                 ],
                 "tags": [

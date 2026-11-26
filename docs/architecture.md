@@ -92,11 +92,13 @@ The REST paths on this page are relative to `/api/v1.0/`.
   be overlaid: `POST /contacts/{id}/fork/` creates a personal overlay
   storing only the fields the user changed, so untouched fields keep
   tracking the original.
-- **Trash (corbeille)**: the first `DELETE /contacts/{id}/` sets
-  `deleted_at`, `GET /contacts/?trash=true` lists the user's trashed rows
-  (plus the organization's, for an administrator),
-  `POST /contacts/{id}/restore/` brings one back, a second `DELETE` is
-  permanent. `GET /contacts/{id}/` gives the `deleted_at` of a trashed
+- **Trash (corbeille)**: `DELETE /contacts/{id}/` sets `deleted_at`,
+  `GET /contacts/?trash=true` lists the user's trashed rows (plus the
+  organization's, for an administrator), `POST /contacts/{id}/restore/`
+  brings one back. `DELETE /contacts/{id}/?permanent=true` deletes a
+  trashed contact permanently. On a live contact, it returns 400. A
+  `DELETE` without `permanent` on a trashed contact changes nothing.
+  `GET /contacts/{id}/` gives the `deleted_at` of a trashed
   contact. The rows of a list do not have this field.
   `PATCH` and `PUT` reject updates to a trashed contact (400) until it is
   restored. `purge_trashed_contacts` hard-deletes rows trashed for longer

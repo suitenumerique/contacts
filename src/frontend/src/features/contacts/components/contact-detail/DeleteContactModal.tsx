@@ -43,7 +43,10 @@ export const DeleteContactModal = ({
   const prefix = deleteModalPrefix(contact, permanent);
 
   const handleDelete = async () => {
-    await deleteContact.mutateAsync({ id: contact.id });
+    await deleteContact.mutateAsync({
+      id: contact.id,
+      params: permanent ? { permanent: true } : undefined,
+    });
     onClose();
     onDeleted?.();
   };

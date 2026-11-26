@@ -146,9 +146,32 @@ def test_delete_is_soft_then_hard(client, user):
     trashed = client.get(CONTACTS_URL, {"trash": "true"}).json()["results"]
     assert [c["full_name"] for c in trashed] == ["Doomed"]
 
-    # second delete is permanent
-    assert client.delete(f"{CONTACTS_URL}{contact.id}/").status_code == 204
+    assert (
+        client.delete(f"{CONTACTS_URL}{contact.id}/?permanent=true").status_code == 204
+    )
     assert not models.Contact.objects.filter(pk=contact.pk).exists()
+
+
+def test_plain_delete_of_a_trashed_contact_keeps_it(client, user):
+    contact = factories.ContactFactory(owner=user)
+    url = f"{CONTACTS_URL}{contact.id}/"
+    client.delete(url)
+    contact.refresh_from_db()
+    deleted_at = contact.deleted_at
+
+    assert client.delete(url).status_code == 204
+    contact.refresh_from_db()
+    assert contact.deleted_at == deleted_at
+
+
+def test_permanent_delete_of_a_live_contact_is_refused(client, user):
+    contact = factories.ContactFactory(owner=user)
+
+    response = client.delete(f"{CONTACTS_URL}{contact.id}/?permanent=true")
+
+    assert response.status_code == 400
+    contact.refresh_from_db()
+    assert contact.deleted_at is None
 
 
 def test_restore_from_trash(client, user):
