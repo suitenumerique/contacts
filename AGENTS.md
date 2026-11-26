@@ -95,3 +95,9 @@ make test-front         # vitest
 - Channel API keys are hashed at rest; raw keys are returned exactly once.
 - Ruff line length 88; pylint must stay at 10.0; frontend must pass
   `pnpm run format && pnpm run lint` (`lint` includes `ts:check`).
+- When you upgrade the backend Python or uv, keep the uv version of
+  `src/backend/Dockerfile` and of `UV_IMAGE` in the `Makefile` the same. That
+  uv must know the version in `src/backend/.python-version`. Review the paths
+  that the `python-runtime` stage removes, then run `make test-back-distroless`.
+- When you change the removed modules or the runtime dependencies, also start
+  gunicorn and a worker from the `backend-distroless` image.

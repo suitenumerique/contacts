@@ -23,7 +23,7 @@ jobs:
     with:
       image_name: "backend"
       context: "src/backend"
-      target: backend-production
+      target: backend-distroless
 
   docker-publish-frontend:
     uses: ./.github/workflows/docker-publish.yml

@@ -65,12 +65,16 @@ allowlist with spoofed and trusted `X-Forwarded-For`. CI runs it.
 
 ## Backend image
 
-The backend production image (`backend-production` stage of
+The backend production image (`backend-distroless` stage of
 `src/backend/Dockerfile`) runs gunicorn on port `8000`. Its `HEALTHCHECK`
 requests `/__heartbeat__/` on `localhost:8000`, so the container is
 unhealthy when Django does not answer or when the database is unreachable.
 The probe sends the container IP as the `Host` header:
 `Production.ALLOWED_HOSTS` always holds it.
+
+The image is distroless: it has no shell and runs as uid 65532. Give its
+commands in exec form, for example
+`command: ["python", "manage.py", "migrate"]` in Compose.
 
 ### Worker healthcheck
 

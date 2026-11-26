@@ -34,7 +34,7 @@ COMPOSE_RUN_APP_NO_DEPS = $(COMPOSE_RUN) --no-deps backend-dev
 # -- Backend
 MANAGE              = $(COMPOSE_RUN_APP) python manage.py
 MANAGE_EXEC         = $(COMPOSE_EXEC_APP) python manage.py
-UV_IMAGE            = ghcr.io/astral-sh/uv:0.12.13-python3.14-alpine@sha256:eb47c391d3a252d9d912270dd2b5e234af5493e92039fedb483f1dd1cb5659ce
+UV_IMAGE            = ghcr.io/astral-sh/uv:0.13.8-python3.14-trixie-slim@sha256:81a1340fea1e72ad4a8e9a016128b0c61041cf182ea49fd788023e52842bc147
 
 # ==============================================================================
 # RULES
@@ -201,6 +201,25 @@ test-back-parallel: ## run all back-end tests in parallel
 	bin/pytest -n auto $${args:-${1}}
 .PHONY: test-back-parallel
 
+build-back-distroless: ## build the distroless backend image
+	@docker build --target backend-distroless -t contacts-backend-distroless src/backend/
+.PHONY: build-back-distroless
+
+test-back-distroless: ## build and smoke-test the distroless backend image (no database)
+test-back-distroless: build-back-distroless
+	@bin/smoke-test-back-distroless contacts-backend-distroless
+.PHONY: test-back-distroless
+
+shell-back-distroless: ## open a busybox shell in the distroless backend image
+shell-back-distroless: build-back-distroless
+	@printf '%s\n' \
+		'FROM contacts-backend-distroless' \
+		'COPY --from=gcr.io/distroless/cc-debian13:debug-nonroot@sha256:bdb634669ffbf44cdfef9495238b03ce33a02e9ef631fc718b7dd6d2531f4325 /busybox /busybox' \
+		'ENV PATH="$$PATH:/busybox"' \
+		| docker build -q -t contacts-backend-distroless-debug - >/dev/null
+	@docker run --rm -it --entrypoint /busybox/sh contacts-backend-distroless-debug
+.PHONY: shell-back-distroless
+
 test-front: ## run the frontend tests
 	@args="$(filter-out $@,$(MAKECMDGOALS))" && \
 	$(COMPOSE) run --rm frontend-dev sh -c "pnpm test -- $${args:-${1}}"
@@ -261,13 +280,6 @@ back-lock: ## regenerate the uv.lock file
 	@docker run --rm -u $(DOCKER_USER) -e UV_CACHE_DIR=/tmp/uv-cache \
 		-v $(PWD)/src/backend:/app -w /app $(UV_IMAGE) uv lock
 .PHONY: back-lock
-
-clean-back: ## reset the backend .venv volumes (run after a dep or Python bump)
-# The venv lives in an anonymous volume, so a rebuilt image keeps being
-# shadowed by the previous one until the volume goes. Symptom: the app
-# dies on ModuleNotFoundError for a package that is installed.
-	@$(COMPOSE) rm -sfv backend-dev worker-dev backend-test
-.PHONY: clean-back
 
 # -- Database
 
