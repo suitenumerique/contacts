@@ -18,11 +18,13 @@ property name, so parse -> serialize -> parse is stable:
   verbatim, written back after the modeled lines.
 
 Mappings: FN <-> full_name; N <-> family_name, given_name, middle_name,
-civility (``M.``/``Mme``) plus name_prefix, name_suffix; NICKNAME <->
-nickname; ORG <-> company and department; PHOTO <-> photo; CATEGORIES
-<-> the owner's labels (parsed as ``label_names``). A card with only FN
-keeps it whole: splitting it would misfile single names, multi-word family
-names and family-name-first orders. A row without an owner has no labels:
+name_prefix, name_suffix; GRAMGENDER <-> grammatical_gender, also read
+from an honorific in the N prefix (``M.``, ``Mme``...); KIND or Apple's
+X-ABShowAs <-> kind; NICKNAME <-> nickname; ORG <-> company and
+department; PHOTO <-> photo; CATEGORIES <-> the owner's labels (parsed
+as ``label_names``). A card with only FN keeps it whole: splitting it
+would misfile single names, multi-word family names and family-name-first
+orders. A row without an owner has no labels:
 its stored CATEGORIES lines are written back verbatim.
 """
 
@@ -37,7 +39,13 @@ from django.core.exceptions import ValidationError
 import vobject
 from vobject.base import VObjectError
 
-from core.models import NAME_PARTS, Civility, compose_name
+from core.models import (
+    HONORIFIC_GENDERS,
+    NAME_PARTS,
+    ContactKind,
+    GrammaticalGender,
+    compose_name,
+)
 from core.utils import decode_text
 from core.validators import validate_photo
 
@@ -71,28 +79,14 @@ _PHOTO_MAGIC = (
     (b"GIF8", "gif"),
 )
 
-_PREFIX_TO_CIVILITY = {
-    "m": Civility.MR,
-    "m.": Civility.MR,
-    "mr": Civility.MR,
-    "mr.": Civility.MR,
-    "monsieur": Civility.MR,
-    "mme": Civility.MRS,
-    "mme.": Civility.MRS,
-    "mrs": Civility.MRS,
-    "mrs.": Civility.MRS,
-    "madame": Civility.MRS,
-    "ms": Civility.MRS,
-    "ms.": Civility.MRS,
-    # Mademoiselle is no longer used by administrations (circulaire du
-    # 21 février 2012): read as Madame.
-    "mlle": Civility.MRS,
-    "mlle.": Civility.MRS,
-    "melle": Civility.MRS,
-    "mademoiselle": Civility.MRS,
-    "miss": Civility.MRS,
+# Written in the N prefix too, so that a device which drops GRAMGENDER
+# keeps the gender on a round trip.
+_GENDER_HONORIFIC = {
+    GrammaticalGender.MASCULINE.value: "M.",
+    GrammaticalGender.FEMININE.value: "Mme",
 }
-_CIVILITY_PREFIX = {Civility.MR.value: "M.", Civility.MRS.value: "Mme"}
+_GENDERS = frozenset(GrammaticalGender.values) - {""}
+_KINDS = frozenset(ContactKind.values) - {""}
 
 FOLD_AT = 75  # octets, RFC 2426 section 2.6
 
@@ -259,19 +253,22 @@ def _values(component):
 
 
 def _decode_n(value):
-    """Split N into its columns; the first civility-like prefix is civility."""
+    """Split N into its columns.
+
+    The first honorific of the prefix gives the grammatical gender.
+    """
     family, given, middle, prefix, suffix = _parts(value, 5)
-    civility, prefixes = Civility.UNSPECIFIED, []
+    gender, prefixes = "", []
     for item in _values(prefix):
-        if not civility and item.lower() in _PREFIX_TO_CIVILITY:
-            civility = _PREFIX_TO_CIVILITY[item.lower()]
+        if not gender and item.lower() in HONORIFIC_GENDERS:
+            gender = HONORIFIC_GENDERS[item.lower()]
         else:
             prefixes.append(item)
     return {
         "family_name": " ".join(_values(family)),
         "given_name": " ".join(_values(given)),
         "middle_name": " ".join(_values(middle)),
-        "civility": str(civility),
+        "grammatical_gender": gender,
         "name_prefix": " ".join(prefixes),
         "name_suffix": " ".join(_values(suffix)),
     }
@@ -308,7 +305,10 @@ def _encode(name, item):
     if name in ("FN", "NICKNAME", "TITLE", "NOTE"):
         return f"{name}:{_escape(item)}"
     if name == "N":
-        prefixes = (_CIVILITY_PREFIX.get(item["civility"], ""), item["name_prefix"])
+        prefixes = (
+            _GENDER_HONORIFIC.get(item["grammatical_gender"], ""),
+            item["name_prefix"],
+        )
         components = (
             item["family_name"],
             item["given_name"],
@@ -596,6 +596,26 @@ def _set_aside(name, line, fields, seen):
     return False
 
 
+def _read_stated(name, line, stated):
+    """Read a KIND, X-ABShowAs or GRAMGENDER line with a value we model.
+
+    Return False for another line, or for a value we do not model: the
+    line is then kept as it is. Only the first line of each name counts.
+    """
+    if name in _KIND_NAMES:
+        name = "KIND"
+    if name not in ("KIND", "X-ABSHOWAS", "GRAMGENDER") or name in stated:
+        return False
+    value = _unescape(line.value).strip().lower()
+    if name == "KIND" and value in _KINDS:
+        stated[name] = value
+    elif name == "X-ABSHOWAS" and value == "company":
+        stated[name] = ContactKind.ORG.value
+    elif name == "GRAMGENDER" and value in _GENDERS:
+        stated[name] = value
+    return name in stated
+
+
 def _parse_card(lines):
     """Convert the content lines of one VCARD into contact fields and label names.
 
@@ -604,7 +624,8 @@ def _parse_card(lines):
     """
     fields = {
         "full_name": "",
-        "civility": "",
+        "kind": "",
+        "grammatical_gender": "",
         "name_prefix": "",
         "given_name": "",
         "middle_name": "",
@@ -625,10 +646,11 @@ def _parse_card(lines):
     extra = fields["vcard_extra"]
     seen = set()
     full_name = ""
+    stated = {}
 
     for line in lines:
         name = line.name.upper()
-        if _set_aside(name, line, fields, seen):
+        if _read_stated(name, line, stated) or _set_aside(name, line, fields, seen):
             continue
 
         value = _decode(name, line)
@@ -649,6 +671,9 @@ def _parse_card(lines):
         if used and name in _SHADOWED and _raw(line) != _encode(name, value):
             extra.setdefault(name, []).append(_raw(line))
 
+    fields["kind"] = stated.get("KIND") or stated.get("X-ABSHOWAS", "")
+    if "GRAMGENDER" in stated:
+        fields["grammatical_gender"] = stated["GRAMGENDER"]
     # An empty FN reads as what serialization would write in its place,
     # so a second round trip gives the same full_name.
     fields["full_name"] = full_name or _default_full_name(
@@ -672,7 +697,8 @@ def structured_name(contact):
     """The N columns of *contact* (merged for overlays)."""
     merged = contact.merged_value
     return {
-        field: merged(field) or "" for field in ("civility", "name_prefix", *NAME_PARTS)
+        field: merged(field) or ""
+        for field in ("grammatical_gender", "name_prefix", *NAME_PARTS)
     }
 
 
@@ -711,6 +737,7 @@ def serialize_contact(contact):
 
     emit("FN", formatted_name(contact))
     emit("N", structured_name(contact))
+    lines += _stated_lines(merged("kind"), merged("grammatical_gender"))
     if nickname := merged("nickname"):
         emit("NICKNAME", nickname)
     for name, field in _TYPED.items():
@@ -736,10 +763,29 @@ def serialize_contact(contact):
         lines.append(f"UID:{contact.pk}")
     # An owned row's CATEGORIES are its labels, written above.
     skipped = {"CATEGORIES"} if contact.owner_id else set()
+    # Lines stored before these columns existed.
+    if merged("kind"):
+        skipped |= {"KIND", "X-ADDRESSBOOKSERVER-KIND", "X-ABSHOWAS"}
+    if merged("grammatical_gender"):
+        skipped.add("GRAMGENDER")
     lines += _unmodeled_lines(extra, skipped)
 
     body = "".join(_fold(line) for line in lines)
     return f"BEGIN:VCARD\r\n{body}END:VCARD\r\n"
+
+
+def _stated_lines(kind, gender):
+    """The KIND, X-ABShowAs and GRAMGENDER lines of a contact.
+
+    The card is vCard 3.0: KIND and GRAMGENDER come from vCard 4 (RFC 6350,
+    RFC 9554), and Apple devices read X-ABShowAs to show a company card.
+    """
+    lines = [f"KIND:{kind}"] if kind else []
+    if kind == ContactKind.ORG:
+        lines.append("X-ABShowAs:COMPANY")
+    if gender:
+        lines.append(f"GRAMGENDER:{gender}")
+    return lines
 
 
 def contact_label_names(contact):

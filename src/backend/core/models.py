@@ -241,12 +241,51 @@ def compose_name(*parts):
     return " ".join(part.strip() for part in parts if part and part.strip())
 
 
-class Civility(models.TextChoices):
-    """Form of address shown before a contact's name."""
+class ContactKind(models.TextChoices):
+    """What a contact card stands for (vCard KIND, JSContact kind).
 
-    MR = "mr", "M."
-    MRS = "mrs", "Mme"
-    UNSPECIFIED = "", "Ne pas préciser"
+    Empty means not stated; the card then reads as a person.
+    """
+
+    INDIVIDUAL = "individual", "Individual"
+    ORG = "org", "Organization"
+    UNSPECIFIED = "", "Not stated"
+
+
+class GrammaticalGender(models.TextChoices):
+    """Grammatical gender to address a contact with (RFC 9553, 2.2.4).
+
+    It selects the form of salutations, such as "Madame" or "Monsieur" in
+    French. Empty means not stated. ``neuter`` is a grammatical gender and
+    does not mean "not stated".
+    """
+
+    ANIMATE = "animate", "Animate"
+    COMMON = "common", "Common"
+    FEMININE = "feminine", "Feminine"
+    INANIMATE = "inanimate", "Inanimate"
+    MASCULINE = "masculine", "Masculine"
+    NEUTER = "neuter", "Neuter"
+    UNSPECIFIED = "", "Not stated"
+
+
+# Honorifics read as a grammatical gender, from a vCard N prefix or a CSV
+# cell, lowercased.
+HONORIFIC_GENDERS = {
+    **dict.fromkeys(
+        ("m", "m.", "mr", "mr.", "monsieur"), GrammaticalGender.MASCULINE.value
+    ),
+    **dict.fromkeys(
+        ("mme", "mme.", "mrs", "mrs.", "madame", "ms", "ms."),
+        GrammaticalGender.FEMININE.value,
+    ),
+    # Mademoiselle is no longer used by administrations (circulaire du
+    # 21 février 2012): read as Madame.
+    **dict.fromkeys(
+        ("mlle", "mlle.", "melle", "mademoiselle", "miss"),
+        GrammaticalGender.FEMININE.value,
+    ),
+}
 
 
 def _scope_constraint(name):
@@ -350,18 +389,21 @@ class Contact(BaseModel):
     created_by = _author_field("User who created the contact, when known.")
     updated_by = _author_field("User who last edited the contact, when known.")
 
+    kind = models.CharField(
+        max_length=16, choices=ContactKind.choices, blank=True, default=""
+    )
+    grammatical_gender = models.CharField(
+        max_length=16, choices=GrammaticalGender.choices, blank=True, default=""
+    )
     # Names follow vCard: ``full_name`` is FN, the name as displayed, and
     # the other parts are the optional N components, plus NICKNAME. Only a
     # name is required, in whatever parts the user knows (see
     # ContactSerializer.validate).
-    civility = models.CharField(
-        max_length=8, choices=Civility.choices, blank=True, default=""
-    )
     full_name = models.CharField(blank=True, default="")
     name_prefix = models.CharField(
         blank=True,
         default="",
-        help_text="Title before the name (Dr, Pr, Me), civility aside.",
+        help_text="Title before the name (Dr, Pr, Me).",
     )
     given_name = models.CharField(blank=True, default="")
     middle_name = models.CharField(blank=True, default="")
@@ -508,7 +550,8 @@ class Contact(BaseModel):
     # Card fields a user may override through a local overlay (everything
     # else on the row is provenance/bookkeeping, not user-facing content).
     OVERLAYABLE_FIELDS = (
-        "civility",
+        "kind",
+        "grammatical_gender",
         "full_name",
         "name_prefix",
         "given_name",

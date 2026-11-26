@@ -3,16 +3,18 @@
  * contacts API
  * OpenAPI spec version: 1.0.0 (v1.0)
  */
-import type { CivilityEnum } from "./civility_enum";
+import type { GrammaticalGenderEnum } from "./grammatical_gender_enum";
+import type { KindEnum } from "./kind_enum";
 import type { TypedValueRequest } from "./typed_value_request";
 
 /**
  * Serialize contacts (full card).
  */
 export interface PatchedContactRequest {
-  civility?: CivilityEnum;
+  kind?: KindEnum;
+  grammatical_gender?: GrammaticalGenderEnum;
   full_name?: string;
-  /** Title before the name (Dr, Pr, Me), civility aside. */
+  /** Title before the name (Dr, Pr, Me). */
   name_prefix?: string;
   given_name?: string;
   middle_name?: string;

@@ -11,6 +11,7 @@ import uuid
 from drf_spectacular.utils import PolymorphicProxySerializer
 from rest_framework import serializers
 
+from core.models import GrammaticalGender
 from core.services import interactions, jscontact
 from core.services import search as search_service
 
@@ -61,10 +62,10 @@ class NicknameSerializer(serializers.Serializer):
 
 
 class SpeakToAsSerializer(serializers.Serializer):
-    """How to address the person (from the civility)."""
+    """How to address the person."""
 
     grammaticalGender = serializers.ChoiceField(  # JSContact's name
-        choices=["masculine", "feminine"]
+        choices=[gender for gender in GrammaticalGender.values if gender]
     )
 
 

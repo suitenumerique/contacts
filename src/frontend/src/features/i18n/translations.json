@@ -185,10 +185,10 @@
           "identity": "Identity",
           "coordinates": "Contact details",
           "organization": "Organization & position",
-          "civility": "Title",
-          "civilities": {
-            "mr": "Mr",
-            "mrs": "Ms"
+          "grammaticalGender": "Title",
+          "grammaticalGenders": {
+            "masculine": "Mr",
+            "feminine": "Ms"
           },
           "department": "Department",
           "addPhoto": "Add a photo",
@@ -300,7 +300,7 @@
           "result": "{{imported}} contact(s) imported, {{skipped}} skipped (already present), {{errors}} error(s).",
           "resultGroups_one": "{{count}} group imported.",
           "resultGroups_other": "{{count}} groups imported.",
-          "csvHint": "Use the columns of a CSV export from this app, or a Google Contacts or Outlook export. Main columns: civility, first_name, last_name, full_name, organization, department, job_title, email_1, phone_1, address_1, website_1 (each with an optional _type column, and _2, _3… for more), notes, labels. French headers work too. Each row needs a name: a full name, a first name or a last name.",
+          "csvHint": "Use the columns of a CSV export from this app, or a Google Contacts or Outlook export. Main columns: kind, grammatical_gender, first_name, last_name, full_name, organization, department, job_title, email_1, phone_1, address_1, website_1 (each with an optional _type column, and _2, _3… for more), notes, labels. French headers work too. Each row needs a name: a full name, a first name or a last name.",
           "errorsTitle": "These entries were not imported:",
           "entry": "Entry {{entry}} ({{name}})",
           "wholeFile": "The file",
@@ -551,10 +551,10 @@
           "identity": "Identité",
           "coordinates": "Coordonnées",
           "organization": "Organisation et poste",
-          "civility": "Civilité",
-          "civilities": {
-            "mr": "M.",
-            "mrs": "Mme"
+          "grammaticalGender": "Civilité",
+          "grammaticalGenders": {
+            "masculine": "M.",
+            "feminine": "Mme"
           },
           "department": "Direction / service",
           "addPhoto": "Ajouter une photo",
@@ -917,10 +917,10 @@
           "identity": "Identiteit",
           "coordinates": "Contactgegevens",
           "organization": "Organisatie en functie",
-          "civility": "Aanhef",
-          "civilities": {
-            "mr": "Dhr.",
-            "mrs": "Mevr."
+          "grammaticalGender": "Aanhef",
+          "grammaticalGenders": {
+            "masculine": "Dhr.",
+            "feminine": "Mevr."
           },
           "department": "Afdeling",
           "addPhoto": "Foto toevoegen",
@@ -1032,7 +1032,7 @@
           "result": "{{imported}} contact(en) geïmporteerd, {{skipped}} overgeslagen (al aanwezig), {{errors}} fout(en).",
           "resultGroups_one": "{{count}} groep geïmporteerd.",
           "resultGroups_other": "{{count}} groepen geïmporteerd.",
-          "csvHint": "Gebruik de kolommen van een CSV-export uit deze app, of een export uit Google Contacts of Outlook. Belangrijkste kolommen: civility, first_name, last_name, full_name, organization, department, job_title, email_1, phone_1, address_1, website_1 (elk met een optionele _type-kolom, en _2, _3… voor meer), notes, labels. Franse kopteksten werken ook. Elke rij heeft een naam nodig: een volledige naam, een voornaam of een achternaam.",
+          "csvHint": "Gebruik de kolommen van een CSV-export uit deze app, of een export uit Google Contacts of Outlook. Belangrijkste kolommen: kind, grammatical_gender, first_name, last_name, full_name, organization, department, job_title, email_1, phone_1, address_1, website_1 (elk met een optionele _type-kolom, en _2, _3… voor meer), notes, labels. Franse kopteksten werken ook. Elke rij heeft een naam nodig: een volledige naam, een voornaam of een achternaam.",
           "errorsTitle": "Deze items zijn niet geïmporteerd:",
           "entry": "Item {{entry}} ({{name}})",
           "wholeFile": "Het bestand",

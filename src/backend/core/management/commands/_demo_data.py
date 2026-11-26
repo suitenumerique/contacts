@@ -1,9 +1,9 @@
 """Demo address book of a small town hall, used by create_demo."""
 
-# (civility, given, family, job_title, company, department, email, phone, label)
+# (grammatical_gender, given, family, job_title, company, department, email, phone, label)
 PERSONAL_CONTACTS = [
     (
-        "mr",
+        "masculine",
         "Alban",
         "Siou",
         "Directeur général des services",
@@ -14,7 +14,7 @@ PERSONAL_CONTACTS = [
         "Agent",
     ),
     (
-        "mr",
+        "masculine",
         "Armand",
         "Talot",
         "Maire",
@@ -25,7 +25,7 @@ PERSONAL_CONTACTS = [
         "Élu",
     ),
     (
-        "mrs",
+        "feminine",
         "Amandine",
         "Aminoff",
         "Première adjointe",
@@ -36,7 +36,7 @@ PERSONAL_CONTACTS = [
         "Élu",
     ),
     (
-        "mrs",
+        "feminine",
         "Amandine",
         "Salambo",
         "Conseillère municipale",
@@ -47,7 +47,7 @@ PERSONAL_CONTACTS = [
         "Élu",
     ),
     (
-        "mr",
+        "masculine",
         "Alfredo",
         "Siphron",
         "Chef de projet",
@@ -58,7 +58,7 @@ PERSONAL_CONTACTS = [
         "Prestataire",
     ),
     (
-        "mr",
+        "masculine",
         "Bastien",
         "Tremblay",
         "Responsable voirie",
@@ -69,7 +69,7 @@ PERSONAL_CONTACTS = [
         "Agent",
     ),
     (
-        "mrs",
+        "feminine",
         "Bianca",
         "Thornfield",
         "Présidente",
@@ -80,7 +80,7 @@ PERSONAL_CONTACTS = [
         "Association",
     ),
     (
-        "mrs",
+        "feminine",
         "Béatrice",
         "Valen",
         "Animatrice",
@@ -91,7 +91,7 @@ PERSONAL_CONTACTS = [
         "Agent",
     ),
     (
-        "mrs",
+        "feminine",
         "Carine",
         "Cross",
         "Directrice",
@@ -102,7 +102,7 @@ PERSONAL_CONTACTS = [
         "",
     ),
     (
-        "mrs",
+        "feminine",
         "Céleste",
         "Dupont",
         "Conseillère municipale",
@@ -113,7 +113,7 @@ PERSONAL_CONTACTS = [
         "Élu",
     ),
     (
-        "mr",
+        "masculine",
         "Damien",
         "Lemoine",
         "Adjoint aux finances",
@@ -124,7 +124,7 @@ PERSONAL_CONTACTS = [
         "Élu",
     ),
     (
-        "mrs",
+        "feminine",
         "Daphné",
         "Li",
         "Chargée de communication",
@@ -135,7 +135,7 @@ PERSONAL_CONTACTS = [
         "Agent",
     ),
     (
-        "mr",
+        "masculine",
         "Dorian",
         "Brooks",
         "Graphiste",
@@ -146,7 +146,7 @@ PERSONAL_CONTACTS = [
         "Prestataire",
     ),
     (
-        "mr",
+        "masculine",
         "David",
         "Carver",
         "Agent d'entretien",
@@ -157,7 +157,7 @@ PERSONAL_CONTACTS = [
         "Agent",
     ),
     (
-        "mr",
+        "masculine",
         "Dylan",
         "Blackwood",
         "Photographe",
@@ -168,7 +168,7 @@ PERSONAL_CONTACTS = [
         "Prestataire",
     ),
     (
-        "mrs",
+        "feminine",
         "Élodie",
         "Garnier",
         "",
@@ -179,7 +179,7 @@ PERSONAL_CONTACTS = [
         "",
     ),
     (
-        "mrs",
+        "feminine",
         "Fanny",
         "North",
         "Traiteur",
@@ -190,7 +190,7 @@ PERSONAL_CONTACTS = [
         "Prestataire",
     ),
     (
-        "mr",
+        "masculine",
         "Félix",
         "Marchand",
         "Conseiller municipal",
@@ -200,9 +200,19 @@ PERSONAL_CONTACTS = [
         "",
         "Élu",
     ),
-    ("mrs", "Gabrielle", "Moreau", "", "", "", "gabrielle.moreau@example.com", "", ""),
     (
-        "mr",
+        "feminine",
+        "Gabrielle",
+        "Moreau",
+        "",
+        "",
+        "",
+        "gabrielle.moreau@example.com",
+        "",
+        "",
+    ),
+    (
+        "masculine",
         "Gaspard",
         "Yu",
         "Trésorier",
@@ -213,7 +223,7 @@ PERSONAL_CONTACTS = [
         "Association",
     ),
     (
-        "mr",
+        "masculine",
         "Hugo",
         "Chastel",
         "Webmestre",
@@ -224,7 +234,7 @@ PERSONAL_CONTACTS = [
         "Agent",
     ),
     (
-        "mrs",
+        "feminine",
         "Inès",
         "Robin",
         "Conseillère municipale",
@@ -235,7 +245,7 @@ PERSONAL_CONTACTS = [
         "Élu",
     ),
     (
-        "mr",
+        "masculine",
         "Jules",
         "Fontaine",
         "",
@@ -246,7 +256,7 @@ PERSONAL_CONTACTS = [
         "",
     ),
     (
-        "mr",
+        "masculine",
         "Liam",
         "Carter",
         "Animateur",
@@ -257,7 +267,7 @@ PERSONAL_CONTACTS = [
         "Agent",
     ),
     (
-        "mr",
+        "masculine",
         "Marcus",
         "Langley",
         "Électricien",
@@ -268,7 +278,7 @@ PERSONAL_CONTACTS = [
         "Prestataire",
     ),
     (
-        "mr",
+        "masculine",
         "Paul",
         "Dumont",
         "Conseiller municipal",
@@ -279,7 +289,7 @@ PERSONAL_CONTACTS = [
         "Élu",
     ),
     (
-        "mrs",
+        "feminine",
         "Sofia",
         "Tran",
         "",
@@ -290,7 +300,7 @@ PERSONAL_CONTACTS = [
         "",
     ),
     (
-        "mrs",
+        "feminine",
         "Nadia",
         "Benali",
         "Directrice",
@@ -389,10 +399,10 @@ ADDRESSES = {
 }
 
 # Cards using the other name parts: a title, a middle name and a
-# multi-word family name, then a card named by its full name only.
+# multi-word family name, then an organization card.
 NAME_SAMPLES = [
     {
-        "civility": "mrs",
+        "grammatical_gender": "feminine",
         "name_prefix": "Dr",
         "given_name": "Hélène",
         "middle_name": "Marie",
@@ -404,6 +414,7 @@ NAME_SAMPLES = [
         "emails": [{"type": "work", "value": "helene.delatour@cdg-brigny.example"}],
     },
     {
+        "kind": "org",
         "full_name": "Médiathèque de Brigny",
         "company": "Mairie de Brigny",
         "emails": [{"type": "work", "value": "mediatheque@brigny.example"}],

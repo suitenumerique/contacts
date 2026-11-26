@@ -166,7 +166,7 @@ with nothing to say are left out.
 | displayed name | `name.full` |
 | prefix, given, middle, family name, suffix | `name.components`: `title`, `given`, `given2`, `surname`, `credential` |
 | nickname | `nicknames.k1.name` |
-| civility M. / Mme | `speakToAs.grammaticalGender`: `masculine` / `feminine` |
+| grammatical gender | `speakToAs.grammaticalGender` |
 | emails | `emails` by id (`e1`…): type `work` → `contexts.work`, `home` or `private` → `contexts.private`, `other` or none → neither, any other text → `label`; the first one has `pref: 1` |
 | company, department | `organizations.o1.name`, `.units[0].name` |
 | job title | `titles.t1` |

@@ -3,7 +3,8 @@
  * contacts API
  * OpenAPI spec version: 1.0.0 (v1.0)
  */
-import type { CivilityEnum } from "./civility_enum";
+import type { GrammaticalGenderEnum } from "./grammatical_gender_enum";
+import type { KindEnum } from "./kind_enum";
 import type { TypedValue } from "./typed_value";
 
 /**
@@ -13,7 +14,8 @@ export interface ContactList {
   /** primary key for the record as UUID */
   readonly id: string;
   readonly display_name: string;
-  readonly civility: CivilityEnum;
+  readonly kind: KindEnum;
+  readonly grammatical_gender: GrammaticalGenderEnum;
   readonly full_name: string;
   readonly given_name: string;
   readonly family_name: string;

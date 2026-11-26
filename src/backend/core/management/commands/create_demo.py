@@ -113,7 +113,7 @@ class Command(BaseCommand):
         labels = {label.name: label for label in user.contact_labels.all()}
         contacts = {}
         for row in PERSONAL_CONTACTS:
-            civility, given, family, job, company, department, email, phone, label = row
+            gender, given, family, job, company, department, email, phone, label = row
             address = ADDRESSES.get(email)
             # Saved one by one (not QuerySet.update) so the search fields
             # include every field.
@@ -123,7 +123,7 @@ class Command(BaseCommand):
                 given_name=given,
                 family_name=family,
                 defaults={
-                    "civility": civility,
+                    "grammatical_gender": gender,
                     "full_name": f"{given} {family}",
                     "emails": [{"type": "work", "value": email}],
                     "phones": [{"type": "cell", "value": phone}] if phone else [],

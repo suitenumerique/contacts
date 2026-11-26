@@ -194,7 +194,8 @@ class ContactSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "display_name",
-            "civility",
+            "kind",
+            "grammatical_gender",
             "full_name",
             "name_prefix",
             "given_name",
@@ -412,7 +413,8 @@ class ContactListSerializer(ContactSerializer):
         fields = [
             "id",
             "display_name",
-            "civility",
+            "kind",
+            "grammatical_gender",
             "full_name",
             "given_name",
             "family_name",

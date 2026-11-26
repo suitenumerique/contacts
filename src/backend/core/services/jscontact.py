@@ -39,8 +39,6 @@ _NAME_COMPONENTS = (
     ("family_name", "surname"),
     ("name_suffix", "credential"),
 )
-# Civility to the grammatical gender to address someone with (speakToAs).
-_GENDERS = {"mr": "masculine", "mrs": "feminine"}
 
 
 def vendor(name):
@@ -100,7 +98,7 @@ def contact_card(contact):
 
     if nickname := value("nickname"):
         card["nicknames"] = {"k1": {"name": nickname}}
-    if gender := _GENDERS.get(value("civility")):
+    if gender := value("grammatical_gender"):
         card["speakToAs"] = {"grammaticalGender": gender}
     if emails := _emails(value("emails")):
         card["emails"] = emails

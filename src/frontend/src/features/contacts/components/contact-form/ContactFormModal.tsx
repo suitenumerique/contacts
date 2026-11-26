@@ -191,7 +191,9 @@ export const ContactFormModal = ({
   const photoInputRef = useRef<HTMLInputElement>(null);
 
   const initial: Partial<Contact> = contact ?? {};
-  const [civility, setCivility] = useState<string>(initial.civility ?? "");
+  const [grammaticalGender, setGrammaticalGender] = useState<string>(
+    initial.grammatical_gender ?? "",
+  );
   const [namePrefix, setNamePrefix] = useState(initial.name_prefix ?? "");
   const [givenName, setGivenName] = useState(initial.given_name ?? "");
   const [middleName, setMiddleName] = useState(initial.middle_name ?? "");
@@ -238,9 +240,9 @@ export const ContactFormModal = ({
   // Editing a shared contact itself (administrators), or creating one.
   const isOrgContact = isEdit ? !!contact.is_org_contact && !forkSourceId : shareOnCreate;
 
-  const civilityOptions = [
-    { label: t("contacts.form.civilities.mr"), value: "mr" },
-    { label: t("contacts.form.civilities.mrs"), value: "mrs" },
+  const grammaticalGenderOptions = [
+    { label: t("contacts.form.grammaticalGenders.masculine"), value: "masculine" },
+    { label: t("contacts.form.grammaticalGenders.feminine"), value: "feminine" },
   ];
 
   const handlePhotoChange = async (file: File | null) => {
@@ -258,7 +260,7 @@ export const ContactFormModal = ({
       // An organization contact carries no labels (they are per user).
       ...(isOrgContact ? {} : { label_ids: labelIds }),
       ...(isEdit || forkSourceId ? {} : { is_org_contact: isOrgContact }),
-      civility: (civility || "") as ContactPayload["civility"],
+      grammatical_gender: (grammaticalGender || "") as ContactPayload["grammatical_gender"],
       name_prefix: namePrefix.trim(),
       given_name: givenName.trim(),
       middle_name: middleName.trim(),
@@ -368,11 +370,13 @@ export const ContactFormModal = ({
         <h3 className="contact-form__section">{t("contacts.form.identity")}</h3>
         <div className="contact-form__names">
           <Select
-            className="contact-form__civility"
-            label={t("contacts.form.civility")}
-            options={civilityOptions}
-            value={civility || undefined}
-            onChange={(event) => setCivility(event.target.value ? String(event.target.value) : "")}
+            className="contact-form__grammatical-gender"
+            label={t("contacts.form.grammaticalGender")}
+            options={grammaticalGenderOptions}
+            value={grammaticalGender || undefined}
+            onChange={(event) =>
+              setGrammaticalGender(event.target.value ? String(event.target.value) : "")
+            }
           />
           <Input
             label={t("contacts.form.givenName")}
