@@ -99,7 +99,7 @@ class ContactsResourceServerBackend(ResourceServerBackend):
             user = self.get_user(access_token, id_token, payload)
             if user is None:
                 raise
-            logger.info("User created by a concurrent call: %s", exc)
+            logger.debug("User created by a concurrent call: %s", exc)
             return user
         except (RequestsConnectionError, Timeout) as exc:
             logger.warning("Userinfo failed: %s", exc)
