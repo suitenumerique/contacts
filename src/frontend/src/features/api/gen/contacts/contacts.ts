@@ -26,6 +26,7 @@ import type {
 import type {
   Contact,
   ContactRequest,
+  ContactsDestroyParams,
   ContactsListParams,
   FileUploadRequest,
   PaginatedContactListList,
@@ -874,8 +875,20 @@ export type contactsDestroyResponseSuccess = contactsDestroyResponse204 & {
 
 export type contactsDestroyResponse = contactsDestroyResponseSuccess;
 
-export const getContactsDestroyUrl = (id: string) => {
-  return `/api/v1.0/contacts/${id}/`;
+export const getContactsDestroyUrl = (id: string, params?: ContactsDestroyParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : String(value));
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/v1.0/contacts/${id}/?${stringifiedParams}`
+    : `/api/v1.0/contacts/${id}/`;
 };
 
 /**
@@ -893,9 +906,10 @@ export const getContactsDestroyUrl = (id: string) => {
  */
 export const contactsDestroy = async (
   id: string,
+  params?: ContactsDestroyParams,
   options?: Parameters<typeof fetchAPI>[1],
 ): Promise<contactsDestroyResponse> => {
-  return fetchAPI<contactsDestroyResponse>(getContactsDestroyUrl(id), {
+  return fetchAPI<contactsDestroyResponse>(getContactsDestroyUrl(id, params), {
     ...options,
     method: "DELETE",
   });
@@ -931,9 +945,9 @@ export const getContactsDestroyMutationOptions = <
     Awaited<ReturnType<typeof contactsDestroy>>,
     ContactsDestroyMutationVariables
   > = (props) => {
-    const { id } = props ?? {};
+    const { id, params } = props ?? {};
 
-    return contactsDestroy(id, requestOptions);
+    return contactsDestroy(id, params, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -944,7 +958,7 @@ export type ContactsDestroyMutationResult = NonNullable<
 >;
 
 export type ContactsDestroyMutationError = ErrorType<unknown>;
-export type ContactsDestroyMutationVariables = { id: string };
+export type ContactsDestroyMutationVariables = { id: string; params?: ContactsDestroyParams };
 
 export const useContactsDestroy = <TError = ErrorType<unknown>, TContext = unknown>(
   options?: {

@@ -272,7 +272,19 @@ class ActingUserMixin:
                 description="Alphabetical direction (default asc).",
             ),
         ]
-    )
+    ),
+    destroy=extend_schema(
+        parameters=[
+            OpenApiParameter(
+                "permanent",
+                bool,
+                description=(
+                    "Delete a contact in the trash permanently. Without it, a "
+                    "delete moves the contact to the trash."
+                ),
+            ),
+        ]
+    ),
 )
 class ContactViewSet(ActingUserMixin, SerializerPerActionMixin, viewsets.ModelViewSet):
     """CRUD for contacts: the user's own, and their organization's.
@@ -484,7 +496,13 @@ class ContactViewSet(ActingUserMixin, SerializerPerActionMixin, viewsets.ModelVi
 
     @transaction.atomic
     def perform_destroy(self, instance):
-        """First delete moves to the corbeille; second one is permanent.
+        """Move a contact to the corbeille, or with ``permanent``, delete it.
+
+        The client states the intent. The server does not infer it from
+        ``deleted_at``: with stale data, a "move to trash" could then
+        delete a contact that another tab has already trashed. So a plain
+        delete of a trashed contact changes nothing, and a permanent
+        delete of a live contact is refused.
 
         Deleting an overlay just drops the local edits (revert to source),
         so it is removed outright rather than sent to the corbeille.
@@ -492,13 +510,20 @@ class ContactViewSet(ActingUserMixin, SerializerPerActionMixin, viewsets.ModelVi
         self._check_writable(instance)
         if instance.overlay_of_id is not None:
             instance.delete()
-        elif instance.deleted_at is None:
-            instance.deleted_at = timezone.now()
-            instance.updated_by = self.acting_user
-            instance.save(update_fields=["deleted_at", "updated_by", "updated_at"])
-        else:
-            # Contact.delete detaches the users' overlays of the row.
-            instance.delete()
+            return
+        if self.request.query_params.get("permanent") != "true":
+            if instance.deleted_at is None:
+                instance.deleted_at = timezone.now()
+                instance.updated_by = self.acting_user
+                instance.save(update_fields=["deleted_at", "updated_by", "updated_at"])
+            return
+        if instance.deleted_at is None:
+            raise drf_exceptions.ValidationError(
+                "This contact is not in the trash; move it there before you "
+                "delete it permanently."
+            )
+        # Contact.delete detaches the users' overlays of the row.
+        instance.delete()
 
     @extend_schema(request=None, responses=serializers.ContactSerializer)
     @action(detail=True, methods=["post"], url_path="restore")

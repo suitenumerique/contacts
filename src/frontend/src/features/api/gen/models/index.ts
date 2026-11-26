@@ -18,6 +18,7 @@ export * from "./contact_label";
 export * from "./contact_list";
 export * from "./contact_request";
 export * from "./contact";
+export * from "./contacts_destroy_params";
 export * from "./contacts_list_params";
 export * from "./contacts_list_sort";
 export * from "./file_upload_request";
