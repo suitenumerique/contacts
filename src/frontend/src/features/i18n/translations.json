@@ -190,6 +190,11 @@
             "masculine": "Mr",
             "feminine": "Ms"
           },
+          "kinds": {
+            "individual": "Person",
+            "org": "Organization"
+          },
+          "orgName": "Organization name",
           "department": "Department",
           "addPhoto": "Add a photo",
           "changePhoto": "Change photo",
@@ -556,6 +561,11 @@
             "masculine": "M.",
             "feminine": "Mme"
           },
+          "kinds": {
+            "individual": "Personne",
+            "org": "Structure"
+          },
+          "orgName": "Nom de la structure",
           "department": "Direction / service",
           "addPhoto": "Ajouter une photo",
           "changePhoto": "Changer la photo",
@@ -922,6 +932,11 @@
             "masculine": "Dhr.",
             "feminine": "Mevr."
           },
+          "kinds": {
+            "individual": "Persoon",
+            "org": "Organisatie"
+          },
+          "orgName": "Naam van de organisatie",
           "department": "Afdeling",
           "addPhoto": "Foto toevoegen",
           "changePhoto": "Foto wijzigen",

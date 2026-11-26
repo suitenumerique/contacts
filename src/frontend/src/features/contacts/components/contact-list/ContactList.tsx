@@ -25,7 +25,7 @@ import { useContactsList, useLabels, useRestoreContact } from "../../hooks/useCo
 import { useContactsModals } from "../../modals";
 import { filtersFromSearch, type ContactsSearch } from "../../navigation";
 import type { ContactListItem } from "../../types";
-import { sectionLetterOf, sortNameOf, splitAroundFamilyName } from "../../utils";
+import { isOrganization, sectionLetterOf, sortNameOf, splitAroundFamilyName } from "../../utils";
 import { ContactAvatar } from "../avatar/ContactAvatar";
 import { LabelBadge } from "../labels/LabelBadge";
 
@@ -272,6 +272,7 @@ export const ContactList = ({ mode, search, selectedId }: ContactListProps) => {
                         givenName={contact.given_name}
                         familyName={contact.family_name}
                         photo={contact.photo}
+                        organization={isOrganization(contact)}
                       />
                       <ContactRowName contact={contact} />
 
