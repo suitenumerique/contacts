@@ -970,14 +970,14 @@ $radius: 4px;
       flex: 1;
     }
 
-    > .contact-form__civility {
+    > .contact-form__grammatical-gender {
       flex: 0 0 130px;
     }
 
     @media (max-width: $tablet) {
       flex-direction: column;
 
-      > .contact-form__civility {
+      > .contact-form__grammatical-gender {
         flex-basis: auto;
       }
     }

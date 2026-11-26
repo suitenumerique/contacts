@@ -257,6 +257,13 @@ of one-column
 properties (a second `ORG`, `NOTE`...). See `core/services/vcf_service.py`
 for the mapping.
 
+The kind of a contact is written as `KIND` (`individual` or `org`). An
+organization card also gets `X-ABShowAs:COMPANY`, which Apple devices read.
+The import reads both. The grammatical gender is written as `GRAMGENDER`
+(RFC 9554). A masculine or feminine gender also writes `M.` or `Mme` in the
+`N` prefix, because a device can drop `GRAMGENDER`. The import reads a
+gender from these honorifics too.
+
 A card is served without the characters that XML 1.0 does not allow, such
 as a vertical tab. The stored data keeps these characters.
 

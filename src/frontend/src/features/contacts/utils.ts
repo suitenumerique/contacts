@@ -4,12 +4,15 @@
 
 import type { TFunction } from "i18next";
 
-/** Localized civility prefix ("Mr" / "M." / "Dhr.") for a contact. */
-export const civilityOf = (t: TFunction, contact: { civility?: string | null }) =>
-  contact.civility === "mr"
-    ? t("contacts.form.civilities.mr")
-    : contact.civility === "mrs"
-      ? t("contacts.form.civilities.mrs")
+/**
+ * Localized honorific ("Mr" / "M." / "Dhr.") for the grammatical gender of
+ * a contact. Only the masculine and feminine genders have one.
+ */
+export const honorificOf = (t: TFunction, contact: { grammatical_gender?: string | null }) =>
+  contact.grammatical_gender === "masculine"
+    ? t("contacts.form.grammaticalGenders.masculine")
+    : contact.grammatical_gender === "feminine"
+      ? t("contacts.form.grammaticalGenders.feminine")
       : "";
 
 /**

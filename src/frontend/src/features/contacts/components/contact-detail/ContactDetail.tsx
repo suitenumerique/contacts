@@ -51,7 +51,7 @@ import {
 } from "../../hooks/useContactsQueries";
 import { useContactsModals } from "../../modals";
 import type { Contact, TypedValue } from "../../types";
-import { canJoinGroup, civilityOf, structuredNameOf, websiteHref } from "../../utils";
+import { canJoinGroup, honorificOf, structuredNameOf, websiteHref } from "../../utils";
 import { ContactAvatar } from "../avatar/ContactAvatar";
 import { LabelBadge } from "../labels/LabelBadge";
 
@@ -299,7 +299,7 @@ const ContactCard = ({ contact }: { contact: Contact }) => {
   const menu = useCardMenu(contact);
   const [menuOpen, setMenuOpen] = useState(false);
 
-  const name = [civilityOf(t, contact), contact.display_name].filter(Boolean).join(" ");
+  const name = [honorificOf(t, contact), contact.display_name].filter(Boolean).join(" ");
   // The parts are worth showing when the displayed name does not already
   // say it all (a title, a middle name, a free-form display name...).
   const structuredName = structuredNameOf(contact);

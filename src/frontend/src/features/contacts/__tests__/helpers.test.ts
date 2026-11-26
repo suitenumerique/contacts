@@ -4,7 +4,7 @@ import { colorOf, initialsOf } from "../components/avatar/ContactAvatar";
 import { deleteModalPrefix } from "../components/contact-detail/DeleteContactModal";
 import { filtersFromSearch, parseContactsSearch } from "../navigation";
 import {
-  civilityOf,
+  honorificOf,
   composedNameOf,
   contactMatches,
   sectionLetterOf,
@@ -145,15 +145,20 @@ describe("colorOf", () => {
   });
 });
 
-describe("civilityOf", () => {
+describe("honorificOf", () => {
   // A t() stub that echoes the key, so we assert the key lookup itself.
   const t = ((key: string) => key) as TFunction;
 
-  it("maps codes to the translated civility keys", () => {
-    expect(civilityOf(t, { civility: "mr" })).toBe("contacts.form.civilities.mr");
-    expect(civilityOf(t, { civility: "mrs" })).toBe("contacts.form.civilities.mrs");
-    expect(civilityOf(t, { civility: "" })).toBe("");
-    expect(civilityOf(t, {})).toBe("");
+  it("maps genders to the translated honorific keys", () => {
+    expect(honorificOf(t, { grammatical_gender: "masculine" })).toBe(
+      "contacts.form.grammaticalGenders.masculine",
+    );
+    expect(honorificOf(t, { grammatical_gender: "feminine" })).toBe(
+      "contacts.form.grammaticalGenders.feminine",
+    );
+    expect(honorificOf(t, { grammatical_gender: "neuter" })).toBe("");
+    expect(honorificOf(t, { grammatical_gender: "" })).toBe("");
+    expect(honorificOf(t, {})).toBe("");
   });
 });
 

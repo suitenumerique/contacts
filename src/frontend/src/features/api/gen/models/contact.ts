@@ -3,7 +3,8 @@
  * contacts API
  * OpenAPI spec version: 1.0.0 (v1.0)
  */
-import type { CivilityEnum } from "./civility_enum";
+import type { GrammaticalGenderEnum } from "./grammatical_gender_enum";
+import type { KindEnum } from "./kind_enum";
 import type { TypedValue } from "./typed_value";
 
 /**
@@ -13,9 +14,10 @@ export interface Contact {
   /** primary key for the record as UUID */
   readonly id: string;
   readonly display_name: string;
-  civility?: CivilityEnum;
+  kind?: KindEnum;
+  grammatical_gender?: GrammaticalGenderEnum;
   full_name?: string;
-  /** Title before the name (Dr, Pr, Me), civility aside. */
+  /** Title before the name (Dr, Pr, Me). */
   name_prefix?: string;
   given_name?: string;
   middle_name?: string;

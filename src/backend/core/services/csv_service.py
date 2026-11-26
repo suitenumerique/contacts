@@ -3,13 +3,17 @@
 Reference CSV model (header required, comma or semicolon separated,
 UTF-8 with optional BOM)::
 
-    civility,name_prefix,first_name,middle_name,last_name,name_suffix,
-    full_name,nickname,organization,department,job_title,
+    kind,grammatical_gender,name_prefix,first_name,middle_name,last_name,
+    name_suffix,full_name,nickname,organization,department,job_title,
     email_1,email_1_type,phone_1,phone_1_type,address_1,address_1_type,
     website_1,website_1_type,notes,labels
 
-- ``civility``: ``M.`` / ``Mme`` (or ``mr`` / ``mrs``, ``Mlle`` read as
-  ``Mme``); anything else is treated as unspecified.
+- ``kind``: ``individual`` or ``org``; empty when not stated.
+- ``grammatical_gender``: ``masculine``, ``feminine``, ``neuter``,
+  ``common``, ``animate`` or ``inanimate`` (RFC 9553). An honorific is
+  read too: ``M.``, ``Mme``, ``Mr``, ``Mrs``... (``Mlle`` is read as
+  ``Mme``). A ``civility`` or ``civilite`` column is read as this column.
+  Anything else is treated as not stated.
 - ``full_name``: the name as displayed; when empty, the name parts
   joined. A row needs a name in one of these columns.
 - ``email_N``, ``phone_N``, ``address_N``, ``website_N``: as many as the
@@ -32,7 +36,13 @@ import logging
 import re
 import unicodedata
 
-from core.models import NAME_PARTS, compose_name
+from core.models import (
+    HONORIFIC_GENDERS,
+    NAME_PARTS,
+    ContactKind,
+    GrammaticalGender,
+    compose_name,
+)
 from core.utils import decode_text
 
 logger = logging.getLogger(__name__)
@@ -52,7 +62,8 @@ TYPED_KINDS = {
 _DEFAULT_TYPES = {"email": "work", "phone": "work", "address": "work", "website": ""}
 
 _LEADING_COLUMNS = [
-    "civility",
+    "kind",
+    "grammatical_gender",
     "name_prefix",
     "first_name",
     "middle_name",
@@ -78,8 +89,10 @@ def csv_columns(counts=None):
 
 # Accepted header aliases (normalized by _normalize_header) -> column.
 HEADER_ALIASES = {
-    "civility": "civility",
-    "civilite": "civility",
+    "kind": "kind",
+    "grammatical_gender": "grammatical_gender",
+    "civility": "grammatical_gender",
+    "civilite": "grammatical_gender",
     "name_prefix": "name_prefix",
     "prefix": "name_prefix",
     "prefixe": "name_prefix",
@@ -238,25 +251,11 @@ _TYPE_ALIASES = {
 }
 _TYPE_RE = re.compile(r"^[a-z0-9-]{1,32}$")
 
-CIVILITY_ALIASES = {
-    "m.": "mr",
-    "m": "mr",
-    "mr": "mr",
-    "monsieur": "mr",
-    "mme": "mrs",
-    "mme.": "mrs",
-    "mrs": "mrs",
-    "madame": "mrs",
-    "ms": "mrs",
-    "ms.": "mrs",
-    # Mademoiselle is no longer used by administrations (circulaire du
-    # 21 février 2012): read as Madame.
-    "mlle": "mrs",
-    "mlle.": "mrs",
-    "melle": "mrs",
-    "mademoiselle": "mrs",
-    "miss": "mrs",
+_GENDER_VALUES = {
+    **{gender: gender for gender in GrammaticalGender.values if gender},
+    **HONORIFIC_GENDERS,
 }
+_KIND_VALUES = frozenset(ContactKind.values)
 
 
 def _normalize_header(value):
@@ -465,6 +464,7 @@ def _label_names(cell, separator):
 
 def _to_fields(values, entries, label_separator):
     """Convert one row into Contact constructor kwargs."""
+    kind = (values.get("kind") or "").strip().lower()
     names = {
         "given_name": values.get("first_name", ""),
         "middle_name": values.get("middle_name", ""),
@@ -472,8 +472,9 @@ def _to_fields(values, entries, label_separator):
         "name_suffix": values.get("name_suffix", ""),
     }
     return {
-        "civility": CIVILITY_ALIASES.get(
-            (values.get("civility") or "").strip().lower(), ""
+        "kind": kind if kind in _KIND_VALUES else "",
+        "grammatical_gender": _GENDER_VALUES.get(
+            (values.get("grammatical_gender") or "").strip().lower(), ""
         ),
         "name_prefix": values.get("name_prefix", ""),
         **names,
@@ -535,7 +536,8 @@ def serialize_contacts_csv(contacts):
         # sees, not just the handful of fields it overrides.
         merged = contact.merged_value
         row = [
-            {"mr": "M.", "mrs": "Mme"}.get(merged("civility"), ""),
+            merged("kind"),
+            merged("grammatical_gender"),
             merged("name_prefix"),
             merged("given_name"),
             merged("middle_name"),

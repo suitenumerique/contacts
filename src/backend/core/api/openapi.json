@@ -2054,14 +2054,6 @@
                     "user"
                 ]
             },
-            "CivilityEnum": {
-                "enum": [
-                    "mr",
-                    "mrs"
-                ],
-                "type": "string",
-                "description": "* `mr` - M.\n* `mrs` - Mme\n* `` - Ne pas préciser"
-            },
             "Config": {
                 "type": "object",
                 "description": "Public settings served to the frontend by ``GET /config/``.",
@@ -2176,15 +2168,18 @@
                         "type": "string",
                         "readOnly": true
                     },
-                    "civility": {
-                        "$ref": "#/components/schemas/CivilityEnum"
+                    "kind": {
+                        "$ref": "#/components/schemas/KindEnum"
+                    },
+                    "grammatical_gender": {
+                        "$ref": "#/components/schemas/GrammaticalGenderEnum"
                     },
                     "full_name": {
                         "type": "string"
                     },
                     "name_prefix": {
                         "type": "string",
-                        "description": "Title before the name (Dr, Pr, Me), civility aside."
+                        "description": "Title before the name (Dr, Pr, Me)."
                     },
                     "given_name": {
                         "type": "string"
@@ -2491,10 +2486,18 @@
                         "type": "string",
                         "readOnly": true
                     },
-                    "civility": {
+                    "kind": {
                         "allOf": [
                             {
-                                "$ref": "#/components/schemas/CivilityEnum"
+                                "$ref": "#/components/schemas/KindEnum"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "grammatical_gender": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/GrammaticalGenderEnum"
                             }
                         ],
                         "readOnly": true
@@ -2585,18 +2588,19 @@
                     }
                 },
                 "required": [
-                    "civility",
                     "company",
                     "department",
                     "display_name",
                     "family_name",
                     "full_name",
                     "given_name",
+                    "grammatical_gender",
                     "group_ids",
                     "id",
                     "is_favorite",
                     "is_writable",
                     "job_title",
+                    "kind",
                     "overlay_of",
                     "photo",
                     "source"
@@ -2606,15 +2610,18 @@
                 "type": "object",
                 "description": "Serialize contacts (full card).",
                 "properties": {
-                    "civility": {
-                        "$ref": "#/components/schemas/CivilityEnum"
+                    "kind": {
+                        "$ref": "#/components/schemas/KindEnum"
+                    },
+                    "grammatical_gender": {
+                        "$ref": "#/components/schemas/GrammaticalGenderEnum"
                     },
                     "full_name": {
                         "type": "string"
                     },
                     "name_prefix": {
                         "type": "string",
-                        "description": "Title before the name (Dr, Pr, Me), civility aside."
+                        "description": "Title before the name (Dr, Pr, Me)."
                     },
                     "given_name": {
                         "type": "string"
@@ -2710,6 +2717,18 @@
                     "file"
                 ]
             },
+            "GrammaticalGenderEnum": {
+                "enum": [
+                    "animate",
+                    "common",
+                    "feminine",
+                    "inanimate",
+                    "masculine",
+                    "neuter"
+                ],
+                "type": "string",
+                "description": "* `animate` - Animate\n* `common` - Common\n* `feminine` - Feminine\n* `inanimate` - Inanimate\n* `masculine` - Masculine\n* `neuter` - Neuter\n* `` - Not stated"
+            },
             "GroupMemberRequest": {
                 "type": "object",
                 "description": "Payload of group member management actions.",
@@ -2783,6 +2802,14 @@
                     "skipped",
                     "total"
                 ]
+            },
+            "KindEnum": {
+                "enum": [
+                    "individual",
+                    "org"
+                ],
+                "type": "string",
+                "description": "* `individual` - Individual\n* `org` - Organization\n* `` - Not stated"
             },
             "LanguageEnum": {
                 "enum": [
@@ -2910,15 +2937,18 @@
                 "type": "object",
                 "description": "Serialize contacts (full card).",
                 "properties": {
-                    "civility": {
-                        "$ref": "#/components/schemas/CivilityEnum"
+                    "kind": {
+                        "$ref": "#/components/schemas/KindEnum"
+                    },
+                    "grammatical_gender": {
+                        "$ref": "#/components/schemas/GrammaticalGenderEnum"
                     },
                     "full_name": {
                         "type": "string"
                     },
                     "name_prefix": {
                         "type": "string",
-                        "description": "Title before the name (Dr, Pr, Me), civility aside."
+                        "description": "Title before the name (Dr, Pr, Me)."
                     },
                     "given_name": {
                         "type": "string"

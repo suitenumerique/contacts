@@ -38,7 +38,7 @@ def test_the_name_has_its_full_form_and_its_parts():
         family_name="Lovelace",
         name_suffix="PhD",
         nickname="Countess",
-        civility="mrs",
+        grammatical_gender="feminine",
     )
 
     card = jscontact.contact_card(contact)

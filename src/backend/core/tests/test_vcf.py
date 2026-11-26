@@ -629,8 +629,8 @@ def test_modeled_values_are_decoded():
     assert card["given_name"] == "John Paul"  # N components may be lists
     assert card["middle_name"] == "Q"
     assert card["name_suffix"] == "Jr"
-    assert card["civility"] == "mr"
-    assert card["name_prefix"] == ""  # "Mr." is the civility
+    assert card["grammatical_gender"] == "masculine"
+    assert card["name_prefix"] == ""  # "Mr." gives the grammatical gender
     assert card["company"] == "Brigny Agglo"
     assert card["department"] == "Direction, Service"
     assert card["job_title"] == "Chef, projet"  # not cut at the comma
@@ -675,12 +675,12 @@ def test_repeated_single_properties_are_kept():
 
 
 @pytest.mark.parametrize("prefix", ["Mlle", "Melle", "Mademoiselle", "Miss", "Ms."])
-def test_mademoiselle_and_ms_read_as_madame(prefix):
+def test_mademoiselle_and_ms_read_as_feminine(prefix):
     vcard = (
         f"BEGIN:VCARD\r\nVERSION:3.0\r\nFN:Ada\r\nN:;Ada;;{prefix},Dr;\r\nEND:VCARD\r\n"
     )
     (card,), _errors = parse_vcf(vcard)
-    assert card["civility"] == "mrs"
+    assert card["grammatical_gender"] == "feminine"
     assert card["name_prefix"] == "Dr"
 
 
@@ -708,7 +708,7 @@ def test_every_n_component_has_a_column():
         field: card[field]
         for field in (
             "full_name",
-            "civility",
+            "grammatical_gender",
             "name_prefix",
             "given_name",
             "middle_name",
@@ -718,7 +718,7 @@ def test_every_n_component_has_a_column():
         )
     } == {
         "full_name": "Hélène de La Tour",
-        "civility": "mrs",
+        "grammatical_gender": "feminine",
         "name_prefix": "Dr",
         "given_name": "Hélène",
         "middle_name": "Marie",
@@ -734,7 +734,7 @@ def test_every_n_component_has_a_column():
 def test_name_columns_written_on_the_web_serialize_to_n_and_nickname():
     contact = factories.ContactFactory(
         full_name="Hélène de La Tour",
-        civility="mrs",
+        grammatical_gender="feminine",
         name_prefix="Dr",
         given_name="Hélène",
         middle_name="Marie",
@@ -782,7 +782,7 @@ def test_row_written_on_the_web_serializes_inline_photo_and_uid():
         given_name="Ada",
         family_name="Lovelace",
         full_name="",
-        civility="mrs",
+        grammatical_gender="feminine",
         department="Maths",
         photo="data:image/png;base64,iVBORw0KGgo=",
     )
@@ -792,7 +792,7 @@ def test_row_written_on_the_web_serializes_inline_photo_and_uid():
     assert "\r\nPHOTO;ENCODING=b;TYPE=PNG:iVBORw0KGgo=\r\n" in output
     assert f"\r\nUID:{contact.pk}\r\n" in output
     (card,), _errors = parse_vcf(output)
-    assert card["civility"] == "mrs"
+    assert card["grammatical_gender"] == "feminine"
     assert card["photo"] == contact.photo
 
 

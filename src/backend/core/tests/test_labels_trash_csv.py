@@ -217,7 +217,7 @@ def test_parse_csv_maps_french_headers():
     assert errors == 0
     assert len(cards) == 2
     jeanne = cards[0]
-    assert jeanne["civility"] == "mrs"
+    assert jeanne["grammatical_gender"] == "feminine"
     assert jeanne["given_name"] == "Jeanne"
     assert jeanne["family_name"] == "Martin"
     assert jeanne["emails"] == [
@@ -229,11 +229,11 @@ def test_parse_csv_maps_french_headers():
     assert cards[1]["label_names"] == ["Élu", "Agent"]
 
 
-@pytest.mark.parametrize("civility", ["Mlle", "Melle", "Mademoiselle", "Miss", "Ms"])
-def test_parse_csv_reads_mademoiselle_and_ms_as_madame(civility):
-    (card,), errors = parse_csv(f"civilite,prenom,nom\n{civility},Ada,Lovelace\n")
+@pytest.mark.parametrize("honorific", ["Mlle", "Melle", "Mademoiselle", "Miss", "Ms"])
+def test_parse_csv_reads_mademoiselle_and_ms_as_feminine(honorific):
+    (card,), errors = parse_csv(f"civilite,prenom,nom\n{honorific},Ada,Lovelace\n")
     assert errors == 0
-    assert card["civility"] == "mrs"
+    assert card["grammatical_gender"] == "feminine"
 
 
 def test_csv_import_task_creates_contacts_with_labels(user):
@@ -241,7 +241,7 @@ def test_csv_import_task_creates_contacts_with_labels(user):
     assert result["imported"] == 2
 
     paul = models.Contact.objects.get(owner=user, family_name="Durand")
-    assert paul.civility == "mr"
+    assert paul.grammatical_gender == "masculine"
     assert sorted(label.name for label in paul.labels.all()) == ["Agent", "Élu"]
 
 
@@ -283,7 +283,7 @@ def test_csv_export_round_trip(client, user):
     label = models.ContactLabel.objects.create(owner=user, name="Agent")
     contact = factories.ContactFactory(
         owner=user,
-        civility="mrs",
+        grammatical_gender="feminine",
         given_name="Jeanne",
         family_name="Martin",
         full_name="Jeanne Martin",
@@ -302,13 +302,13 @@ def test_csv_export_round_trip(client, user):
     assert errors == 0
     assert len(cards) == 1
     assert cards[0]["family_name"] == "Martin"
-    assert cards[0]["civility"] == "mrs"
+    assert cards[0]["grammatical_gender"] == "feminine"
     assert cards[0]["label_names"] == ["Agent"]
 
 
 def test_csv_export_round_trips_every_name_column(client, user):
     names = {
-        "civility": "mrs",
+        "grammatical_gender": "feminine",
         "name_prefix": "Dr",
         "given_name": "Hélène",
         "middle_name": "Marie",
@@ -318,14 +318,31 @@ def test_csv_export_round_trips_every_name_column(client, user):
         "nickname": "Léna",
     }
     factories.ContactFactory(owner=user, **names)
-    factories.ContactFactory(owner=user, full_name="Médiathèque de Brigny")
+    factories.ContactFactory(owner=user, full_name="Médiathèque de Brigny", kind="org")
 
     cards, _errors = parse_csv(client.get(f"{CONTACTS_URL}export-csv/").content)
 
     by_name = {card["full_name"]: card for card in cards}
     helene = by_name["Hélène de La Tour"]
     assert {field: helene[field] for field in names} == names
+    assert helene["kind"] == ""
     assert by_name["Médiathèque de Brigny"]["family_name"] == ""
+    assert by_name["Médiathèque de Brigny"]["kind"] == "org"
+
+
+@pytest.mark.parametrize(
+    "cell, gender",
+    [("neuter", "neuter"), ("Feminine", "feminine"), ("Mme", "feminine"), ("x", "")],
+)
+def test_parse_csv_reads_a_grammatical_gender_or_an_honorific(cell, gender):
+    (card,), _errors = parse_csv(f"grammatical_gender,full_name\n{cell},Ada\n")
+    assert card["grammatical_gender"] == gender
+
+
+@pytest.mark.parametrize("cell, kind", [("org", "org"), ("ORG", "org"), ("x", "")])
+def test_parse_csv_reads_the_kind(cell, kind):
+    (card,), _errors = parse_csv(f"kind,full_name\n{cell},Brigny\n")
+    assert card["kind"] == kind
 
 
 def test_csv_export_round_trips_every_typed_value_and_notes(client, user):
@@ -703,7 +720,7 @@ def test_import_drops_an_unusable_photo_but_keeps_the_card(user, monkeypatch):
         return (
             [
                 {
-                    "civility": "",
+                    "grammatical_gender": "",
                     "given_name": "Jeanne",
                     "family_name": "Martin",
                     "full_name": "Jeanne Martin",

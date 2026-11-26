@@ -36,7 +36,7 @@ def test_create_and_retrieve_contact(client):
     response = client.post(
         CONTACTS_URL,
         {
-            "civility": "mrs",
+            "grammatical_gender": "feminine",
             "given_name": "Jeanne",
             "family_name": "Martin",
             "full_name": "Jeanne Martin",
@@ -50,12 +50,32 @@ def test_create_and_retrieve_contact(client):
     assert response.status_code == 201, response.content
     data = response.json()
     assert data["display_name"] == "Jeanne Martin"
-    assert data["civility"] == "mrs"
+    assert data["grammatical_gender"] == "feminine"
     assert data["is_org_contact"] is False
 
     detail = client.get(f"{CONTACTS_URL}{data['id']}/")
     assert detail.status_code == 200
     assert detail.json()["emails"] == [{"type": "work", "value": "jeanne@example.org"}]
+
+
+def test_create_an_organization_contact(client):
+    response = client.post(
+        CONTACTS_URL,
+        {"kind": "org", "full_name": "Médiathèque de Brigny"},
+        format="json",
+    )
+    assert response.status_code == 201, response.content
+    assert response.json()["kind"] == "org"
+    assert response.json()["grammatical_gender"] == ""
+
+
+@pytest.mark.parametrize("field", ["kind", "grammatical_gender"])
+def test_create_rejects_an_unknown_value(client, field):
+    response = client.post(
+        CONTACTS_URL, {"full_name": "Ada", field: "mrs"}, format="json"
+    )
+    assert response.status_code == 400
+    assert response.json()["errors"][0]["attr"] == field
 
 
 def test_create_requires_a_name(client):

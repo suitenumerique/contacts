@@ -124,7 +124,7 @@ CONTACT_FIELDS = (
     "source",
     "overlay_of_id",
     "overridden_fields",
-    "civility",
+    "grammatical_gender",
     "full_name",
     "name_prefix",
     "given_name",

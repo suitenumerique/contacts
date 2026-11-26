@@ -1129,7 +1129,7 @@ def test_get_then_unchanged_put_is_a_no_op(auth, user):
         full_name="",
         given_name="Ada",
         family_name="Lovelace",
-        civility="mrs",
+        grammatical_gender="feminine",
         department="Maths",
         emails=[{"type": "", "value": "Ada@Example.org"}],
         addresses=[{"type": "home", "value": "1 rue X\r\n75001 Paris"}],
