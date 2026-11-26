@@ -160,7 +160,12 @@ class OIDCAuthenticationBackend(LaSuiteOIDCAuthenticationBackend):
         try:
             return self.UserModel.objects.get_user_by_sub_or_email(sub, email)
         except DuplicateEmailError as err:
-            raise SuspiciousOperation(err.message) from err
+            # A concurrent call can create the user of this sub between the
+            # lookup by sub and the check of the email. Look up the sub again.
+            user = self.UserModel.objects.filter(sub=sub).first()
+            if user is None:
+                raise SuspiciousOperation(err.message) from err
+            return user
 
     def create_user(self, claims):
         """Create a new user, resolving their organization first.

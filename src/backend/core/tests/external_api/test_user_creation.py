@@ -139,6 +139,41 @@ def test_a_concurrent_first_call_of_the_same_organization_is_served():
     assert user.organization.external_id == "brigny.example"
 
 
+@responses.activate
+def test_a_concurrent_first_call_is_served_without_the_email_fallback(settings):
+    """A concurrent first call is served without the email fallback."""
+    settings.OIDC_FALLBACK_TO_EMAIL_FOR_IDENTIFICATION = False
+    _mock_token()
+    responses.add(responses.GET, USERINFO_URL, json={"sub": SUB, "email": EMAIL})
+    lookup = models.User.objects.filter
+
+    def create_before_the_email_check(*args, **kwargs):
+        # The other call creates the user after the lookup by sub of this
+        # call. The check of the email then finds that user.
+        if kwargs == {"email": EMAIL} and not lookup(sub=SUB).exists():
+            factories.UserFactory(sub=SUB, email=EMAIL)
+        return lookup(*args, **kwargs)
+
+    with mock.patch.object(
+        models.User.objects, "filter", side_effect=create_before_the_email_check
+    ):
+        assert _client().get(URL).status_code == 200
+
+    assert models.User.objects.filter(sub=SUB).count() == 1
+
+
+@responses.activate
+def test_an_other_person_with_the_same_email_is_refused(settings):
+    """An other person with the same email is refused."""
+    settings.OIDC_FALLBACK_TO_EMAIL_FOR_IDENTIFICATION = False
+    factories.UserFactory(sub="someone-else", email=EMAIL)
+    _mock_token()
+    responses.add(responses.GET, USERINFO_URL, json={"sub": SUB, "email": EMAIL})
+
+    assert _client().get(URL).status_code == 401
+    assert not models.User.objects.filter(sub=SUB).exists()
+
+
 @pytest.mark.parametrize(
     "error",
     [ValidationError("User with this Sub already exists."), IntegrityError("sub")],
