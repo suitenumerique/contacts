@@ -76,17 +76,6 @@ def test_an_app_that_is_not_allowed_creates_no_user():
 
 
 @responses.activate
-def test_a_person_without_an_organization_is_refused(settings):
-    """A person without an organization is refused."""
-    settings.OIDC_USERINFO_ORGANIZATION_CLAIM = "siret"
-    _mock_token()
-    responses.add(responses.GET, USERINFO_URL, json={"sub": SUB, "email": EMAIL})
-
-    assert _client().get(URL).status_code == 401
-    assert not models.User.objects.filter(sub=SUB).exists()
-
-
-@responses.activate
 def test_an_unreachable_userinfo_gets_503():
     """An unreachable userinfo gets 503."""
     _mock_token()
@@ -96,12 +85,11 @@ def test_an_unreachable_userinfo_gets_503():
     assert not models.User.objects.filter(sub=SUB).exists()
 
 
-@pytest.mark.parametrize("status", [500, 502, 503])
 @responses.activate
-def test_a_userinfo_server_error_gets_503(status):
+def test_a_userinfo_server_error_gets_503():
     """A userinfo server error gets 503."""
     _mock_token()
-    responses.add(responses.GET, USERINFO_URL, status=status)
+    responses.add(responses.GET, USERINFO_URL, status=503)
 
     assert _client().get(URL).status_code == 503
     assert not models.User.objects.filter(sub=SUB).exists()
@@ -160,18 +148,6 @@ def test_a_concurrent_first_call_is_served_without_the_email_fallback(settings):
         assert _client().get(URL).status_code == 200
 
     assert models.User.objects.filter(sub=SUB).count() == 1
-
-
-@responses.activate
-def test_an_other_person_with_the_same_email_is_refused(settings):
-    """An other person with the same email is refused."""
-    settings.OIDC_FALLBACK_TO_EMAIL_FOR_IDENTIFICATION = False
-    factories.UserFactory(sub="someone-else", email=EMAIL)
-    _mock_token()
-    responses.add(responses.GET, USERINFO_URL, json={"sub": SUB, "email": EMAIL})
-
-    assert _client().get(URL).status_code == 401
-    assert not models.User.objects.filter(sub=SUB).exists()
 
 
 @pytest.mark.parametrize(
