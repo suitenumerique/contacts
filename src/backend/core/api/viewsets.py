@@ -379,6 +379,21 @@ class ContactViewSet(ActingUserMixin, SerializerPerActionMixin, viewsets.ModelVi
                 message="This contact is read-only; edit a local copy instead.",
             )
 
+    @staticmethod
+    def _lock(contact):
+        """Read the contact again and lock its row until the transaction ends.
+
+        The row that ``get_object`` read can be stale. A concurrent delete or
+        restore of the same contact waits for the lock. The caller then
+        checks the current state of the row.
+        """
+        locked = (
+            models.Contact.objects.select_for_update().filter(pk=contact.pk).first()
+        )
+        if locked is None:
+            raise drf_exceptions.NotFound("Contact not found.")
+        return locked
+
     def _serialize(self, contact):
         return serializers.ContactSerializer(
             contact, context=self.get_serializer_context()
@@ -508,6 +523,7 @@ class ContactViewSet(ActingUserMixin, SerializerPerActionMixin, viewsets.ModelVi
         so it is removed outright rather than sent to the corbeille.
         """
         self._check_writable(instance)
+        instance = self._lock(instance)
         if instance.overlay_of_id is not None:
             instance.delete()
             return
@@ -531,11 +547,14 @@ class ContactViewSet(ActingUserMixin, SerializerPerActionMixin, viewsets.ModelVi
         """Restore a contact from the corbeille."""
         contact = self.get_object()
         self._check_writable(contact)
-        if contact.deleted_at is not None:
-            contact.deleted_at = None
-            with transaction.atomic():
-                contact.save(update_fields=["deleted_at", "updated_at"])
-        return response.Response(self._serialize(contact))
+        with transaction.atomic():
+            locked = self._lock(contact)
+            if locked.deleted_at is not None:
+                locked.deleted_at = None
+                locked.save(update_fields=["deleted_at", "updated_at"])
+        return response.Response(
+            self._serialize(self.get_queryset().get(pk=contact.pk))
+        )
 
     def _queue_import(self, request, file_format):
         """Validate the uploaded file and queue the import task.
