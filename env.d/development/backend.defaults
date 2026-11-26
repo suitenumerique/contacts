@@ -62,3 +62,4 @@ OIDC_OP_INTROSPECTION_ENDPOINT=http://keycloak:8080/realms/contacts/protocol/ope
 OIDC_RS_CLIENT_ID=contacts
 OIDC_RS_CLIENT_SECRET=ThisIsAnExampleKeyForDevPurposeOnly
 OIDC_RS_ALLOWED_AUDIENCES=drive
+OIDC_RS_CREATE_USER=True

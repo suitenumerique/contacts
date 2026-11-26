@@ -12,12 +12,13 @@ import time
 
 from django.conf import settings
 from django.core.cache import cache
-from django.core.exceptions import SuspiciousOperation
+from django.core.exceptions import SuspiciousOperation, ValidationError
+from django.db import IntegrityError
 
 from joserfc.errors import JoseError
 from lasuite.oidc_resource_server.backend import ResourceServerBackend
 from requests.exceptions import ConnectionError as RequestsConnectionError
-from requests.exceptions import Timeout
+from requests.exceptions import HTTPError, Timeout
 from rest_framework import status
 from rest_framework.exceptions import APIException, AuthenticationFailed
 
@@ -32,6 +33,13 @@ class AuthorizationServerUnavailable(APIException):
     status_code = status.HTTP_503_SERVICE_UNAVAILABLE
     default_detail = "The authorization server is unavailable. Try again later."
     default_code = "authorization_server_unavailable"
+
+
+def _is_server_error(exc):
+    """Tell if *exc* is an HTTP error answer of status 5xx."""
+    if not isinstance(exc, HTTPError) or exc.response is None:
+        return False
+    return exc.response.status_code >= 500
 
 
 def introspection_cache_key(access_token):
@@ -72,6 +80,38 @@ class ContactsResourceServerBackend(ResourceServerBackend):
         if ttl > 0:
             cache.set(key, user_info, ttl)
         return user_info
+
+    def get_or_create_user(self, access_token, id_token, payload):
+        """Return the user of the token. Create the user for an allowed app only.
+
+        With ``OIDC_RS_CREATE_USER``, lasuite creates a user that it does not
+        know. The call of an app that is not in ``OIDC_RS_ALLOWED_AUDIENCES``
+        is refused after the authentication, and a refused call must not write.
+        """
+        if self.token_origin_audience not in settings.OIDC_RS_ALLOWED_AUDIENCES:
+            return self.get_user(access_token, id_token, payload)
+        try:
+            return super().get_or_create_user(access_token, id_token, payload)
+        except (IntegrityError, ValidationError) as exc:
+            # Usually a concurrent call of the same person created the user
+            # first. The model validates the unique sub before the insert, so
+            # either error can occur.
+            user = self.get_user(access_token, id_token, payload)
+            if user is None:
+                raise
+            logger.debug("User created by a concurrent call: %s", exc)
+            return user
+        except (RequestsConnectionError, Timeout) as exc:
+            logger.warning("Userinfo failed: %s", exc)
+            raise AuthorizationServerUnavailable() from exc
+        except SuspiciousOperation as exc:
+            # lasuite turns an HTTP error of the userinfo into this error. An
+            # error of the server is not the token's fault. The 503 handling
+            # can go when lasuite includes suitenumerique/django-lasuite#117.
+            if not _is_server_error(exc.__cause__):
+                raise
+            logger.warning("Userinfo failed: %s", exc.__cause__)
+            raise AuthorizationServerUnavailable() from exc
 
     def _introspect_or_401(self, access_token):
         """Introspect: 401 for a rejected token, 503 if the server is down.
